@@ -33,9 +33,12 @@
             <div class="left-panel">
                 <div class="endpoint-selector">
                     <label for="endpoint-dropdown">Select Endpoint</label>
-                    <select id="endpoint-dropdown" class="endpoint-dropdown">
-                        <option value="">Choose an endpoint...</option>
-                    </select>
+                    <div class="endpoint-dropdown-container">
+                        <select id="endpoint-dropdown" class="endpoint-dropdown">
+                            <option value="">Choose an endpoint...</option>
+                        </select>
+                        <button id="delete-endpoint-btn" class="btn secondary small endpoint-delete-btn hidden" title="Delete Custom Endpoint">🗑️</button>
+                    </div>
                 </div>
                 
                 <div id="endpoint-info" class="endpoint-info hidden">
@@ -172,21 +175,21 @@
         <div id="custom-endpoint-modal" class="modal hidden">
             <div class="modal-content">
                 <h3>Add Custom Endpoint</h3>
-                <div class="custom-endpoint-tabs">
-                    <button id="url-tab" class="tab-button active">From URL</button>
-                    <button id="file-tab" class="tab-button">From File</button>
-                </div>
                 
-                <div id="url-method" class="endpoint-method">
-                    <label for="openapi-url">OpenAPI Schema URL</label>
-                    <input type="url" id="openapi-url" placeholder="https://example.com/openapi.json">
-                    <small>Enter a URL to an OpenAPI 3.0+ JSON schema</small>
-                </div>
-                
-                <div id="file-method" class="endpoint-method hidden">
-                    <label for="openapi-file">OpenAPI Schema File</label>
-                    <input type="file" id="openapi-file" accept=".json">
-                    <small>Select a JSON file with OpenAPI 3.0+ schema</small>
+                <div class="field-group">
+                    <label>OpenAPI Schema File</label>
+                    <div class="upload-area" id="schema-upload-area">
+                        <div class="upload-content">
+                            <span>📄</span>
+                            <span>Drop OpenAPI schema file here or click to browse</span>
+                            <small>Supports JSON files with OpenAPI 3.0+ specification</small>
+                        </div>
+                        <input type="file" id="openapi-file" accept=".json" style="display: none;">
+                    </div>
+                    <div id="schema-file-info" class="file-info hidden">
+                        <span id="schema-file-name"></span>
+                        <button id="schema-remove-file" class="btn secondary small">Remove</button>
+                    </div>
                 </div>
                 
                 <div class="modal-actions">

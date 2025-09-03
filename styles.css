@@ -222,8 +222,14 @@ body {
     color: #374151;
 }
 
+.endpoint-dropdown-container {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
 .endpoint-dropdown {
-    width: 100%;
+    flex: 1;
     padding: 0.75rem;
     border: 1px solid #d1d5db;
     border-radius: 8px;
@@ -231,6 +237,19 @@ body {
     font-size: 0.875rem;
     color: #374151;
     cursor: pointer;
+}
+
+.endpoint-delete-btn {
+    flex-shrink: 0;
+    padding: 0.75rem;
+    color: #ef4444;
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.endpoint-delete-btn:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
 }
 
 .endpoint-dropdown:focus {
@@ -1705,33 +1724,19 @@ body {
     background: #f9fafb;
 }
 
-.endpoint-method {
+/* File info display */
+.file-info {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    margin-top: 1rem;
 }
 
-.endpoint-method label {
+.file-info span {
     font-weight: 500;
     color: #374151;
-}
-
-.endpoint-method input[type="url"],
-.endpoint-method input[type="file"] {
-    padding: 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 0.875rem;
-}
-
-.endpoint-method input[type="url"]:focus,
-.endpoint-method input[type="file"]:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.endpoint-method small {
-    color: #6b7280;
-    font-size: 0.8rem;
 }

@@ -236,9 +236,13 @@ class FalAI {
         for (const [id, endpoint] of this.endpoints) {
             const option = document.createElement('option');
             option.value = id;
-            option.textContent = `${endpoint.metadata.endpointId} (${endpoint.metadata.category})`;
+            const isCustom = id.startsWith('custom-');
+            option.textContent = `${endpoint.metadata.endpointId} (${endpoint.metadata.category})${isCustom ? ' 🔧' : ''}`;
             dropdown.appendChild(option);
         }
+
+        // Update delete button visibility for current selection
+        this.updateDeleteButtonVisibility(dropdown.value);
     }
 
     selectEndpoint(endpointId) {
@@ -246,6 +250,7 @@ class FalAI {
         if (!endpoint) return;
 
         this.currentEndpoint = endpoint;
+        this.currentEndpointId = endpointId;
 
         this.showEndpointInfo();
         this.generateForm();
@@ -254,6 +259,7 @@ class FalAI {
 
     clearEndpointSelection() {
         this.currentEndpoint = null;
+        this.currentEndpointId = null;
 
         // Hide endpoint info and form
         document.getElementById('endpoint-info').classList.add('hidden');
@@ -273,6 +279,50 @@ class FalAI {
         document.getElementById('docs-link').href = endpoint.metadata.documentationUrl;
 
         info.classList.remove('hidden');
+    }
+
+    updateDeleteButtonVisibility(endpointId) {
+        const deleteBtn = document.getElementById('delete-endpoint-btn');
+        if (endpointId && endpointId.startsWith('custom-')) {
+            deleteBtn.classList.remove('hidden');
+        } else {
+            deleteBtn.classList.add('hidden');
+        }
+    }
+
+    deleteCurrentEndpoint() {
+        if (!this.currentEndpointId || !this.currentEndpointId.startsWith('custom-')) {
+            return;
+        }
+
+        const endpoint = this.endpoints.get(this.currentEndpointId);
+        if (!endpoint) return;
+
+        const endpointName = endpoint.metadata.endpointId;
+        
+        if (confirm(`Are you sure you want to delete the custom endpoint "${endpointName}"? This action cannot be undone.`)) {
+            // Remove from endpoints map
+            this.endpoints.delete(this.currentEndpointId);
+            
+            // Update storage
+            this.saveCustomEndpoints();
+            
+            // Update UI
+            this.renderEndpointDropdown();
+            this.clearEndpointSelection();
+            this.updateDeleteButtonVisibility(null);
+            
+            // Reset dropdown selection
+            document.getElementById('endpoint-dropdown').value = '';
+            
+            // Show success message
+            this.logDebug(`Successfully deleted custom endpoint: ${endpointName}`, 'success');
+            
+            // Show alert if debug is disabled
+            if (!this.debugMode) {
+                alert(`Successfully deleted custom endpoint: ${endpointName}`);
+            }
+        }
     }
 
     generateForm() {
@@ -805,9 +855,16 @@ class FalAI {
             const endpointId = e.target.value;
             if (endpointId) {
                 this.selectEndpoint(endpointId);
+                this.updateDeleteButtonVisibility(endpointId);
             } else {
                 this.clearEndpointSelection();
+                this.updateDeleteButtonVisibility(null);
             }
+        });
+
+        // Delete endpoint button
+        document.getElementById('delete-endpoint-btn').addEventListener('click', () => {
+            this.deleteCurrentEndpoint();
         });
 
         // Full-screen viewer controls
@@ -890,7 +947,6 @@ class FalAI {
         // Custom endpoint modal
         document.getElementById('add-endpoint-btn').addEventListener('click', () => {
             document.getElementById('custom-endpoint-modal').classList.remove('hidden');
-            this.switchEndpointTab('url');
         });
 
         document.getElementById('cancel-custom-endpoint').addEventListener('click', () => {
@@ -901,13 +957,44 @@ class FalAI {
             this.addCustomEndpoint();
         });
 
-        // Custom endpoint tabs
-        document.getElementById('url-tab').addEventListener('click', () => {
-            this.switchEndpointTab('url');
+        // Schema file upload
+        const schemaUploadArea = document.getElementById('schema-upload-area');
+        const schemaFileInput = document.getElementById('openapi-file');
+        const schemaFileInfo = document.getElementById('schema-file-info');
+        const schemaFileName = document.getElementById('schema-file-name');
+        const schemaRemoveFile = document.getElementById('schema-remove-file');
+
+        schemaUploadArea.addEventListener('click', () => {
+            schemaFileInput.click();
         });
 
-        document.getElementById('file-tab').addEventListener('click', () => {
-            this.switchEndpointTab('file');
+        schemaUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            schemaUploadArea.classList.add('drag-over');
+        });
+
+        schemaUploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            schemaUploadArea.classList.remove('drag-over');
+        });
+
+        schemaUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            schemaUploadArea.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/json') {
+                this.handleSchemaFileSelection(files[0]);
+            }
+        });
+
+        schemaFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                this.handleSchemaFileSelection(e.target.files[0]);
+            }
+        });
+
+        schemaRemoveFile.addEventListener('click', () => {
+            this.clearSchemaFileSelection();
         });
 
         // Close modals on background click
@@ -2965,65 +3052,40 @@ class FalAI {
     }
 
     // Custom endpoint functions
-    switchEndpointTab(tab) {
-        const urlTab = document.getElementById('url-tab');
-        const fileTab = document.getElementById('file-tab');
-        const urlMethod = document.getElementById('url-method');
-        const fileMethod = document.getElementById('file-method');
+    handleSchemaFileSelection(file) {
+        const schemaFileInfo = document.getElementById('schema-file-info');
+        const schemaFileName = document.getElementById('schema-file-name');
+        
+        schemaFileName.textContent = file.name;
+        schemaFileInfo.classList.remove('hidden');
+    }
 
-        if (tab === 'url') {
-            urlTab.classList.add('active');
-            fileTab.classList.remove('active');
-            urlMethod.classList.remove('hidden');
-            fileMethod.classList.add('hidden');
-        } else {
-            fileTab.classList.add('active');
-            urlTab.classList.remove('active');
-            fileMethod.classList.remove('hidden');
-            urlMethod.classList.add('hidden');
-        }
+    clearSchemaFileSelection() {
+        const schemaFileInfo = document.getElementById('schema-file-info');
+        const schemaFileInput = document.getElementById('openapi-file');
+        
+        schemaFileInfo.classList.add('hidden');
+        schemaFileInput.value = '';
     }
 
     closeCustomEndpointModal() {
         document.getElementById('custom-endpoint-modal').classList.add('hidden');
-        // Reset form
-        document.getElementById('openapi-url').value = '';
-        document.getElementById('openapi-file').value = '';
-        this.switchEndpointTab('url'); // Reset to URL tab
+        this.clearSchemaFileSelection();
     }
 
     async addCustomEndpoint() {
         try {
-            const urlTab = document.getElementById('url-tab');
-            const isUrlMethod = urlTab.classList.contains('active');
-
-            let schema;
-            let endpointName;
-
-            if (isUrlMethod) {
-                // Load from URL
-                const url = document.getElementById('openapi-url').value.trim();
-                if (!url) {
-                    alert('Please enter a valid URL');
-                    return;
-                }
-
-                this.logDebug(`Loading custom endpoint from URL: ${url}`, 'info');
-                schema = await this.loadEndpointFromUrl(url);
-                endpointName = this.extractEndpointNameFromUrl(url);
-            } else {
-                // Load from file
-                const fileInput = document.getElementById('openapi-file');
-                const file = fileInput.files[0];
-                if (!file) {
-                    alert('Please select a JSON file');
-                    return;
-                }
-
-                this.logDebug(`Loading custom endpoint from file: ${file.name}`, 'info');
-                schema = await this.loadEndpointFromFile(file);
-                endpointName = file.name.replace(/\.json$/, '');
+            // Load from file
+            const fileInput = document.getElementById('openapi-file');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a JSON file');
+                return;
             }
+
+            this.logDebug(`Loading custom endpoint from file: ${file.name}`, 'info');
+            const schema = await this.loadEndpointFromFile(file);
+            const endpointName = file.name.replace(/\.json$/, '');
 
             // Validate schema
             if (!this.validateOpenAPISchema(schema)) {
@@ -3057,13 +3119,6 @@ class FalAI {
         }
     }
 
-    async loadEndpointFromUrl(url) {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Failed to load from URL: ${response.status} ${response.statusText}`);
-        }
-        return await response.json();
-    }
 
     async loadEndpointFromFile(file) {
         return new Promise((resolve, reject) => {
@@ -3129,16 +3184,6 @@ class FalAI {
         return metadata;
     }
 
-    extractEndpointNameFromUrl(url) {
-        try {
-            const urlObj = new URL(url);
-            const segments = urlObj.pathname.split('/');
-            const filename = segments[segments.length - 1];
-            return filename.replace(/\.json$/, '') || 'custom-endpoint';
-        } catch {
-            return 'custom-endpoint';
-        }
-    }
 
     saveCustomEndpoints() {
         const customEndpoints = {};
