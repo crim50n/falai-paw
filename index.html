@@ -4,15 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FalAI - Universal AI Image Generation</title>
-    
+
     <!-- PWA metadata -->
     <meta name="description" content="Universal web application for AI image generation APIs">
     <meta name="theme-color" content="#f8fafc">
     <link rel="manifest" href="manifest.json">
-    
+
     <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
-    
+
     <!-- Icons -->
     <link rel="icon" href="favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="favicon.png">
@@ -28,7 +28,7 @@
                 <button id="api-key-btn" class="btn secondary">Set API Key</button>
             </div>
         </header>
-        
+
         <main class="main">
             <div class="left-panel">
                 <div class="endpoint-selector">
@@ -37,10 +37,9 @@
                         <select id="endpoint-dropdown" class="endpoint-dropdown">
                             <option value="">Choose an endpoint...</option>
                         </select>
-                        <button id="delete-endpoint-btn" class="btn secondary small endpoint-delete-btn hidden" title="Delete Custom Endpoint">🗑️</button>
                     </div>
                 </div>
-                
+
                 <div id="endpoint-info" class="endpoint-info hidden">
                     <div class="endpoint-header">
                         <img id="endpoint-thumbnail" class="endpoint-thumbnail" src="" alt="">
@@ -50,20 +49,21 @@
                             <div class="endpoint-links">
                                 <a id="playground-link" href="#" target="_blank" class="btn secondary small">Playground</a>
                                 <a id="docs-link" href="#" target="_blank" class="btn secondary small">Docs</a>
+                                <button id="delete-endpoint-btn" class="btn small endpoint-delete-btn hidden" title="Delete Custom Endpoint">Delete</button>
                             </div>
                         </div>
                     </div>
                 </div>
-                
+
                 <div id="api-form" class="api-form hidden">
                     <h4>Parameters</h4>
                     <form id="generation-form">
                         <div id="form-fields"></div>
                     </form>
                 </div>
-                
+
             </div>
-            
+
             <div class="right-panel">
                 <div class="right-panel-header">
                     <div class="panel-tabs">
@@ -71,7 +71,7 @@
                         <button id="gallery-panel-tab" class="panel-tab-button">Gallery</button>
                     </div>
                 </div>
-                
+
                 <div class="image-preview-area">
                     <!-- Generation Status -->
                     <div id="generation-status" class="generation-status-panel hidden">
@@ -91,7 +91,7 @@
                             <button id="cancel-btn" class="status-cancel-btn btn secondary small">Cancel</button>
                         </div>
                     </div>
-                    
+
                     <div id="no-images-placeholder" class="no-images-placeholder">
                         <div class="placeholder-content">
                             <span class="placeholder-icon">🖼️</span>
@@ -99,7 +99,7 @@
                             <p>Select an endpoint and generate your first image</p>
                         </div>
                     </div>
-                    
+
                     <div id="results" class="results hidden">
                         <div class="results-header">
                             <h3>Generated Images</h3>
@@ -113,7 +113,7 @@
                             <pre><code id="json-output"></code></pre>
                         </div>
                     </div>
-                    
+
                     <div id="inline-gallery" class="inline-gallery hidden">
                         <div class="gallery-header">
                             <h3>Saved Images</h3>
@@ -124,7 +124,7 @@
                 </div>
             </div>
         </main>
-        
+
         <!-- Debug Panel -->
         <div id="debug-panel" class="debug-panel hidden">
             <div class="debug-header">
@@ -133,14 +133,14 @@
             </div>
             <div id="debug-content" class="debug-content"></div>
         </div>
-        
+
         <!-- Debug Toggle -->
         <div class="debug-toggle">
             <label>
                 <input type="checkbox" id="debug-checkbox"> Debug Mode
             </label>
         </div>
-        
+
         <!-- API Key Modal -->
         <div id="api-key-modal" class="modal hidden">
             <div class="modal-content">
@@ -152,7 +152,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Full-screen Image Viewer -->
         <div id="fullscreen-viewer" class="fullscreen-viewer hidden">
             <div class="fullscreen-controls">
@@ -170,12 +170,12 @@
                 <div id="fullscreen-metadata"></div>
             </div>
         </div>
-        
+
         <!-- Custom Endpoint Modal -->
         <div id="custom-endpoint-modal" class="modal hidden">
             <div class="modal-content">
                 <h3>Add Custom Endpoint</h3>
-                
+
                 <div class="field-group">
                     <label>OpenAPI Schema File</label>
                     <div class="upload-area" id="schema-upload-area">
@@ -191,18 +191,18 @@
                         <button id="schema-remove-file" class="btn secondary small">Remove</button>
                     </div>
                 </div>
-                
+
                 <div class="modal-actions">
                     <button id="add-custom-endpoint" class="btn primary">Add Endpoint</button>
                     <button id="cancel-custom-endpoint" class="btn secondary">Cancel</button>
                 </div>
             </div>
         </div>
-        
+
         <!-- Hidden file input for settings import -->
         <input type="file" id="import-file-input" accept=".json" style="display: none;">
     </div>
-    
+
     <script src="app.js"></script>
 </body>
 </html>

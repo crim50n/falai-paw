@@ -240,16 +240,14 @@ body {
 }
 
 .endpoint-delete-btn {
-    flex-shrink: 0;
-    padding: 0.75rem;
-    color: #ef4444;
-    border-color: #fecaca;
-    background: #fef2f2;
+    color: #ffffff;
+    border-color: #dc2626;
+    background: #dc2626;
 }
 
 .endpoint-delete-btn:hover {
-    background: #fee2e2;
-    border-color: #fca5a5;
+    background: #b91c1c;
+    border-color: #b91c1c;
 }
 
 .endpoint-dropdown:focus {
@@ -1518,14 +1516,14 @@ body {
         right: 0.5rem;
         bottom: 50px;
     }
-    
+
     .debug-toggle {
         bottom: 0.5rem;
         right: 0.5rem;
         padding: 0.375rem 0.75rem;
         font-size: 0.8rem;
     }
-    
+
     .debug-content {
         padding: 0.75rem;
         font-size: 0.7rem;
@@ -1554,42 +1552,42 @@ body {
         padding: 1rem;
         height: auto;
     }
-    
+
     .left-panel {
         width: 100%;
         height: auto;
         overflow-y: visible;
     }
-    
+
     .right-panel {
         height: 50vh;
         min-height: 400px;
     }
-    
+
     .header {
         padding: 1rem;
         flex-direction: column;
         gap: 1rem;
         text-align: center;
     }
-    
+
     .header-controls {
         justify-content: center;
     }
-    
+
     .endpoint-header {
         flex-direction: column;
         text-align: center;
     }
-    
+
     .result-images {
         grid-template-columns: 1fr;
     }
-    
+
     .gallery-content {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
-    
+
     .fullscreen-controls {
         top: 0.5rem;
         left: 50%;
@@ -1597,13 +1595,13 @@ body {
         flex-wrap: wrap;
         gap: 0.5rem;
     }
-    
+
     .fullscreen-controls .btn {
         width: 44px;
         height: 44px;
         font-size: 1rem;
     }
-    
+
     .fullscreen-info {
         bottom: 0.5rem;
         left: 0.5rem;
@@ -1612,39 +1610,39 @@ body {
         gap: 0.5rem;
         text-align: center;
     }
-    
+
     #fullscreen-prev,
     #fullscreen-next {
         width: 56px;
         height: 56px;
         font-size: 1.5rem;
     }
-    
+
     #fullscreen-prev {
         left: 0.75rem;
     }
-    
+
     #fullscreen-next {
         right: 0.75rem;
     }
-    
+
     .modal-content.large {
         width: 95%;
         height: 90vh;
     }
-    
+
     .image-zoom-container {
         max-width: 95vw;
         max-height: 85vh;
     }
-    
+
     .zoom-controls {
         top: 0.5rem;
         left: 50%;
         transform: translateX(-50%);
         gap: 0.5rem;
     }
-    
+
     .image-zoom-container .close-zoom-btn,
     .image-zoom-container .zoom-download-btn,
     .image-zoom-container .zoom-delete-btn {
@@ -1652,17 +1650,17 @@ body {
         height: 36px;
         font-size: 0.9rem;
     }
-    
+
     .image-zoom-container .close-zoom-btn {
         top: 0.5rem;
         right: 0.5rem;
     }
-    
+
     .image-zoom-container .zoom-download-btn {
         bottom: 0.5rem;
         left: 0.5rem;
     }
-    
+
     .image-zoom-container .zoom-delete-btn {
         bottom: 0.5rem;
         right: 0.5rem;

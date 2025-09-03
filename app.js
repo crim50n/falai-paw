@@ -37,6 +37,7 @@ class FalAI {
     async init() {
         await this.loadEndpoints();
         this.loadCustomEndpoints();
+        this.renderEndpointDropdown(); // Re-render after loading custom endpoints
         this.setupEventListeners();
         this.restoreUIState();
         this.setupPWA();
@@ -283,6 +284,11 @@ class FalAI {
 
     updateDeleteButtonVisibility(endpointId) {
         const deleteBtn = document.getElementById('delete-endpoint-btn');
+        if (!deleteBtn) {
+            console.warn('delete-endpoint-btn element not found in updateDeleteButtonVisibility');
+            return;
+        }
+
         if (endpointId && endpointId.startsWith('custom-')) {
             deleteBtn.classList.remove('hidden');
         } else {
@@ -291,33 +297,40 @@ class FalAI {
     }
 
     deleteCurrentEndpoint() {
+        console.log('deleteCurrentEndpoint called, currentEndpointId:', this.currentEndpointId);
+
         if (!this.currentEndpointId || !this.currentEndpointId.startsWith('custom-')) {
+            console.log('Not a custom endpoint or no endpoint selected');
             return;
         }
 
         const endpoint = this.endpoints.get(this.currentEndpointId);
-        if (!endpoint) return;
+        if (!endpoint) {
+            console.log('Endpoint not found');
+            return;
+        }
 
         const endpointName = endpoint.metadata.endpointId;
-        
+        console.log('Deleting endpoint:', endpointName);
+
         if (confirm(`Are you sure you want to delete the custom endpoint "${endpointName}"? This action cannot be undone.`)) {
             // Remove from endpoints map
             this.endpoints.delete(this.currentEndpointId);
-            
+
             // Update storage
             this.saveCustomEndpoints();
-            
+
             // Update UI
             this.renderEndpointDropdown();
             this.clearEndpointSelection();
             this.updateDeleteButtonVisibility(null);
-            
+
             // Reset dropdown selection
             document.getElementById('endpoint-dropdown').value = '';
-            
+
             // Show success message
             this.logDebug(`Successfully deleted custom endpoint: ${endpointName}`, 'success');
-            
+
             // Show alert if debug is disabled
             if (!this.debugMode) {
                 alert(`Successfully deleted custom endpoint: ${endpointName}`);
@@ -863,9 +876,14 @@ class FalAI {
         });
 
         // Delete endpoint button
-        document.getElementById('delete-endpoint-btn').addEventListener('click', () => {
-            this.deleteCurrentEndpoint();
-        });
+        const deleteBtn = document.getElementById('delete-endpoint-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                this.deleteCurrentEndpoint();
+            });
+        } else {
+            console.warn('delete-endpoint-btn element not found');
+        }
 
         // Full-screen viewer controls
         document.getElementById('fullscreen-close').addEventListener('click', () => {
@@ -1731,7 +1749,7 @@ class FalAI {
         // Only allow deletion from gallery context
         if (context === 'gallery') {
             if (confirm('Are you sure you want to delete this image?')) {
-                this.deleteImageFromGallery(currentIndex);
+                this.deleteImageFromGallery(currentIndex, true); // Skip second confirm
 
                 // Update modal data after deletion
                 if (this.savedImages.length === 0) {
@@ -2501,8 +2519,8 @@ class FalAI {
         await this.downloadImage(imageData.url, filename);
     }
 
-    deleteImageFromGallery(index) {
-        if (!confirm('Are you sure you want to delete this image?')) {
+    deleteImageFromGallery(index, skipConfirm = false) {
+        if (!skipConfirm && !confirm('Are you sure you want to delete this image?')) {
             return;
         }
 
@@ -3055,7 +3073,7 @@ class FalAI {
     handleSchemaFileSelection(file) {
         const schemaFileInfo = document.getElementById('schema-file-info');
         const schemaFileName = document.getElementById('schema-file-name');
-        
+
         schemaFileName.textContent = file.name;
         schemaFileInfo.classList.remove('hidden');
     }
@@ -3063,7 +3081,7 @@ class FalAI {
     clearSchemaFileSelection() {
         const schemaFileInfo = document.getElementById('schema-file-info');
         const schemaFileInput = document.getElementById('openapi-file');
-        
+
         schemaFileInfo.classList.add('hidden');
         schemaFileInput.value = '';
     }
