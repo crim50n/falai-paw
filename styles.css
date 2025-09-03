@@ -780,6 +780,31 @@ body {
     align-self: center;
 }
 
+.slider-value-input {
+    font-weight: 600;
+    color: #1f2937;
+    text-align: center;
+    padding: 0.25rem 0.5rem;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    min-width: 60px;
+    max-width: 80px;
+    align-self: center;
+    transition: border-color 0.15s ease;
+}
+
+.slider-value-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.slider-value-input:invalid {
+    border-color: #ef4444;
+}
+
 .slider-labels {
     display: flex;
     justify-content: space-between;

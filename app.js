@@ -781,9 +781,13 @@ class FalAI {
         slider.value = schema.default || schema.minimum;
         slider.step = schema.type === 'integer' ? 1 : 0.1;
 
-        const valueDisplay = document.createElement('span');
-        valueDisplay.className = 'slider-value';
-        valueDisplay.textContent = slider.value;
+        const valueInput = document.createElement('input');
+        valueInput.type = 'number';
+        valueInput.className = 'slider-value-input';
+        valueInput.value = slider.value;
+        valueInput.min = schema.minimum;
+        valueInput.max = schema.maximum;
+        valueInput.step = schema.type === 'integer' ? 1 : 0.01; // More precise step for manual input
 
         const sliderLabels = document.createElement('div');
         sliderLabels.className = 'slider-labels';
@@ -792,13 +796,31 @@ class FalAI {
             <span>${schema.maximum}</span>
         `;
 
+        // Update input when slider changes
         slider.addEventListener('input', () => {
-            valueDisplay.textContent = slider.value;
+            valueInput.value = slider.value;
             this.saveEndpointSettings();
         });
 
+        // Update slider when input changes
+        valueInput.addEventListener('input', () => {
+            const value = parseFloat(valueInput.value);
+            if (!isNaN(value) && value >= schema.minimum && value <= schema.maximum) {
+                slider.value = value;
+                this.saveEndpointSettings();
+            }
+        });
+
+        // Validate input on blur
+        valueInput.addEventListener('blur', () => {
+            const value = parseFloat(valueInput.value);
+            if (isNaN(value) || value < schema.minimum || value > schema.maximum) {
+                valueInput.value = slider.value; // Reset to slider value if invalid
+            }
+        });
+
         sliderContainer.appendChild(slider);
-        sliderContainer.appendChild(valueDisplay);
+        sliderContainer.appendChild(valueInput);
         sliderContainer.appendChild(sliderLabels);
 
         field.appendChild(sliderContainer);
@@ -2023,7 +2045,13 @@ class FalAI {
             }
 
             if (settings.endpointSettings) {
-                this.endpointSettings = settings.endpointSettings;
+                // Filter out base64 data from imported settings
+                const filteredSettings = {};
+                for (const [endpointId, endpointData] of Object.entries(settings.endpointSettings)) {
+                    filteredSettings[endpointId] = this.filterBase64Data(endpointData);
+                }
+
+                this.endpointSettings = filteredSettings;
                 localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
             }
 
@@ -2649,8 +2677,68 @@ class FalAI {
         if (!this.currentEndpoint) return;
 
         const formData = this.collectFormData();
-        this.endpointSettings[this.currentEndpoint.metadata.endpointId] = formData;
+
+        // Filter out base64 image data to save localStorage space
+        const filteredData = this.filterBase64Data(formData);
+
+        // Log size savings in debug mode
+        if (this.debugMode) {
+            const originalSize = JSON.stringify(formData).length;
+            const filteredSize = JSON.stringify(filteredData).length;
+            const saved = originalSize - filteredSize;
+            if (saved > 0) {
+                console.log(`💾 Settings size: ${this.formatBytes(filteredSize)} (saved ${this.formatBytes(saved)} by excluding base64)`);
+            }
+        }
+
+        this.endpointSettings[this.currentEndpoint.metadata.endpointId] = filteredData;
         localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
+    }
+
+    filterBase64Data(data) {
+        const filtered = {};
+
+        for (const [key, value] of Object.entries(data)) {
+            // Skip fields with base64 image data
+            if (this.isBase64DataURL(value)) {
+                if (this.debugMode) {
+                    console.log(`🚫 Excluding base64 field '${key}' from settings (${this.formatBytes(value.length)})`);
+                }
+                continue;
+            }
+
+            // Recursively filter objects and arrays
+            if (typeof value === 'object' && value !== null) {
+                if (Array.isArray(value)) {
+                    // Filter arrays
+                    const filteredArray = value.map(item => {
+                        if (typeof item === 'object' && item !== null) {
+                            return this.filterBase64Data(item);
+                        } else if (this.isBase64DataURL(item)) {
+                            if (this.debugMode) {
+                                console.log(`🚫 Excluding base64 array item from '${key}' (${this.formatBytes(item.length)})`);
+                            }
+                            return undefined; // Skip base64 items
+                        }
+                        return item;
+                    }).filter(item => item !== undefined);
+
+                    if (filteredArray.length > 0) {
+                        filtered[key] = filteredArray;
+                    }
+                } else {
+                    // Filter nested objects
+                    const filteredObject = this.filterBase64Data(value);
+                    if (Object.keys(filteredObject).length > 0) {
+                        filtered[key] = filteredObject;
+                    }
+                }
+            } else {
+                filtered[key] = value;
+            }
+        }
+
+        return filtered;
     }
 
     restoreEndpointSettings(endpointId) {
@@ -2680,10 +2768,15 @@ class FalAI {
                 input.checked = Boolean(value);
             } else if (input.type === 'range') {
                 input.value = value;
-                // Update slider value display
+                // Update slider value display (old span element)
                 const valueDisplay = input.parentElement.querySelector('.slider-value');
                 if (valueDisplay) {
                     valueDisplay.textContent = value;
+                }
+                // Update slider value input (new input element)
+                const valueInput = input.parentElement.querySelector('.slider-value-input');
+                if (valueInput) {
+                    valueInput.value = value;
                 }
             } else {
                 input.value = value;
