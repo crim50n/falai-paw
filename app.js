@@ -80,7 +80,8 @@ class FalAI {
             'endpoints/flux-pro/kontext/openapi.json',
             'endpoints/flux-krea-lora/openapi.json',
             'endpoints/flux-lora/openapi.json',
-            'endpoints/flux-kontext/dev/openapi.json'
+            'endpoints/flux-kontext/dev/openapi.json',
+            'endpoints/nano-banana/edit/openapi.json'
         ];
         
         for (const path of knownEndpoints) {
