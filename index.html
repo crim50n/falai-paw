@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FalAI - Universal AI Image Generation</title>
+    
+    <!-- PWA metadata -->
+    <meta name="description" content="Universal web application for AI image generation APIs">
+    <meta name="theme-color" content="#f8fafc">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Icons -->
+    <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="favicon.png">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <h1>FalAI</h1>
+            <div class="header-controls">
+                <button id="api-key-btn" class="btn secondary">Set API Key</button>
+            </div>
+        </header>
+        
+        <main class="main">
+            <div class="left-panel">
+                <div class="endpoint-selector">
+                    <label for="endpoint-dropdown">Select Endpoint</label>
+                    <select id="endpoint-dropdown" class="endpoint-dropdown">
+                        <option value="">Choose an endpoint...</option>
+                    </select>
+                </div>
+                
+                <div id="endpoint-info" class="endpoint-info hidden">
+                    <div class="endpoint-header">
+                        <img id="endpoint-thumbnail" class="endpoint-thumbnail" src="" alt="">
+                        <div class="endpoint-details">
+                            <h3 id="endpoint-title"></h3>
+                            <p id="endpoint-category"></p>
+                            <div class="endpoint-links">
+                                <a id="playground-link" href="#" target="_blank" class="btn secondary small">Playground</a>
+                                <a id="docs-link" href="#" target="_blank" class="btn secondary small">Docs</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="api-form" class="api-form hidden">
+                    <h4>Parameters</h4>
+                    <form id="generation-form">
+                        <div id="form-fields"></div>
+                    </form>
+                </div>
+                
+                <div id="generation-status" class="generation-status hidden">
+                    <div class="status-header">
+                        <h4>Generation Status</h4>
+                        <button id="cancel-btn" class="btn secondary small">Cancel</button>
+                    </div>
+                    <div id="status-content"></div>
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <div class="right-panel-header">
+                    <div class="panel-tabs">
+                        <button id="results-panel-tab" class="panel-tab-button active">Results</button>
+                        <button id="gallery-panel-tab" class="panel-tab-button">Gallery</button>
+                    </div>
+                </div>
+                
+                <div class="image-preview-area">
+                    <div id="no-images-placeholder" class="no-images-placeholder">
+                        <div class="placeholder-content">
+                            <span class="placeholder-icon">🖼️</span>
+                            <h3>Generated images will appear here</h3>
+                            <p>Select an endpoint and generate your first image</p>
+                        </div>
+                    </div>
+                    
+                    <div id="results" class="results hidden">
+                        <div class="results-header">
+                            <h3>Generated Images</h3>
+                            <div class="results-tabs">
+                                <button id="images-tab" class="tab-button active">Images</button>
+                                <button id="json-tab" class="tab-button">JSON</button>
+                            </div>
+                        </div>
+                        <div id="result-images" class="result-images"></div>
+                        <div id="result-json" class="result-json hidden">
+                            <pre><code id="json-output"></code></pre>
+                        </div>
+                    </div>
+                    
+                    <div id="inline-gallery" class="inline-gallery hidden">
+                        <div class="gallery-header">
+                            <h3>Saved Images</h3>
+                            <span id="gallery-count" class="gallery-count"></span>
+                        </div>
+                        <div id="inline-gallery-content" class="inline-gallery-content"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- API Key Modal -->
+        <div id="api-key-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>Set API Key</h3>
+                <input type="password" id="api-key-input" placeholder="Enter your fal.ai API key">
+                <div class="modal-actions">
+                    <button id="save-api-key" class="btn primary">Save</button>
+                    <button id="cancel-api-key" class="btn secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Full-screen Image Viewer -->
+        <div id="fullscreen-viewer" class="fullscreen-viewer hidden">
+            <div class="fullscreen-controls">
+                <button id="fullscreen-prev" class="btn secondary">‹</button>
+                <button id="fullscreen-download" class="btn secondary">💾</button>
+                <button id="fullscreen-delete" class="btn secondary">🗑️</button>
+                <button id="fullscreen-close" class="btn secondary">✕</button>
+                <button id="fullscreen-next" class="btn secondary">›</button>
+            </div>
+            <div class="fullscreen-image-container">
+                <img id="fullscreen-image" src="" alt="">
+            </div>
+            <div class="fullscreen-info">
+                <div id="fullscreen-counter"></div>
+                <div id="fullscreen-metadata"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
