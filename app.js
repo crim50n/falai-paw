@@ -3384,11 +3384,17 @@ class FalAI {
                 </div>
                 <div class="mask-editor-body">
                     <div class="mask-editor-controls">
-                        <label>
-                            Brush Size: <input type="range" id="brush-size" min="5" max="50" value="20">
-                            <span id="brush-size-value">20px</span>
-                        </label>
-                        <button type="button" id="clear-mask" class="btn secondary small">Clear All</button>
+                        <div class="control-group">
+                            <label>Brush Size:
+                                <input type="range" id="brush-size" min="1" max="100" value="20">
+                                <span id="brush-size-value">20px</span>
+                            </label>
+                        </div>
+                        <div class="control-group">
+                            <button type="button" id="undo-mask" class="btn secondary small" disabled>↶ Undo</button>
+                            <button type="button" id="redo-mask" class="btn secondary small" disabled>↷ Redo</button>
+                            <button type="button" id="clear-mask" class="btn secondary small">🗑 Clear All</button>
+                        </div>
                     </div>
                     <div class="canvas-container">
                         <canvas id="mask-canvas"></canvas>
@@ -3409,181 +3415,282 @@ class FalAI {
     }
 
     initializeMaskEditor(modal, fieldName, urlInput, referenceImageUrl) {
-        console.log('🎨 Initializing mask editor for field:', fieldName);
-        console.log('✅ DEBUG: Starting mask editor - checking for undefined variables');
-        console.log('🔍 DEBUG: Current line approximately', new Error().stack);
+        console.log('🎨 Initializing Fabric.js mask editor for field:', fieldName);
 
-        const canvas = modal.querySelector('#mask-canvas');
-        const ctx = canvas.getContext('2d');
+        const canvasElement = modal.querySelector('#mask-canvas');
         const brushSizeSlider = modal.querySelector('#brush-size');
         const brushSizeValue = modal.querySelector('#brush-size-value');
+        const undoBtn = modal.querySelector('#undo-mask');
+        const redoBtn = modal.querySelector('#redo-mask');
 
         // Debug: Check if all required elements exist
-        if (!canvas) console.error('❌ Canvas not found');
-        if (!brushSizeSlider) console.error('❌ Brush size slider not found');
-        if (!brushSizeValue) console.error('❌ Brush size value not found');
-        console.log('✅ All DOM elements found successfully');
+        if (!canvasElement) {
+            console.error('❌ Canvas element not found');
+            return;
+        }
 
-        let isDrawing = false;
-        let brushSize = 20;
+        let fabricCanvas;
+        let undoStack = [];
+        let redoStack = [];
 
-        // Load reference image
+        // Load reference image first
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
-            // Set canvas size to match image
-            const maxWidth = 800;
-            const maxHeight = 600;
-            let { width, height } = img;
+            // Calculate canvas size with proper aspect ratio preservation
+            const maxWidth = 700;
+            const maxHeight = 500;
+            let canvasWidth = img.width;
+            let canvasHeight = img.height;
 
-            // Scale down if too large
-            if (width > maxWidth || height > maxHeight) {
-                const scale = Math.min(maxWidth / width, maxHeight / height);
-                width *= scale;
-                height *= scale;
-            }
+            // Calculate scale factor to fit within max dimensions while preserving aspect ratio
+            const scaleX = maxWidth / canvasWidth;
+            const scaleY = maxHeight / canvasHeight;
+            const scale = Math.min(scaleX, scaleY, 1); // Don't upscale, only downscale
 
-            canvas.width = width;
-            canvas.height = height;
+            // Apply the scale factor
+            canvasWidth = Math.round(canvasWidth * scale);
+            canvasHeight = Math.round(canvasHeight * scale);
 
-            // Draw reference image
-            ctx.drawImage(img, 0, 0, width, height);
+            // Initialize Fabric.js canvas with exact calculated dimensions
+            fabricCanvas = new fabric.Canvas(canvasElement, {
+                width: canvasWidth,
+                height: canvasHeight,
+                isDrawingMode: true,
+                selection: false,
+                preserveObjectStacking: true
+            });
 
-            // Set up overlay for mask
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.fillStyle = 'rgba(255, 0, 0, 0.08)'; // Very light red
+            // Add background image with exact fit (no additional scaling)
+            const backgroundImg = new fabric.Image(img, {
+                left: 0,
+                top: 0,
+                scaleX: scale,
+                scaleY: scale,
+                selectable: false,
+                evented: false,
+                excludeFromExport: false
+            });
+
+            fabricCanvas.setBackgroundImage(backgroundImg, () => {
+                fabricCanvas.renderAll();
+
+                // Force canvas to update its internal coordinates
+                fabricCanvas.calcOffset();
+
+                console.log('✅ Canvas size:', canvasWidth, 'x', canvasHeight);
+                console.log('✅ Image scale:', scale);
+                console.log('✅ Original image size:', img.width, 'x', img.height);
+            });
+
+            // Configure drawing brush
+            fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
+            fabricCanvas.freeDrawingBrush.width = 20;
+            fabricCanvas.freeDrawingBrush.color = 'rgba(255, 0, 0, 0.4)'; // Semi-transparent red
+
+            // Add event listener for coordinate debugging
+            fabricCanvas.on('mouse:down', function(e) {
+                const pointer = fabricCanvas.getPointer(e.e);
+                console.log('🖱️ Click at canvas coordinates:', pointer.x, pointer.y);
+            });
+
+            // Store initial state for undo
+            saveState();
+
+            // Setup event listeners
+            setupControls();
+            setupUndoRedo();
+
+            console.log('✅ Fabric.js canvas initialized successfully');
         };
+
+        img.onerror = () => {
+            console.error('❌ Failed to load reference image:', referenceImageUrl);
+            alert('Failed to load reference image. Please try again.');
+        };
+
         img.src = referenceImageUrl;
 
-        // Brush size control
-        brushSizeSlider.addEventListener('input', () => {
-            brushSize = parseInt(brushSizeSlider.value);
-            brushSizeValue.textContent = brushSize + 'px';
-        });
+        function setupControls() {
+            // Brush size control
+            brushSizeSlider.addEventListener('input', () => {
+                const size = parseInt(brushSizeSlider.value);
+                fabricCanvas.freeDrawingBrush.width = size;
+                brushSizeValue.textContent = size + 'px';
+            });
 
-        // Drawing events
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing);
-
-        // Touch events for mobile
-        canvas.addEventListener('touchstart', handleTouch);
-        canvas.addEventListener('touchmove', handleTouch);
-        canvas.addEventListener('touchend', stopDrawing);
-
-        function startDrawing(e) {
-            isDrawing = true;
-            draw(e);
+            // Clear mask - remove only drawn paths, keep background image
+            modal.querySelector('#clear-mask').addEventListener('click', () => {
+                // Get all objects except background
+                const objects = fabricCanvas.getObjects();
+                // Remove all objects (drawn paths) but keep background image
+                fabricCanvas.clear();
+                // Restore background image
+                fabricCanvas.setBackgroundImage(backgroundImg, () => {
+                    fabricCanvas.renderAll();
+                    saveState();
+                });
+            });
         }
 
-        function draw(e) {
-            if (!isDrawing) return;
+        function setupUndoRedo() {
+            // Save state after each drawing action
+            fabricCanvas.on('path:created', () => {
+                saveState();
+            });
 
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+            undoBtn.addEventListener('click', undo);
+            redoBtn.addEventListener('click', redo);
+        }
 
-            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        function saveState() {
+            const state = JSON.stringify(fabricCanvas.toJSON());
+            undoStack.push(state);
+            redoStack = []; // Clear redo stack when new action is performed
 
-            const x = (clientX - rect.left) * scaleX;
-            const y = (clientY - rect.top) * scaleY;
-
-            // Debug info (remove in production)
-            if (Math.random() < 0.01) { // Log only 1% of events to avoid spam
-                console.log('Canvas size:', canvas.width, 'x', canvas.height);
-                console.log('Display size:', rect.width, 'x', rect.height);
-                console.log('Scale:', scaleX, scaleY);
-                console.log('Mouse pos:', clientX - rect.left, clientY - rect.top);
-                console.log('Canvas pos:', x, y);
+            // Limit undo stack size
+            if (undoStack.length > 20) {
+                undoStack.shift();
             }
 
-            ctx.beginPath();
-            ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.fillStyle = 'rgba(255, 0, 0, 0.08)'; // Very light red
-            ctx.fill();
+            updateUndoRedoButtons();
         }
 
-        function stopDrawing() {
-            isDrawing = false;
+        function undo() {
+            if (undoStack.length > 1) {
+                redoStack.push(undoStack.pop());
+                const state = undoStack[undoStack.length - 1];
+                fabricCanvas.loadFromJSON(state, () => {
+                    fabricCanvas.renderAll();
+                    updateUndoRedoButtons();
+                });
+            }
         }
 
-        function handleTouch(e) {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' :
-                                            e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
-                clientX: touch.clientX,
-                clientY: touch.clientY
-            });
-            canvas.dispatchEvent(mouseEvent);
+        function redo() {
+            if (redoStack.length > 0) {
+                const state = redoStack.pop();
+                undoStack.push(state);
+                fabricCanvas.loadFromJSON(state, () => {
+                    fabricCanvas.renderAll();
+                    updateUndoRedoButtons();
+                });
+            }
         }
 
-        // Clear mask
-        modal.querySelector('#clear-mask').addEventListener('click', () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        });
+        function updateUndoRedoButtons() {
+            undoBtn.disabled = undoStack.length <= 1;
+            redoBtn.disabled = redoStack.length === 0;
+        }
 
-        // Close modal
+        // Close modal handlers
         modal.querySelector('#close-mask-editor').addEventListener('click', () => {
+            if (fabricCanvas) fabricCanvas.dispose();
             modal.remove();
         });
+
         modal.querySelector('#cancel-mask').addEventListener('click', () => {
+            if (fabricCanvas) fabricCanvas.dispose();
             modal.remove();
         });
 
         // Apply mask
         modal.querySelector('#apply-mask').addEventListener('click', () => {
-            this.generateMaskFromCanvas(canvas, img, urlInput);
+            if (fabricCanvas) {
+                this.generateMaskFromFabricCanvas(fabricCanvas, urlInput);
+                fabricCanvas.dispose();
+            }
             modal.remove();
         });
     }
 
-    generateMaskFromCanvas(canvas, originalImg, urlInput) {
-        // Create a new canvas for the mask
-        const maskCanvas = document.createElement('canvas');
-        const maskCtx = maskCanvas.getContext('2d');
+    generateMaskFromFabricCanvas(fabricCanvas, urlInput) {
+        console.log('🎨 Generating mask from Fabric.js canvas');
 
-        maskCanvas.width = canvas.width;
-        maskCanvas.height = canvas.height;
+        // Get the original image dimensions that were used for the background
+        const bgImage = fabricCanvas.backgroundImage;
+        const originalWidth = bgImage.width;
+        const originalHeight = bgImage.height;
 
-        // Fill with black background
-        maskCtx.fillStyle = 'black';
-        maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+        console.log('📐 Original image size:', originalWidth, 'x', originalHeight);
+        console.log('📐 Canvas size:', fabricCanvas.width, 'x', fabricCanvas.height);
+        console.log('📐 Number of drawn objects:', fabricCanvas.getObjects().length);
 
-        // Get the current canvas data
-        const imageData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
-        const maskImageData = maskCtx.createImageData(canvas.width, canvas.height);
+        // Create a temporary canvas with original image size
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
 
-        // Convert to black and white mask
-        for (let i = 0; i < imageData.data.length; i += 4) {
-            const r = imageData.data[i];
-            const g = imageData.data[i + 1];
-            const b = imageData.data[i + 2];
-            const a = imageData.data[i + 3];
+        tempCanvas.width = originalWidth;
+        tempCanvas.height = originalHeight;
 
-            // If there's red overlay (mask area), make it white
-            // Adjusted for very light red (alpha > 10)
-            if (r > 100 && g < 80 && b < 80 && a > 10) {
-                maskImageData.data[i] = 255;     // R
-                maskImageData.data[i + 1] = 255; // G
-                maskImageData.data[i + 2] = 255; // B
-                maskImageData.data[i + 3] = 255; // A
-            } else {
-                maskImageData.data[i] = 0;       // R
-                maskImageData.data[i + 1] = 0;   // G
-                maskImageData.data[i + 2] = 0;   // B
-                maskImageData.data[i + 3] = 255; // A
-            }
+        // Start with black background
+        tempCtx.fillStyle = 'black';
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+        // Calculate scale factor from canvas to original size
+        const scaleToOriginal = originalWidth / fabricCanvas.width;
+
+        // Get all drawn objects (paths)
+        const objects = fabricCanvas.getObjects();
+
+        if (objects.length === 0) {
+            console.log('⚠️ No drawn objects found, creating empty black mask');
+        } else {
+            console.log('✅ Found', objects.length, 'drawn objects');
+
+            // Set white brush for mask
+            tempCtx.fillStyle = 'white';
+            tempCtx.strokeStyle = 'white';
+            tempCtx.globalCompositeOperation = 'source-over';
+
+            // Draw each path object scaled to original size
+            objects.forEach((obj, index) => {
+                if (obj.type === 'path') {
+                    console.log(`🎨 Processing path ${index + 1}/${objects.length}`);
+
+                    // Get the path data and scale it
+                    const pathData = obj.path;
+                    if (pathData && pathData.length > 0) {
+                        tempCtx.beginPath();
+                        tempCtx.lineWidth = (obj.strokeWidth || 20) * scaleToOriginal;
+                        tempCtx.lineCap = 'round';
+                        tempCtx.lineJoin = 'round';
+
+                        // Process the path commands
+                        for (let i = 0; i < pathData.length; i++) {
+                            const cmd = pathData[i];
+                            const command = cmd[0];
+
+                            switch (command) {
+                                case 'M': // Move to
+                                    tempCtx.moveTo(cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal);
+                                    break;
+                                case 'L': // Line to
+                                    tempCtx.lineTo(cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal);
+                                    break;
+                                case 'Q': // Quadratic curve
+                                    tempCtx.quadraticCurveTo(
+                                        cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal,
+                                        cmd[3] * scaleToOriginal, cmd[4] * scaleToOriginal
+                                    );
+                                    break;
+                                case 'C': // Cubic curve
+                                    tempCtx.bezierCurveTo(
+                                        cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal,
+                                        cmd[3] * scaleToOriginal, cmd[4] * scaleToOriginal,
+                                        cmd[5] * scaleToOriginal, cmd[6] * scaleToOriginal
+                                    );
+                                    break;
+                            }
+                        }
+                        tempCtx.stroke();
+                    }
+                }
+            });
         }
 
-        maskCtx.putImageData(maskImageData, 0, 0);
-
         // Convert to base64 and set in input
-        const maskDataUrl = maskCanvas.toDataURL('image/png');
+        const maskDataUrl = tempCanvas.toDataURL('image/png');
         urlInput.value = maskDataUrl;
 
         // Trigger input event to update preview
@@ -3592,10 +3699,9 @@ class FalAI {
         // Save settings
         this.saveEndpointSettings();
 
-        console.log('✅ Mask generated and applied to', urlInput.name);
+        console.log('✅ Fabric.js mask generated and applied to', urlInput.name);
+        console.log('📐 Final mask size:', tempCanvas.width, 'x', tempCanvas.height);
     }
-
-
     saveCustomEndpoints() {
         const customEndpoints = {};
         for (const [id, endpoint] of this.endpoints.entries()) {

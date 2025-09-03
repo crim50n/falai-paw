@@ -1825,6 +1825,12 @@ body {
     flex-wrap: wrap;
 }
 
+.mask-editor-controls .control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .mask-editor-controls label {
     display: flex;
     align-items: center;
@@ -1833,12 +1839,31 @@ body {
     color: #374151;
 }
 
+.mask-editor-controls select {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    background: white;
+}
+
 .mask-editor-controls input[type="range"] {
     width: 100px;
 }
 
 .mask-editor-controls input[type="checkbox"] {
     margin: 0;
+}
+
+.mask-editor-controls .btn.small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 4px;
+}
+
+.mask-editor-controls .btn.small:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 #brush-size-value {
@@ -1856,14 +1881,14 @@ body {
     padding: 1rem;
     margin-bottom: 1rem;
     overflow: auto;
+    max-height: 70vh;
 }
 
 #mask-canvas {
     border: 2px solid #d1d5db;
     border-radius: 4px;
     cursor: crosshair;
-    max-width: 100%;
-    max-height: 500px;
+    display: block;
 }
 
 #mask-canvas:hover {
