@@ -27,22 +27,22 @@ self.addEventListener('fetch', (event) => {
                 if (response) {
                     return response;
                 }
-                
+
                 return fetch(event.request).then((response) => {
                     // Check if we received a valid response
                     if (!response || response.status !== 200 || response.type !== 'basic') {
                         return response;
                     }
-                    
+
                     // Clone the response
                     const responseToCache = response.clone();
-                    
+
                     caches.open(CACHE_NAME)
                         .then((cache) => {
                             // Cache the fetched response
                             cache.put(event.request, responseToCache);
                         });
-                    
+
                     return response;
                 });
             })
@@ -58,7 +58,7 @@ self.addEventListener('fetch', (event) => {
 // Update service worker and clean old caches
 self.addEventListener('activate', (event) => {
     const cacheWhitelist = [CACHE_NAME];
-    
+
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
