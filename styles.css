@@ -861,11 +861,12 @@ body {
 }
 
 .fullscreen-controls {
-    position: absolute;
+    position: fixed;
     top: 1rem;
-    right: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
     z-index: 2001;
 }
 
@@ -933,7 +934,7 @@ body {
 /* Navigation buttons */
 #fullscreen-prev,
 #fullscreen-next {
-    position: absolute;
+    position: fixed;
     top: 50%;
     transform: translateY(-50%);
     width: 60px;
@@ -994,19 +995,40 @@ body {
 }
 
 .zoom-controls {
-    position: absolute;
-    top: -60px;
+    position: fixed;
+    top: 1rem;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    z-index: 3002;
 }
 
-.close-zoom-btn,
-.zoom-action-btn,
+/* Navigation buttons in top controls */
 .zoom-nav-btn {
     background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+}
+
+/* Close button positioned at top-right of image */
+.image-zoom-container .close-zoom-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: rgba(0, 0, 0, 0.7);
     color: white;
     border: none;
     width: 40px;
@@ -1019,15 +1041,68 @@ body {
     justify-content: center;
     transition: all 0.2s ease;
     backdrop-filter: blur(10px);
+    z-index: 3003;
 }
 
-.zoom-nav-btn {
-    font-size: 1.5rem;
-    font-weight: bold;
-}
-
-.zoom-action-btn {
+/* Download button positioned at bottom-left of image */
+.image-zoom-container .zoom-download-btn {
+    position: absolute;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
     font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+    z-index: 3003;
+}
+
+/* Delete button positioned at bottom-right of image */
+.image-zoom-container .zoom-delete-btn {
+    position: absolute;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    background: rgba(220, 38, 38, 0.8);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+    z-index: 3003;
+}
+
+/* Hover effects */
+.close-zoom-btn:hover,
+.zoom-action-btn:hover,
+.zoom-nav-btn:hover {
+    transform: scale(1.1);
+}
+
+.image-zoom-container .close-zoom-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+.image-zoom-container .zoom-download-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+.image-zoom-container .zoom-delete-btn:hover {
+    background: rgba(220, 38, 38, 1);
 }
 
 .zoom-counter {
@@ -1178,13 +1253,15 @@ body {
     
     .fullscreen-controls {
         top: 0.5rem;
-        right: 0.5rem;
+        left: 50%;
+        transform: translateX(-50%);
         flex-wrap: wrap;
+        gap: 0.5rem;
     }
     
     .fullscreen-controls .btn {
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
         font-size: 1rem;
     }
     
@@ -1199,17 +1276,17 @@ body {
     
     #fullscreen-prev,
     #fullscreen-next {
-        width: 50px;
-        height: 50px;
+        width: 56px;
+        height: 56px;
         font-size: 1.5rem;
     }
     
     #fullscreen-prev {
-        left: 0.5rem;
+        left: 0.75rem;
     }
     
     #fullscreen-next {
-        right: 0.5rem;
+        right: 0.75rem;
     }
     
     .modal-content.large {
@@ -1223,8 +1300,33 @@ body {
     }
     
     .zoom-controls {
-        top: -40px;
-        right: -10px;
+        top: 0.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        gap: 0.5rem;
+    }
+    
+    .image-zoom-container .close-zoom-btn,
+    .image-zoom-container .zoom-download-btn,
+    .image-zoom-container .zoom-delete-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 0.9rem;
+    }
+    
+    .image-zoom-container .close-zoom-btn {
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+    
+    .image-zoom-container .zoom-download-btn {
+        bottom: 0.5rem;
+        left: 0.5rem;
+    }
+    
+    .image-zoom-container .zoom-delete-btn {
+        bottom: 0.5rem;
+        right: 0.5rem;
     }
 }
 

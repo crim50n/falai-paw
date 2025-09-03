@@ -1230,12 +1230,12 @@ class FalAI {
                     <img id="zoom-image" src="" alt="Zoomed image">
                     <div class="zoom-controls">
                         <button id="zoom-prev" class="zoom-nav-btn" title="Previous image">‹</button>
-                        <button id="zoom-download" class="zoom-action-btn" title="Download image">💾</button>
-                        <button id="zoom-delete" class="zoom-action-btn" title="Delete image">🗑️</button>
-                        <button id="close-zoom" class="close-zoom-btn">✕</button>
                         <div class="zoom-counter"></div>
                         <button id="zoom-next" class="zoom-nav-btn" title="Next image">›</button>
                     </div>
+                    <button id="close-zoom" class="close-zoom-btn" title="Close">✕</button>
+                    <button id="zoom-download" class="zoom-action-btn zoom-download-btn" title="Download image">💾</button>
+                    <button id="zoom-delete" class="zoom-action-btn zoom-delete-btn" title="Delete image">🗑️</button>
                 </div>
             `;
             document.body.appendChild(modal);
@@ -1397,37 +1397,6 @@ class FalAI {
         }
     }
     
-    addTestImages() {
-        console.log('Adding test images...');
-        const testImages = [
-            {
-                url: 'https://via.placeholder.com/512x512/FF0000/FFFFFF?text=Test1',
-                metadata: { prompt: 'Red test image' },
-                timestamp: Date.now() - 60000,
-                endpoint: 'test-endpoint'
-            },
-            {
-                url: 'https://via.placeholder.com/512x512/00FF00/FFFFFF?text=Test2',
-                metadata: { prompt: 'Green test image' },
-                timestamp: Date.now() - 30000,
-                endpoint: 'test-endpoint'
-            },
-            {
-                url: 'https://via.placeholder.com/512x512/0000FF/FFFFFF?text=Test3',
-                metadata: { prompt: 'Blue test image' },
-                timestamp: Date.now(),
-                endpoint: 'test-endpoint'
-            }
-        ];
-        
-        // Clear existing saved images and add test images
-        this.savedImages = testImages;
-        localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
-        
-        // Switch to gallery view and update it
-        this.switchRightPanelView('gallery');
-        console.log('Test images added, switching to gallery view');
-    }
     
     resetFormToDefaults() {
         if (!this.currentEndpoint) return;
