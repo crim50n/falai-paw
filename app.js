@@ -2069,9 +2069,14 @@ class FalAI {
     
     saveToGallery(url, metadata, showFeedback = false) {
         try {
-            // Don't save base64 images to gallery - they're too large
+            // Don't save base64 images to gallery - they're too large and temporary
             if (url && url.startsWith('data:image/')) {
-                this.logDebug('Skipped saving base64 image to gallery (too large)', 'info');
+                this.logDebug('Skipped saving base64 image to gallery - use download button to save', 'warning');
+                
+                // Show warning to user about base64 result
+                if (!showFeedback) { // Only show automatic warning, not for manual saves
+                    this.showBase64Warning();
+                }
                 return;
             }
             
@@ -2100,8 +2105,10 @@ class FalAI {
                     this.showInlineGallery();
                 }
                 
+                this.logDebug(`Image saved to gallery: ${url.substring(0, 50)}... (${url.length} chars)`, 'success');
+                
                 if (showFeedback) {
-                    this.logDebug(`Image saved to gallery`, 'success');
+                    this.logDebug(`Image saved to gallery with user feedback`, 'success');
                 }
             }
         } catch (error) {
@@ -2720,6 +2727,116 @@ class FalAI {
         }
         
         return { count, totalSize };
+    }
+
+    showBase64Warning() {
+        // Don't show multiple warnings in a short time
+        const now = Date.now();
+        if (this._lastBase64Warning && (now - this._lastBase64Warning) < 30000) {
+            return; // Don't show again within 30 seconds
+        }
+        this._lastBase64Warning = now;
+
+        // Show temporary notification
+        const notification = document.createElement('div');
+        notification.className = 'base64-warning';
+        notification.innerHTML = `
+            <div class="warning-content">
+                <div class="warning-icon">⚠️</div>
+                <div class="warning-text">
+                    <strong>Temporary result format</strong>
+                    <p>Server returned image in base64 format. This won't be saved to gallery automatically. Use the download button to save it now.</p>
+                </div>
+                <button class="warning-close" onclick="this.parentElement.remove()">✕</button>
+            </div>
+        `;
+
+        // Add styles if not already added
+        if (!document.getElementById('base64-warning-styles')) {
+            const styles = document.createElement('style');
+            styles.id = 'base64-warning-styles';
+            styles.textContent = `
+                .base64-warning {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 1000;
+                    max-width: 400px;
+                    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                    border: 1px solid #f59e0b;
+                    border-radius: 12px;
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+                    animation: slideIn 0.3s ease-out;
+                }
+                
+                .warning-content {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                    padding: 16px;
+                }
+                
+                .warning-icon {
+                    font-size: 24px;
+                    flex-shrink: 0;
+                }
+                
+                .warning-text {
+                    flex: 1;
+                }
+                
+                .warning-text strong {
+                    color: #92400e;
+                    font-size: 14px;
+                    display: block;
+                    margin-bottom: 4px;
+                }
+                
+                .warning-text p {
+                    color: #78350f;
+                    font-size: 13px;
+                    margin: 0;
+                    line-height: 1.4;
+                }
+                
+                .warning-close {
+                    background: none;
+                    border: none;
+                    color: #92400e;
+                    font-size: 16px;
+                    cursor: pointer;
+                    padding: 4px;
+                    border-radius: 4px;
+                    flex-shrink: 0;
+                }
+                
+                .warning-close:hover {
+                    background: rgba(146, 64, 14, 0.1);
+                }
+                
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+            `;
+            document.head.appendChild(styles);
+        }
+
+        document.body.appendChild(notification);
+
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 10000);
     }
     
     restoreUIState() {
