@@ -129,9 +129,15 @@ body {
 
 .panel-tab-button.active,
 .panel-tab-button:hover {
-    background: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
+    background: #3b82f6 !important;
+    color: #ffffff !important;
+    border-color: #3b82f6 !important;
+}
+
+/* Ensure text is visible on active tab */
+#results-panel-tab.active,
+#gallery-panel-tab.active {
+    color: #ffffff !important;
 }
 
 /* Inline gallery */
@@ -873,9 +879,17 @@ body {
 
 .tab-button.active,
 .tab-button:hover {
-    background: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
+    background: #3b82f6 !important;
+    color: #ffffff !important;
+    border-color: #3b82f6 !important;
+}
+
+/* Specific styles for Images/JSON tabs */
+#images-tab.active,
+#json-tab.active {
+    background: #3b82f6 !important;
+    color: #ffffff !important;
+    border-color: #3b82f6 !important;
 }
 
 .result-images {
@@ -1715,6 +1729,15 @@ body {
 .tab-button.active {
     color: #3b82f6;
     border-bottom-color: #3b82f6;
+}
+
+/* Override for Images/JSON tabs that need background */
+#images-tab.active,
+#json-tab.active {
+    background: #3b82f6 !important;
+    color: #ffffff !important;
+    border: 1px solid #3b82f6 !important;
+    border-radius: 6px !important;
 }
 
 .tab-button:hover:not(.active) {

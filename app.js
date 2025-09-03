@@ -234,7 +234,14 @@ class FalAI {
 
         console.log(`Rendering dropdown with ${this.endpoints.size} endpoints`);
 
-        for (const [id, endpoint] of this.endpoints) {
+        // Convert endpoints to array and sort alphabetically by endpoint name
+        const sortedEndpoints = Array.from(this.endpoints.entries()).sort((a, b) => {
+            const nameA = a[1].metadata.endpointId.toLowerCase();
+            const nameB = b[1].metadata.endpointId.toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+
+        for (const [id, endpoint] of sortedEndpoints) {
             const option = document.createElement('option');
             option.value = id;
             const isCustom = id.startsWith('custom-');
@@ -1645,6 +1652,12 @@ class FalAI {
                         this.navigateZoomModal(-1);
                     } else if (e.key === 'ArrowRight') {
                         this.navigateZoomModal(1);
+                    } else if (e.key === 'Delete') {
+                        // Delete only works when delete button is visible
+                        const deleteBtn = modal.querySelector('#zoom-delete');
+                        if (deleteBtn && !deleteBtn.classList.contains('hidden')) {
+                            this.deleteCurrentZoomImage();
+                        }
                     }
                 }
             });
