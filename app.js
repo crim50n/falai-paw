@@ -9,8 +9,29 @@ class FalAI {
         this.endpointSettings = JSON.parse(localStorage.getItem('falai_endpoint_settings') || '{}');
         this.currentImageIndex = 0;
         this.fullscreenImages = [];
+        this.debugMode = localStorage.getItem('falai_debug_mode') === 'true';
         
         this.init();
+    }
+    
+    logDebug(message, type = 'info', data = null) {
+        if (!this.debugMode) return;
+        
+        const timestamp = new Date().toLocaleTimeString();
+        const debugContent = document.getElementById('debug-content');
+        
+        const entry = document.createElement('div');
+        entry.className = `debug-entry ${type}`;
+        
+        entry.innerHTML = `
+            <div class="timestamp">${timestamp}</div>
+            <div class="type">${type.toUpperCase()}</div>
+            <div class="message">${message}</div>
+            ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+        `;
+        
+        debugContent.appendChild(entry);
+        debugContent.scrollTop = debugContent.scrollHeight;
     }
     
     async init() {
@@ -18,6 +39,19 @@ class FalAI {
         this.setupEventListeners();
         this.restoreUIState();
         this.setupPWA();
+        this.initDebugMode();
+    }
+    
+    initDebugMode() {
+        const debugCheckbox = document.getElementById('debug-checkbox');
+        const debugPanel = document.getElementById('debug-panel');
+        
+        // Restore debug mode state
+        debugCheckbox.checked = this.debugMode;
+        if (this.debugMode) {
+            debugPanel.classList.remove('hidden');
+            this.logDebug('Debug mode restored', 'system');
+        }
     }
     
     async loadEndpoints() {
@@ -712,6 +746,25 @@ class FalAI {
             this.cancelGeneration();
         });
         
+        // Debug mode toggle
+        document.getElementById('debug-checkbox').addEventListener('change', (e) => {
+            this.debugMode = e.target.checked;
+            localStorage.setItem('falai_debug_mode', this.debugMode);
+            
+            const debugPanel = document.getElementById('debug-panel');
+            if (this.debugMode) {
+                debugPanel.classList.remove('hidden');
+                this.logDebug('Debug mode enabled', 'system');
+            } else {
+                debugPanel.classList.add('hidden');
+            }
+        });
+        
+        // Clear debug log
+        document.getElementById('clear-debug').addEventListener('click', () => {
+            document.getElementById('debug-content').innerHTML = '';
+        });
+        
         // Close modals on background click
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal')) {
@@ -778,7 +831,20 @@ class FalAI {
             
             // Submit to queue
             const queueResponse = await this.submitToQueue(formData);
+            
+            // Check if response already contains results (synchronous response)
+            if (queueResponse.images) {
+                // Direct response with results
+                this.displayResults(queueResponse);
+                this.hideGenerationStatus();
+                this.resetGenerateButton();
+                return;
+            }
+            
+            // Asynchronous response - need to poll
             this.currentRequestId = queueResponse.request_id;
+            this.statusUrl = queueResponse.status_url;
+            this.resultUrl = queueResponse.response_url;
             
             // Start polling
             this.startStatusPolling();
@@ -870,8 +936,20 @@ class FalAI {
         const endpoint = this.currentEndpoint;
         const baseUrl = endpoint.schema.servers[0].url;
         const endpointPath = this.getSubmissionPath(endpoint.schema);
+        const fullUrl = baseUrl + endpointPath;
         
-        const response = await fetch(baseUrl + endpointPath, {
+        this.logDebug('Submitting request to queue', 'request', {
+            url: fullUrl,
+            endpoint: endpoint.metadata.endpointId,
+            method: 'POST',
+            headers: {
+                'Authorization': 'Key [HIDDEN]',
+                'Content-Type': 'application/json'
+            },
+            body: data
+        });
+        
+        const response = await fetch(fullUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `Key ${this.apiKey}`,
@@ -882,10 +960,18 @@ class FalAI {
         
         if (!response.ok) {
             const error = await response.text();
+            this.logDebug('Request failed', 'error', {
+                status: response.status,
+                statusText: response.statusText,
+                error: error
+            });
             throw new Error(`HTTP ${response.status}: ${error}`);
         }
         
-        return await response.json();
+        const result = await response.json();
+        this.logDebug('Request submitted successfully', 'response', result);
+        
+        return result;
     }
     
     getSubmissionPath(schema) {
@@ -914,23 +1000,37 @@ class FalAI {
     }
     
     async checkStatus() {
-        if (!this.currentRequestId) return;
+        if (!this.statusUrl) return;
         
-        const endpoint = this.currentEndpoint;
-        const baseUrl = endpoint.schema.servers[0].url;
-        const statusPath = this.getStatusPath(endpoint.schema, this.currentRequestId);
-        
-        const response = await fetch(baseUrl + statusPath, {
+        const response = await fetch(this.statusUrl, {
             headers: {
                 'Authorization': `Key ${this.apiKey}`
             }
         });
         
         if (!response.ok) {
+            // If status endpoint returns 404 or 405, the job might be completed
+            // Try to fetch results directly
+            if (response.status === 404 || response.status === 405) {
+                this.logDebug('Status endpoint not available, trying to fetch results directly', 'info', {
+                    status: response.status,
+                    statusText: response.statusText
+                });
+                clearInterval(this.statusPolling);
+                await this.fetchResults();
+                this.resetGenerateButton();
+                return;
+            }
+            
+            this.logDebug('Status check failed', 'error', {
+                status: response.status,
+                statusText: response.statusText
+            });
             throw new Error(`Status check failed: ${response.status}`);
         }
         
         const status = await response.json();
+        this.logDebug('Status response', 'response', status);
         this.updateStatusDisplay(status);
         
         if (status.status === 'COMPLETED') {
@@ -976,21 +1076,25 @@ class FalAI {
     }
     
     async fetchResults() {
-        const endpoint = this.currentEndpoint;
-        const baseUrl = endpoint.schema.servers[0].url;
-        const resultPath = this.getResultPath(endpoint.schema, this.currentRequestId);
+        if (!this.resultUrl) return;
         
-        const response = await fetch(baseUrl + resultPath, {
+        const response = await fetch(this.resultUrl, {
             headers: {
                 'Authorization': `Key ${this.apiKey}`
             }
         });
         
         if (!response.ok) {
+            this.logDebug('Result fetch failed', 'error', {
+                status: response.status,
+                statusText: response.statusText
+            });
             throw new Error(`Result fetch failed: ${response.status}`);
         }
         
         const result = await response.json();
+        this.logDebug('Results fetched successfully', 'response', result);
+        
         this.displayResults(result);
         this.hideGenerationStatus();
     }
