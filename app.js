@@ -307,6 +307,11 @@ class FalAI {
         }
         
         if (schema.enum) {
+            // Special handling for image_size field
+            if (name === 'image_size') {
+                return this.createImageSizeField(name, schema, required, label, field);
+            }
+            
             input = document.createElement('select');
             input.innerHTML = '<option value="">Select...</option>';
             for (const option of schema.enum) {
@@ -883,6 +888,11 @@ class FalAI {
                 return;
             }
             
+            // Skip custom size fields - they'll be handled by image_size logic
+            if (key.includes('_width') || key.includes('_height')) {
+                return;
+            }
+            
             if (input.type === 'checkbox') {
                 data[key] = input.checked;
             } else if (input.type === 'number' || input.type === 'range') {
@@ -895,7 +905,31 @@ class FalAI {
             }
         });
         
+        // Special handling for image_size field
+        this.handleImageSizeData(data, form);
+        
         return data;
+    }
+    
+    handleImageSizeData(data, form) {
+        const imageSizeSelect = form.querySelector('select[name="image_size"]');
+        if (!imageSizeSelect || !imageSizeSelect.value) return;
+        
+        if (imageSizeSelect.value === 'custom') {
+            // Use custom width/height values
+            const widthInput = form.querySelector('input[name="image_size_width"]');
+            const heightInput = form.querySelector('input[name="image_size_height"]');
+            
+            if (widthInput && heightInput && widthInput.value && heightInput.value) {
+                data.image_size = {
+                    width: parseInt(widthInput.value),
+                    height: parseInt(heightInput.value)
+                };
+            }
+        } else {
+            // Use preset size
+            data.image_size = imageSizeSelect.value;
+        }
     }
     
     getInputValue(input) {
@@ -1581,6 +1615,107 @@ class FalAI {
         }
     }
     
+    createImageSizeField(name, schema, required, label, field) {
+        const container = document.createElement('div');
+        container.className = 'image-size-container';
+        
+        // Get the ImageSize schema from anyOf to check if custom sizes are supported
+        const imageSizeSchema = this.getImageSizeSchemaFromAnyOf(schema);
+        const supportsCustomSize = imageSizeSchema !== null;
+        
+        // Create select dropdown with preset options
+        const select = document.createElement('select');
+        select.name = name;
+        select.id = name;
+        select.className = 'image-size-select';
+        select.innerHTML = '<option value="">Select size...</option>';
+        
+        // Add preset size options from enum
+        for (const option of schema.enum) {
+            const opt = document.createElement('option');
+            opt.value = option;
+            opt.textContent = option;
+            select.appendChild(opt);
+        }
+        
+        // Add Custom option only if ImageSize schema is available
+        if (supportsCustomSize) {
+            const customOpt = document.createElement('option');
+            customOpt.value = 'custom';
+            customOpt.textContent = 'Custom';
+            select.appendChild(customOpt);
+        }
+        
+        container.appendChild(select);
+        
+        // Create custom size fields from ImageSize schema (initially hidden) only if supported
+        if (supportsCustomSize && imageSizeSchema) {
+            const customFields = document.createElement('div');
+            customFields.className = 'custom-size-fields hidden';
+            
+            // Create fields based on ImageSize schema properties
+            const widthProperty = imageSizeSchema.properties.width;
+            const heightProperty = imageSizeSchema.properties.height;
+            
+            const widthField = document.createElement('div');
+            widthField.className = 'custom-size-field';
+            widthField.innerHTML = `
+                <label for="${name}_width">${widthProperty.title || 'Width'}</label>
+                <input type="number" 
+                       id="${name}_width" 
+                       name="${name}_width" 
+                       min="${widthProperty.exclusiveMinimum ? widthProperty.exclusiveMinimum + 1 : (widthProperty.minimum || 1)}" 
+                       max="${widthProperty.maximum || 14142}" 
+                       value="${widthProperty.default || 512}"
+                       title="${widthProperty.description || ''}">
+            `;
+            
+            const heightField = document.createElement('div');
+            heightField.className = 'custom-size-field';
+            heightField.innerHTML = `
+                <label for="${name}_height">${heightProperty.title || 'Height'}</label>
+                <input type="number" 
+                       id="${name}_height" 
+                       name="${name}_height" 
+                       min="${heightProperty.exclusiveMinimum ? heightProperty.exclusiveMinimum + 1 : (heightProperty.minimum || 1)}" 
+                       max="${heightProperty.maximum || 14142}" 
+                       value="${heightProperty.default || 512}"
+                       title="${heightProperty.description || ''}">
+            `;
+            
+            customFields.appendChild(widthField);
+            customFields.appendChild(heightField);
+            container.appendChild(customFields);
+            
+            // Add event listener to show/hide custom fields
+            select.addEventListener('change', (e) => {
+                if (e.target.value === 'custom') {
+                    customFields.classList.remove('hidden');
+                } else {
+                    customFields.classList.add('hidden');
+                }
+            });
+        }
+        
+        field.appendChild(label);
+        field.appendChild(container);
+        
+        return field;
+    }
+    
+    getImageSizeSchemaFromAnyOf(schema) {
+        // Find ImageSize schema reference from anyOf
+        if (schema.anyOf) {
+            for (const option of schema.anyOf) {
+                if (option.$ref && option.$ref.includes('ImageSize')) {
+                    // Resolve the ImageSize schema
+                    return this.resolveSchema(option, this.currentEndpoint.schema);
+                }
+            }
+        }
+        return null;
+    }
+
     createArrayField(name, schema, required, label, field) {
         const arrayContainer = document.createElement('div');
         arrayContainer.className = 'array-field-container';
