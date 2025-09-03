@@ -22,6 +22,8 @@
         <header class="header">
             <h1>FalAI</h1>
             <div class="header-controls">
+                <button id="export-settings-btn" class="btn secondary" title="Export Settings">📤</button>
+                <button id="import-settings-btn" class="btn secondary" title="Import Settings">📥</button>
                 <button id="api-key-btn" class="btn secondary">Set API Key</button>
             </div>
         </header>
@@ -56,13 +58,6 @@
                     </form>
                 </div>
                 
-                <div id="generation-status" class="generation-status hidden">
-                    <div class="status-header">
-                        <h4>Generation Status</h4>
-                        <button id="cancel-btn" class="btn secondary small">Cancel</button>
-                    </div>
-                    <div id="status-content"></div>
-                </div>
             </div>
             
             <div class="right-panel">
@@ -74,6 +69,25 @@
                 </div>
                 
                 <div class="image-preview-area">
+                    <!-- Generation Status -->
+                    <div id="generation-status" class="generation-status-panel hidden">
+                        <div class="status-container">
+                            <div class="status-icon">
+                                <div class="status-spinner"></div>
+                            </div>
+                            <div class="status-content">
+                                <div class="status-title">Generating Image</div>
+                                <div class="status-message" id="status-message">Submitting request...</div>
+                                <div class="status-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="progress-fill"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button id="cancel-btn" class="status-cancel-btn btn secondary small">Cancel</button>
+                        </div>
+                    </div>
+                    
                     <div id="no-images-placeholder" class="no-images-placeholder">
                         <div class="placeholder-content">
                             <span class="placeholder-icon">🖼️</span>
@@ -152,6 +166,9 @@
                 <div id="fullscreen-metadata"></div>
             </div>
         </div>
+        
+        <!-- Hidden file input for settings import -->
+        <input type="file" id="import-file-input" accept=".json" style="display: none;">
     </div>
     
     <script src="app.js"></script>

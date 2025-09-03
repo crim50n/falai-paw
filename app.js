@@ -40,6 +40,105 @@ class FalAI {
         this.restoreUIState();
         this.setupPWA();
         this.initDebugMode();
+        
+        // Log storage info on startup if debug mode is enabled
+        if (this.debugMode) {
+            this.logStorageInfo();
+        } else {
+            // Always log if storage is critically full (>90%)
+            const info = this.getStorageSize();
+            if (parseFloat(info.usage) > 90) {
+                console.warn(`⚠️ Storage ${info.usage}% full! Run falaiStorage.info() for details`);
+            }
+        }
+        
+        // Make storage functions available globally for debugging
+        window.falaiStorage = {
+            info: () => this.logStorageInfo(),
+            cleanup: () => {
+                console.log('🧹 Starting cleanup...');
+                const base64 = this.cleanupBase64Images();
+                const settings = this.cleanupOldSettings();
+                const gallery = this.cleanupOldGalleryImages();
+                console.log(`✅ Cleanup complete:`);
+                console.log(`  📷 Base64 images: ${base64.count} removed (${this.formatBytes(base64.sizeFreed)} freed)`);
+                console.log(`  ⚙️  Settings: ${settings} removed`);
+                console.log(`  🖼️  Gallery: ${gallery} entries removed`);
+                this.logStorageInfo();
+            },
+            cleanBase64: () => {
+                const result = this.cleanupBase64Images();
+                console.log(`Removed ${result.count} base64 images, freed ${this.formatBytes(result.sizeFreed)}`);
+                this.logStorageInfo();
+            },
+            clear: () => {
+                this.savedImages = [];
+                localStorage.setItem('falai_saved_images', '[]');
+                console.log('Gallery cleared');
+                this.logStorageInfo();
+            },
+            findLargest: () => {
+                console.log('🔍 Finding largest localStorage entries...');
+                const entries = [];
+                for (let key in localStorage) {
+                    if (localStorage.hasOwnProperty(key)) {
+                        const value = localStorage.getItem(key);
+                        const size = new Blob([value]).size;
+                        entries.push({ key, size, preview: value.substring(0, 100) + (value.length > 100 ? '...' : '') });
+                    }
+                }
+                entries.sort((a, b) => b.size - a.size);
+                entries.slice(0, 10).forEach((entry, i) => {
+                    console.log(`${i+1}. ${entry.key}: ${this.formatBytes(entry.size)}`);
+                    console.log(`   Preview: ${entry.preview}`);
+                });
+                return entries;
+            },
+            analyzeGallery: () => {
+                console.log('🖼️ Analyzing gallery images...');
+                const images = this.savedImages;
+                console.log(`Total images: ${images.length}`);
+                
+                let urlCount = 0;
+                let base64Count = 0;
+                let totalSize = 0;
+                
+                images.forEach((img, i) => {
+                    const size = new Blob([img.url]).size;
+                    totalSize += size;
+                    
+                    if (img.url.startsWith('data:image/')) {
+                        base64Count++;
+                        console.log(`${i+1}. [BASE64] ${this.formatBytes(size)} - ${img.endpoint} (${new Date(img.timestamp).toLocaleString()})`);
+                    } else {
+                        urlCount++;
+                        console.log(`${i+1}. [URL] ${this.formatBytes(size)} - ${img.url.substring(0, 50)}...`);
+                    }
+                });
+                
+                console.log(`Summary: ${urlCount} URLs, ${base64Count} base64 images`);
+                console.log(`Total size: ${this.formatBytes(totalSize)}`);
+                
+                if (base64Count > 0) {
+                    console.log(`💡 Run falaiStorage.cleanGalleryBase64() to remove base64 images from gallery`);
+                }
+            },
+            cleanGalleryBase64: () => {
+                const before = this.savedImages.length;
+                const sizeBefore = new Blob([JSON.stringify(this.savedImages)]).size;
+                
+                this.savedImages = this.savedImages.filter(img => !img.url.startsWith('data:image/'));
+                
+                const after = this.savedImages.length;
+                const sizeAfter = new Blob([JSON.stringify(this.savedImages)]).size;
+                
+                localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
+                
+                console.log(`🧹 Cleaned gallery: removed ${before - after} base64 images`);
+                console.log(`💾 Freed ${this.formatBytes(sizeBefore - sizeAfter)} from gallery`);
+                this.logStorageInfo();
+            }
+        };
     }
     
     initDebugMode() {
@@ -765,6 +864,23 @@ class FalAI {
                 debugPanel.classList.add('hidden');
             }
         });
+
+        // Settings import/export
+        document.getElementById('export-settings-btn').addEventListener('click', () => {
+            this.exportSettings();
+        });
+
+        document.getElementById('import-settings-btn').addEventListener('click', () => {
+            document.getElementById('import-file-input').click();
+        });
+
+        document.getElementById('import-file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                this.importSettings(file);
+                e.target.value = ''; // Reset file input
+            }
+        });
         
         // Clear debug log
         document.getElementById('clear-debug').addEventListener('click', () => {
@@ -1089,25 +1205,41 @@ class FalAI {
     }
     
     updateStatusDisplay(status) {
-        const content = document.getElementById('status-content');
-        content.innerHTML = `
-            <div class="status-item">
-                <span>Status:</span>
-                <span>${status.status}</span>
-            </div>
-            ${status.queue_position !== undefined ? `
-                <div class="status-item">
-                    <span>Queue Position:</span>
-                    <span>${status.queue_position}</span>
-                </div>
-            ` : ''}
-            ${status.logs ? `
-                <div class="status-item">
-                    <span>Logs:</span>
-                    <pre>${JSON.stringify(status.logs, null, 2)}</pre>
-                </div>
-            ` : ''}
-        `;
+        const statusMessage = document.getElementById('status-message');
+        const progressFill = document.getElementById('progress-fill');
+        
+        // Update message based on status
+        let message = '';
+        let progress = 0;
+        
+        if (status.status === 'IN_PROGRESS') {
+            if (status.percentage !== undefined) {
+                message = `Processing... ${Math.round(status.percentage)}%`;
+                progress = status.percentage;
+            } else {
+                message = 'Processing your request...';
+                progress = 25; // Default progress for processing
+            }
+        } else if (status.status === 'IN_QUEUE') {
+            if (status.queue_position !== undefined) {
+                message = `In queue (position ${status.queue_position})`;
+                progress = 10;
+            } else {
+                message = 'Waiting in queue...';
+                progress = 5;
+            }
+        } else if (status.status === 'COMPLETED') {
+            message = 'Generation completed successfully!';
+            progress = 100;
+        } else {
+            message = status.status.toLowerCase().replace('_', ' ');
+            progress = 15;
+        }
+        
+        statusMessage.textContent = message;
+        progressFill.style.width = `${progress}%`;
+        
+        this.logDebug('Status updated', 'status', { status: status.status, progress, message });
     }
     
     async fetchResults() {
@@ -1227,7 +1359,7 @@ class FalAI {
             this.openImageModalWithNavigation(image.url, resultImages, currentIndex, 'results');
         });
         
-        // Automatically save to gallery when image is generated
+        // Try to save to gallery when image is generated (non-blocking)
         this.saveToGallery(image.url, metadata, false); // false = no visual feedback
         
         return div;
@@ -1303,30 +1435,6 @@ class FalAI {
         img.alt = 'Saved image';
         img.loading = 'lazy';
         
-        const overlay = document.createElement('div');
-        overlay.className = 'gallery-item-overlay';
-        
-        const downloadBtn = document.createElement('button');
-        downloadBtn.className = 'btn secondary';
-        downloadBtn.innerHTML = '💾';
-        downloadBtn.title = 'Download';
-        downloadBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.downloadImageFromGallery(index);
-        });
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn secondary';
-        deleteBtn.innerHTML = '🗑️';
-        deleteBtn.title = 'Delete';
-        deleteBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.deleteImageFromGallery(index);
-        });
-        
-        overlay.appendChild(downloadBtn);
-        overlay.appendChild(deleteBtn);
-        
         const info = document.createElement('div');
         info.className = 'gallery-item-info';
         info.innerHTML = `
@@ -1335,17 +1443,13 @@ class FalAI {
         `;
         
         div.appendChild(img);
-        div.appendChild(overlay);
         div.appendChild(info);
         
         // Click on entire gallery item opens zoom modal with gallery context
         div.addEventListener('click', (e) => {
-            // Only handle clicks that aren't on buttons
-            if (!e.target.closest('button')) {
-                e.preventDefault();
-                e.stopPropagation();
-                this.openImageModalWithNavigation(imageData.url, this.savedImages, index, 'gallery');
-            }
+            e.preventDefault();
+            e.stopPropagation();
+            this.openImageModalWithNavigation(imageData.url, this.savedImages, index, 'gallery');
         });
         
         return div;
@@ -1717,6 +1821,117 @@ class FalAI {
         return null;
     }
 
+    exportSettings() {
+        try {
+            // Collect all settings
+            const settings = {
+                version: '1.0.0',
+                timestamp: new Date().toISOString(),
+                apiKey: this.apiKey,
+                endpointSettings: this.endpointSettings,
+                savedImages: this.savedImages,
+                debugMode: this.debugMode,
+                advancedVisible: localStorage.getItem('falai_advanced_visible') === 'true'
+            };
+
+            // Create and download file
+            const blob = new Blob([JSON.stringify(settings, null, 2)], {
+                type: 'application/json'
+            });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
+            a.href = url;
+            a.download = `falai-settings-${timestamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            this.logDebug('Settings exported successfully', 'success');
+            
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('Failed to export settings: ' + error.message);
+            this.logDebug('Settings export failed: ' + error.message, 'error');
+        }
+    }
+
+    async importSettings(file) {
+        try {
+            const text = await file.text();
+            const settings = JSON.parse(text);
+
+            // Validate settings structure
+            if (!settings.version || !settings.endpointSettings) {
+                throw new Error('Invalid settings file format');
+            }
+
+            // Show confirmation dialog
+            const message = `Import settings from ${settings.timestamp || 'unknown date'}?\n\nThis will replace:\n- All endpoint settings\n- API key\n- Saved images (${settings.savedImages?.length || 0} images)\n- Other preferences`;
+            
+            if (!confirm(message)) {
+                return;
+            }
+
+            // Import settings
+            if (settings.apiKey) {
+                this.apiKey = settings.apiKey;
+                localStorage.setItem('falai_api_key', this.apiKey);
+            }
+
+            if (settings.endpointSettings) {
+                this.endpointSettings = settings.endpointSettings;
+                localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
+            }
+
+            if (settings.savedImages) {
+                this.savedImages = settings.savedImages;
+                localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
+            }
+
+            if (settings.debugMode !== undefined) {
+                this.debugMode = settings.debugMode;
+                localStorage.setItem('falai_debug_mode', this.debugMode);
+                document.getElementById('debug-checkbox').checked = this.debugMode;
+                
+                const debugPanel = document.getElementById('debug-panel');
+                if (this.debugMode) {
+                    debugPanel.classList.remove('hidden');
+                } else {
+                    debugPanel.classList.add('hidden');
+                }
+            }
+
+            if (settings.advancedVisible !== undefined) {
+                localStorage.setItem('falai_advanced_visible', settings.advancedVisible);
+            }
+
+            // Refresh UI
+            if (this.currentEndpoint) {
+                this.restoreEndpointSettings(this.currentEndpoint.metadata.endpointId);
+            }
+            
+            // Refresh gallery if open
+            const galleryTab = document.getElementById('gallery-panel-tab');
+            if (galleryTab && galleryTab.classList.contains('active')) {
+                this.showInlineGallery();
+            }
+
+            alert('Settings imported successfully!');
+            this.logDebug('Settings imported successfully', 'success', {
+                endpointSettings: Object.keys(settings.endpointSettings || {}).length,
+                savedImages: settings.savedImages?.length || 0
+            });
+
+        } catch (error) {
+            console.error('Import failed:', error);
+            alert('Failed to import settings: ' + error.message);
+            this.logDebug('Settings import failed: ' + error.message, 'error');
+        }
+    }
+
     createArrayField(name, schema, required, label, field) {
         const arrayContainer = document.createElement('div');
         arrayContainer.className = 'array-field-container';
@@ -1772,6 +1987,17 @@ class FalAI {
                     itemSchema.required && itemSchema.required.includes(propName));
                 propField.classList.add('array-item-field');
                 itemContainer.appendChild(propField);
+                
+                // Add change listener to save settings
+                const input = propField.querySelector('input, select, textarea');
+                if (input) {
+                    input.addEventListener('change', () => {
+                        this.saveEndpointSettings();
+                    });
+                    input.addEventListener('input', () => {
+                        this.saveEndpointSettings();
+                    });
+                }
             });
         } else {
             // Handle simple items
@@ -1779,6 +2005,17 @@ class FalAI {
             const itemField = this.createFormField(fieldName, itemSchema, false);
             itemField.classList.add('array-item-field');
             itemContainer.appendChild(itemField);
+            
+            // Add change listener to save settings
+            const input = itemField.querySelector('input, select, textarea');
+            if (input) {
+                input.addEventListener('change', () => {
+                    this.saveEndpointSettings();
+                });
+                input.addEventListener('input', () => {
+                    this.saveEndpointSettings();
+                });
+            }
         }
         
         // Add remove button
@@ -1790,6 +2027,7 @@ class FalAI {
         removeButton.addEventListener('click', () => {
             container.removeChild(itemContainer);
             this.updateArrayIndices(arrayName, container);
+            this.saveEndpointSettings();
         });
         
         itemContainer.appendChild(removeButton);
@@ -1830,29 +2068,161 @@ class FalAI {
     }
     
     saveToGallery(url, metadata, showFeedback = false) {
-        // Check if image already exists to avoid duplicates
-        const exists = this.savedImages.some(img => img.url === url);
-        if (exists && !showFeedback) {
-            return; // Don't save duplicate unless explicitly requested
-        }
-        
-        if (!exists) {
-            const imageData = {
-                url,
-                metadata,
-                timestamp: Date.now(),
-                endpoint: this.currentEndpoint ? this.currentEndpoint.metadata.endpointId : 'unknown'
-            };
+        try {
+            // Don't save base64 images to gallery - they're too large
+            if (url && url.startsWith('data:image/')) {
+                this.logDebug('Skipped saving base64 image to gallery (too large)', 'info');
+                return;
+            }
             
-            this.savedImages.unshift(imageData);
-            localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
+            // Check if image already exists to avoid duplicates
+            const exists = this.savedImages.some(img => img.url === url);
+            if (exists && !showFeedback) {
+                return; // Don't save duplicate unless explicitly requested
+            }
             
-            // Update inline gallery if currently visible
-            const inlineGallery = document.getElementById('inline-gallery');
-            if (inlineGallery && !inlineGallery.classList.contains('hidden')) {
-                this.showInlineGallery();
+            if (!exists) {
+                const imageData = {
+                    url,
+                    metadata,
+                    timestamp: Date.now(),
+                    endpoint: this.currentEndpoint ? this.currentEndpoint.metadata.endpointId : 'unknown'
+                };
+                
+                this.savedImages.unshift(imageData);
+                
+                // Try to save with storage management
+                this.saveWithStorageCheck('falai_saved_images', this.savedImages);
+                
+                // Update inline gallery if currently visible
+                const inlineGallery = document.getElementById('inline-gallery');
+                if (inlineGallery && !inlineGallery.classList.contains('hidden')) {
+                    this.showInlineGallery();
+                }
+                
+                if (showFeedback) {
+                    this.logDebug(`Image saved to gallery`, 'success');
+                }
+            }
+        } catch (error) {
+            // Don't crash the app if gallery save fails - just log it
+            console.warn('Failed to save to gallery (storage full):', error.message);
+            this.logDebug(`Gallery save failed: ${error.message}`, 'warning');
+            
+            if (showFeedback) {
+                // Only show user feedback if they explicitly tried to save
+                alert(`Could not save to gallery: ${error.message}`);
             }
         }
+    }
+
+    saveWithStorageCheck(key, data) {
+        const maxRetries = 3;
+        
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+                return; // Success
+            } catch (error) {
+                if (error.name === 'QuotaExceededError') {
+                    this.logDebug(`Storage quota exceeded (attempt ${attempt + 1}/${maxRetries}), cleaning up...`, 'warning');
+                    
+                    if (attempt < maxRetries - 1) {
+                        // Try to free up space - prioritize base64 images first
+                        const base64Cleanup = this.cleanupBase64Images();
+                        
+                        if (base64Cleanup.count === 0) {
+                            // No base64 images to clean, try other cleanup methods
+                            const settingsCleanup = this.cleanupOldSettings();
+                            
+                            if (settingsCleanup === 0) {
+                                // Only clean gallery as last resort and only if very large
+                                this.cleanupOldGalleryImages();
+                            }
+                        }
+                    } else {
+                        // Last attempt failed, throw error
+                        throw new Error('Storage quota exceeded even after cleanup. Consider clearing gallery or browser data.');
+                    }
+                } else {
+                    throw error; // Different error, don't retry
+                }
+            }
+        }
+    }
+
+    cleanupBase64Images() {
+        let totalCleaned = 0;
+        let sizeFreed = 0;
+        
+        // Clean base64 images from endpoint settings
+        for (const [endpointId, settings] of Object.entries(this.endpointSettings)) {
+            for (const [key, value] of Object.entries(settings)) {
+                if (typeof value === 'string' && this.isBase64DataURL(value)) {
+                    const sizeBefore = new Blob([value]).size;
+                    delete settings[key];
+                    totalCleaned++;
+                    sizeFreed += sizeBefore;
+                    this.logDebug(`Removed base64 image from ${endpointId}.${key} (${this.formatBytes(sizeBefore)})`, 'info');
+                }
+            }
+        }
+        
+        if (totalCleaned > 0) {
+            localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
+            this.logDebug(`Cleaned up ${totalCleaned} base64 images, freed ${this.formatBytes(sizeFreed)}`, 'success');
+        }
+        
+        return { count: totalCleaned, sizeFreed };
+    }
+    
+    isBase64DataURL(str) {
+        // Check if string is a data URL with base64 image
+        return typeof str === 'string' && 
+               str.startsWith('data:image/') && 
+               str.includes('base64,') &&
+               str.length > 1000; // Only consider large data URLs (small ones might be icons)
+    }
+    
+    cleanupOldGalleryImages(maxImages = 500) {
+        // Only clean gallery if it's extremely large (500+ images)
+        // Gallery URLs are small, so we keep more
+        if (!this.savedImages || this.savedImages.length <= maxImages) {
+            return 0; // Nothing to clean
+        }
+        
+        const originalCount = this.savedImages.length;
+        
+        // Sort by timestamp (newest first) and keep only the most recent images
+        this.savedImages.sort((a, b) => b.timestamp - a.timestamp);
+        this.savedImages = this.savedImages.slice(0, maxImages);
+        
+        const removedCount = originalCount - this.savedImages.length;
+        
+        this.logDebug(`Cleaned up ${removedCount} old gallery entries, kept ${this.savedImages.length} most recent`, 'info');
+        
+        return removedCount;
+    }
+
+    cleanupOldSettings() {
+        // Clean up old endpoint settings for endpoints that no longer exist
+        const currentEndpoints = new Set(Array.from(this.endpoints.keys()));
+        const settingsKeys = Object.keys(this.endpointSettings);
+        let cleaned = 0;
+        
+        for (const endpointId of settingsKeys) {
+            if (!currentEndpoints.has(endpointId)) {
+                delete this.endpointSettings[endpointId];
+                cleaned++;
+            }
+        }
+        
+        if (cleaned > 0) {
+            localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
+            this.logDebug(`Cleaned up settings for ${cleaned} removed endpoints`, 'info');
+        }
+        
+        return cleaned;
     }
     
     showGallery() {
@@ -2064,19 +2434,63 @@ class FalAI {
         throw new Error('No cancel endpoint found');
     }
     
-    showGenerationStatus(message) {
-        document.getElementById('status-content').innerHTML = `<div>${message}</div>`;
-        document.getElementById('generation-status').classList.remove('hidden');
+    showGenerationStatus(message, type = 'generating') {
+        const statusPanel = document.getElementById('generation-status');
+        const statusMessage = document.getElementById('status-message');
+        const statusContainer = statusPanel.querySelector('.status-container');
+        const progressFill = document.getElementById('progress-fill');
+        
+        // Hide placeholder and results
+        document.getElementById('no-images-placeholder').classList.add('hidden');
+        document.getElementById('results').classList.add('hidden');
+        document.getElementById('inline-gallery').classList.add('hidden');
+        
+        // Update message
+        statusMessage.textContent = message;
+        
+        // Reset container classes
+        statusContainer.className = 'status-container';
+        
+        // Add type-specific styling
+        if (type === 'success') {
+            statusContainer.classList.add('status-success');
+            statusContainer.querySelector('.status-title').textContent = 'Generation Complete';
+            progressFill.style.width = '100%';
+        } else if (type === 'error') {
+            statusContainer.classList.add('status-error');
+            statusContainer.querySelector('.status-title').textContent = 'Generation Failed';
+            progressFill.style.width = '0%';
+        } else {
+            statusContainer.querySelector('.status-title').textContent = 'Generating Image';
+            // Keep current progress
+        }
+        
+        // Show status panel
+        statusPanel.classList.remove('hidden');
+        
+        this.logDebug(`Status shown: ${message}`, 'status', { type });
     }
     
     hideGenerationStatus() {
         document.getElementById('generation-status').classList.add('hidden');
         this.currentRequestId = null;
+        
+        // Reset progress
+        document.getElementById('progress-fill').style.width = '0%';
+        
+        this.logDebug('Status hidden', 'status');
     }
     
     showError(message) {
-        alert(message); // Simple error display - could be improved
-        this.hideGenerationStatus();
+        this.showGenerationStatus(message, 'error');
+        
+        // Auto-hide error status after 5 seconds
+        setTimeout(() => {
+            this.hideGenerationStatus();
+            document.getElementById('no-images-placeholder').classList.remove('hidden');
+        }, 5000);
+        
+        this.logDebug('Error shown: ' + message, 'error');
     }
     
     hideResults() {
@@ -2098,6 +2512,19 @@ class FalAI {
         const form = document.getElementById('generation-form');
         
         for (const [key, value] of Object.entries(settings)) {
+            // Handle array fields (like loras)
+            if (Array.isArray(value)) {
+                this.restoreArrayField(key, value, form);
+                continue;
+            }
+            
+            // Handle image_size object
+            if (key === 'image_size' && typeof value === 'object') {
+                this.restoreImageSizeField(value, form);
+                continue;
+            }
+            
+            // Handle simple fields
             const input = form.querySelector(`[name="${key}"]`);
             if (!input) continue;
             
@@ -2113,7 +2540,186 @@ class FalAI {
             } else {
                 input.value = value;
             }
+            
+            // Trigger change event to update any dependent elements
+            input.dispatchEvent(new Event('change'));
         }
+    }
+    
+    restoreArrayField(fieldName, arrayValue, form) {
+        const container = form.querySelector(`#${fieldName}-items`);
+        if (!container) return;
+        
+        // Clear existing items
+        container.innerHTML = '';
+        
+        // Add items for each saved value
+        arrayValue.forEach((itemValue, index) => {
+            // Get the schema for this array field
+            const schema = this.getFieldSchema(fieldName);
+            if (!schema) return;
+            
+            this.addArrayItem(fieldName, schema, container);
+            
+            // Set values for the newly added item
+            if (typeof itemValue === 'object') {
+                for (const [propName, propValue] of Object.entries(itemValue)) {
+                    const input = container.querySelector(`[name="${fieldName}[${index}].${propName}"]`);
+                    if (input) {
+                        input.value = propValue;
+                    }
+                }
+            } else {
+                const input = container.querySelector(`[name="${fieldName}[${index}]"]`);
+                if (input) {
+                    input.value = itemValue;
+                }
+            }
+        });
+    }
+    
+    restoreImageSizeField(value, form) {
+        const select = form.querySelector('select[name="image_size"]');
+        if (!select) return;
+        
+        if (value.width && value.height) {
+            // Custom size
+            select.value = 'custom';
+            select.dispatchEvent(new Event('change')); // Show custom fields
+            
+            const widthInput = form.querySelector('input[name="image_size_width"]');
+            const heightInput = form.querySelector('input[name="image_size_height"]');
+            
+            if (widthInput) widthInput.value = value.width;
+            if (heightInput) heightInput.value = value.height;
+        }
+    }
+    
+    getFieldSchema(fieldName) {
+        if (!this.currentEndpoint) return null;
+        
+        const inputSchema = this.findInputSchema(this.currentEndpoint.schema);
+        if (!inputSchema || !inputSchema.properties) return null;
+        
+        return inputSchema.properties[fieldName];
+    }
+
+    // Storage management functions
+    getStorageSize() {
+        let totalSize = 0;
+        const storageData = {};
+        
+        for (let key in localStorage) {
+            if (localStorage.hasOwnProperty(key)) {
+                const value = localStorage.getItem(key);
+                const size = new Blob([value]).size;
+                storageData[key] = {
+                    size: size,
+                    sizeFormatted: this.formatBytes(size),
+                    items: key.startsWith('falai_') ? 
+                        (key === 'falai_saved_images' ? JSON.parse(value || '[]').length : 1) : 1
+                };
+                totalSize += size;
+            }
+        }
+        
+        return {
+            total: totalSize,
+            totalFormatted: this.formatBytes(totalSize),
+            limit: this.getStorageLimit(),
+            limitFormatted: this.formatBytes(this.getStorageLimit()),
+            usage: (totalSize / this.getStorageLimit() * 100).toFixed(1),
+            breakdown: storageData
+        };
+    }
+    
+    formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    getStorageLimit() {
+        // Return cached limit if already calculated
+        if (this._cachedStorageLimit) {
+            return this._cachedStorageLimit;
+        }
+        
+        try {
+            // Use common browser limits (testing is risky when storage is full)
+            const userAgent = navigator.userAgent.toLowerCase();
+            let limit = 10 * 1024 * 1024; // Default 10MB
+            
+            if (userAgent.includes('chrome') || userAgent.includes('edge')) {
+                limit = 10 * 1024 * 1024; // Chrome/Edge: ~10MB
+            } else if (userAgent.includes('firefox')) {
+                limit = 10 * 1024 * 1024; // Firefox: ~10MB  
+            } else if (userAgent.includes('safari')) {
+                limit = 5 * 1024 * 1024;  // Safari: ~5MB
+            }
+            
+            // Cache the result
+            this._cachedStorageLimit = limit;
+            return limit;
+            
+        } catch (e) {
+            this._cachedStorageLimit = 5 * 1024 * 1024; // 5MB fallback
+            return this._cachedStorageLimit;
+        }
+    }
+    
+    logStorageInfo() {
+        const info = this.getStorageSize();
+        
+        // Analyze base64 images in settings
+        const base64Analysis = this.analyzeBase64Images();
+        
+        console.group('📊 LocalStorage Usage');
+        console.log(`Total: ${info.totalFormatted} / ${info.limitFormatted} (${info.usage}%)`);
+        
+        if (base64Analysis.count > 0) {
+            console.log(`⚠️  Base64 images found: ${base64Analysis.count} images (${this.formatBytes(base64Analysis.totalSize)})`);
+        }
+        
+        console.log('Breakdown:');
+        
+        // Sort by size descending
+        const sorted = Object.entries(info.breakdown)
+            .sort(([,a], [,b]) => b.size - a.size);
+            
+        for (const [key, data] of sorted) {
+            let extra = data.items > 1 ? ` (${data.items} items)` : '';
+            if (key === 'falai_endpoint_settings' && base64Analysis.count > 0) {
+                extra += ` - includes ${base64Analysis.count} base64 images`;
+            }
+            console.log(`  ${key}: ${data.sizeFormatted}${extra}`);
+        }
+        
+        if (base64Analysis.count > 0) {
+            console.log(`💡 Run falaiStorage.cleanBase64() to free up ${this.formatBytes(base64Analysis.totalSize)}`);
+        }
+        
+        console.groupEnd();
+        
+        return info;
+    }
+    
+    analyzeBase64Images() {
+        let count = 0;
+        let totalSize = 0;
+        
+        for (const settings of Object.values(this.endpointSettings)) {
+            for (const value of Object.values(settings)) {
+                if (typeof value === 'string' && this.isBase64DataURL(value)) {
+                    count++;
+                    totalSize += new Blob([value]).size;
+                }
+            }
+        }
+        
+        return { count, totalSize };
     }
     
     restoreUIState() {
