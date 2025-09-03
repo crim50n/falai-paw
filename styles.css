@@ -1675,3 +1675,63 @@ body {
 .spinning {
     animation: spin 1s linear infinite;
 }
+
+/* Custom Endpoint Modal */
+.custom-endpoint-tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 1.5rem;
+}
+
+.tab-button {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.tab-button.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+}
+
+.tab-button:hover:not(.active) {
+    color: #374151;
+    background: #f9fafb;
+}
+
+.endpoint-method {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.endpoint-method label {
+    font-weight: 500;
+    color: #374151;
+}
+
+.endpoint-method input[type="url"],
+.endpoint-method input[type="file"] {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+.endpoint-method input[type="url"]:focus,
+.endpoint-method input[type="file"]:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.endpoint-method small {
+    color: #6b7280;
+    font-size: 0.8rem;
+}

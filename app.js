@@ -10,37 +10,38 @@ class FalAI {
         this.currentImageIndex = 0;
         this.fullscreenImages = [];
         this.debugMode = localStorage.getItem('falai_debug_mode') === 'true';
-        
+
         this.init();
     }
-    
+
     logDebug(message, type = 'info', data = null) {
         if (!this.debugMode) return;
-        
+
         const timestamp = new Date().toLocaleTimeString();
         const debugContent = document.getElementById('debug-content');
-        
+
         const entry = document.createElement('div');
         entry.className = `debug-entry ${type}`;
-        
+
         entry.innerHTML = `
             <div class="timestamp">${timestamp}</div>
             <div class="type">${type.toUpperCase()}</div>
             <div class="message">${message}</div>
             ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
         `;
-        
+
         debugContent.appendChild(entry);
         debugContent.scrollTop = debugContent.scrollHeight;
     }
-    
+
     async init() {
         await this.loadEndpoints();
+        this.loadCustomEndpoints();
         this.setupEventListeners();
         this.restoreUIState();
         this.setupPWA();
         this.initDebugMode();
-        
+
         // Log storage info on startup if debug mode is enabled
         if (this.debugMode) {
             this.logStorageInfo();
@@ -51,7 +52,7 @@ class FalAI {
                 console.warn(`⚠️ Storage ${info.usage}% full! Run falaiStorage.info() for details`);
             }
         }
-        
+
         // Make storage functions available globally for debugging
         window.falaiStorage = {
             info: () => this.logStorageInfo(),
@@ -89,7 +90,7 @@ class FalAI {
                 }
                 entries.sort((a, b) => b.size - a.size);
                 entries.slice(0, 10).forEach((entry, i) => {
-                    console.log(`${i+1}. ${entry.key}: ${this.formatBytes(entry.size)}`);
+                    console.log(`${i + 1}. ${entry.key}: ${this.formatBytes(entry.size)}`);
                     console.log(`   Preview: ${entry.preview}`);
                 });
                 return entries;
@@ -98,27 +99,27 @@ class FalAI {
                 console.log('🖼️ Analyzing gallery images...');
                 const images = this.savedImages;
                 console.log(`Total images: ${images.length}`);
-                
+
                 let urlCount = 0;
                 let base64Count = 0;
                 let totalSize = 0;
-                
+
                 images.forEach((img, i) => {
                     const size = new Blob([img.url]).size;
                     totalSize += size;
-                    
+
                     if (img.url.startsWith('data:image/')) {
                         base64Count++;
-                        console.log(`${i+1}. [BASE64] ${this.formatBytes(size)} - ${img.endpoint} (${new Date(img.timestamp).toLocaleString()})`);
+                        console.log(`${i + 1}. [BASE64] ${this.formatBytes(size)} - ${img.endpoint} (${new Date(img.timestamp).toLocaleString()})`);
                     } else {
                         urlCount++;
-                        console.log(`${i+1}. [URL] ${this.formatBytes(size)} - ${img.url.substring(0, 50)}...`);
+                        console.log(`${i + 1}. [URL] ${this.formatBytes(size)} - ${img.url.substring(0, 50)}...`);
                     }
                 });
-                
+
                 console.log(`Summary: ${urlCount} URLs, ${base64Count} base64 images`);
                 console.log(`Total size: ${this.formatBytes(totalSize)}`);
-                
+
                 if (base64Count > 0) {
                     console.log(`💡 Run falaiStorage.cleanGalleryBase64() to remove base64 images from gallery`);
                 }
@@ -126,25 +127,25 @@ class FalAI {
             cleanGalleryBase64: () => {
                 const before = this.savedImages.length;
                 const sizeBefore = new Blob([JSON.stringify(this.savedImages)]).size;
-                
+
                 this.savedImages = this.savedImages.filter(img => !img.url.startsWith('data:image/'));
-                
+
                 const after = this.savedImages.length;
                 const sizeAfter = new Blob([JSON.stringify(this.savedImages)]).size;
-                
+
                 localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
-                
+
                 console.log(`🧹 Cleaned gallery: removed ${before - after} base64 images`);
                 console.log(`💾 Freed ${this.formatBytes(sizeBefore - sizeAfter)} from gallery`);
                 this.logStorageInfo();
             }
         };
     }
-    
+
     initDebugMode() {
         const debugCheckbox = document.getElementById('debug-checkbox');
         const debugPanel = document.getElementById('debug-panel');
-        
+
         // Restore debug mode state
         debugCheckbox.checked = this.debugMode;
         if (this.debugMode) {
@@ -152,7 +153,7 @@ class FalAI {
             this.logDebug('Debug mode restored', 'system');
         }
     }
-    
+
     async loadEndpoints() {
         try {
             const response = await fetch('/endpoints');
@@ -162,7 +163,7 @@ class FalAI {
                 return;
             }
             const endpointPaths = await response.json();
-            
+
             for (const path of endpointPaths) {
                 await this.loadEndpoint(path);
             }
@@ -170,24 +171,23 @@ class FalAI {
             console.warn('Could not auto-discover endpoints, loading manually:', error);
             await this.loadEndpointsManually();
         }
-        
+
         this.renderEndpointDropdown();
     }
-    
+
     async loadEndpointsManually() {
         const knownEndpoints = [
             'endpoints/flux-pro/kontext/openapi.json',
             'endpoints/flux-krea-lora/openapi.json',
             'endpoints/flux-lora/openapi.json',
-            'endpoints/flux-kontext/dev/openapi.json',
-            'endpoints/nano-banana/edit/openapi.json'
+            'endpoints/flux-kontext/dev/openapi.json'
         ];
-        
+
         for (const path of knownEndpoints) {
             await this.loadEndpoint(path);
         }
     }
-    
+
     async loadEndpoint(path) {
         try {
             const response = await fetch(path);
@@ -195,15 +195,15 @@ class FalAI {
                 console.warn(`Failed to load endpoint from ${path}`);
                 return;
             }
-            
+
             const schema = await response.json();
             const metadata = schema.info?.['x-fal-metadata'];
-            
+
             if (!metadata) {
                 console.warn(`No fal metadata found in ${path}`);
                 return;
             }
-            
+
             const endpoint = {
                 path,
                 schema,
@@ -211,28 +211,28 @@ class FalAI {
                 title: schema.info.title,
                 description: schema.info.description
             };
-            
+
             this.endpoints.set(metadata.endpointId, endpoint);
             console.log(`Loaded endpoint: ${metadata.endpointId}`);
-            
+
             // Re-render dropdown after each endpoint loads
             this.renderEndpointDropdown();
         } catch (error) {
             console.warn(`Error loading endpoint ${path}:`, error);
         }
     }
-    
+
     renderEndpointDropdown() {
         const dropdown = document.getElementById('endpoint-dropdown');
         if (!dropdown) {
             console.warn('endpoint-dropdown element not found');
             return;
         }
-        
+
         dropdown.innerHTML = '<option value="">Choose an endpoint...</option>';
-        
+
         console.log(`Rendering dropdown with ${this.endpoints.size} endpoints`);
-        
+
         for (const [id, endpoint] of this.endpoints) {
             const option = document.createElement('option');
             option.value = id;
@@ -240,64 +240,64 @@ class FalAI {
             dropdown.appendChild(option);
         }
     }
-    
+
     selectEndpoint(endpointId) {
         const endpoint = this.endpoints.get(endpointId);
         if (!endpoint) return;
-        
+
         this.currentEndpoint = endpoint;
-        
+
         this.showEndpointInfo();
         this.generateForm();
         this.hideResults();
     }
-    
+
     clearEndpointSelection() {
         this.currentEndpoint = null;
-        
+
         // Hide endpoint info and form
         document.getElementById('endpoint-info').classList.add('hidden');
         document.getElementById('api-form').classList.add('hidden');
-        
+
         this.hideResults();
     }
-    
+
     showEndpointInfo() {
         const endpoint = this.currentEndpoint;
         const info = document.getElementById('endpoint-info');
-        
+
         document.getElementById('endpoint-thumbnail').src = endpoint.metadata.thumbnailUrl;
         document.getElementById('endpoint-title').textContent = endpoint.metadata.endpointId;
         document.getElementById('endpoint-category').textContent = endpoint.metadata.category;
         document.getElementById('playground-link').href = endpoint.metadata.playgroundUrl;
         document.getElementById('docs-link').href = endpoint.metadata.documentationUrl;
-        
+
         info.classList.remove('hidden');
     }
-    
+
     generateForm() {
         const endpoint = this.currentEndpoint;
         const schema = endpoint.schema;
-        
+
         // Find the input schema
         const inputSchema = this.findInputSchema(schema);
         if (!inputSchema) {
             console.error('Could not find input schema');
             return;
         }
-        
+
         const container = document.getElementById('form-fields');
         container.innerHTML = '';
-        
+
         // Generate form fields based on schema
         this.generateFormFields(inputSchema, container);
-        
+
         // Restore saved settings for this endpoint
         this.restoreEndpointSettings(endpoint.metadata.endpointId);
-        
+
         document.getElementById('api-form').classList.remove('hidden');
     }
-    
+
     findInputSchema(schema) {
         // Look for POST endpoint that accepts the input
         for (const [path, methods] of Object.entries(schema.paths)) {
@@ -311,7 +311,7 @@ class FalAI {
         }
         return null;
     }
-    
+
     resolveSchema(schemaRef, rootSchema) {
         if (schemaRef.$ref) {
             const refPath = schemaRef.$ref.replace('#/', '').split('/');
@@ -323,16 +323,16 @@ class FalAI {
         }
         return schemaRef;
     }
-    
+
     generateFormFields(schema, container) {
         const properties = schema.properties || {};
         const required = schema.required || [];
         const order = schema['x-fal-order-properties'] || Object.keys(properties);
-        
+
         // Create main fields container
         const mainFields = document.createElement('div');
         mainFields.className = 'main-fields';
-        
+
         // Create advanced options container
         const advancedContainer = document.createElement('div');
         advancedContainer.className = 'advanced-options';
@@ -342,25 +342,25 @@ class FalAI {
             </button>
             <div class="advanced-options-content"></div>
         `;
-        
+
         const advancedContent = advancedContainer.querySelector('.advanced-options-content');
         const toggle = advancedContainer.querySelector('.advanced-options-toggle');
-        
+
         toggle.addEventListener('click', () => {
             advancedContent.classList.toggle('visible');
-            toggle.textContent = advancedContent.classList.contains('visible') 
-                ? '▲ Advanced Options' 
+            toggle.textContent = advancedContent.classList.contains('visible')
+                ? '▲ Advanced Options'
                 : '▼ Advanced Options';
         });
-        
+
         // Only show prompt in main fields, everything else goes to advanced options
         for (const fieldName of order) {
             const fieldSchema = properties[fieldName];
             if (!fieldSchema) continue;
-            
+
             const isRequired = required.includes(fieldName);
             const field = this.createFormField(fieldName, fieldSchema, isRequired);
-            
+
             if (fieldName === 'prompt') {
                 // Only prompt field is shown by default
                 mainFields.appendChild(field);
@@ -369,21 +369,21 @@ class FalAI {
                 advancedContent.appendChild(field);
             }
         }
-        
+
         container.appendChild(mainFields);
         container.appendChild(advancedContainer);
     }
-    
+
     createFormField(name, schema, required = false) {
         const field = document.createElement('div');
         field.className = 'form-field';
-        
+
         const label = document.createElement('label');
         label.textContent = (schema.title || name) + (required ? ' *' : '');
         label.setAttribute('for', name);
-        
+
         let input;
-        
+
         // Handle anyOf schemas (like image_size)
         if (schema.anyOf && schema.anyOf.length > 0) {
             // Find the enum option in anyOf
@@ -395,23 +395,23 @@ class FalAI {
                 schema = { ...schema, ...schema.anyOf[0] };
             }
         }
-        
+
         // Handle image URL fields with file upload
         if (name.includes('image_url') || name.includes('image') && schema.type === 'string') {
             return this.createImageUploadField(name, schema, required, label, field);
         }
-        
+
         // Handle array fields (like loras)
         if (schema.type === 'array') {
             return this.createArrayField(name, schema, required, label, field);
         }
-        
+
         if (schema.enum) {
             // Special handling for image_size field
             if (name === 'image_size') {
                 return this.createImageSizeField(name, schema, required, label, field);
             }
-            
+
             input = document.createElement('select');
             input.innerHTML = '<option value="">Select...</option>';
             for (const option of schema.enum) {
@@ -428,7 +428,7 @@ class FalAI {
             if (schema.minimum !== undefined && schema.maximum !== undefined) {
                 return this.createSliderField(name, schema, required, label, field);
             }
-            
+
             input = document.createElement('input');
             input.type = 'number';
             if (schema.minimum !== undefined) input.min = schema.minimum;
@@ -440,107 +440,107 @@ class FalAI {
             input = document.createElement('input');
             input.type = schema.format === 'password' ? 'password' : 'text';
         }
-        
+
         // Add example prompts for prompt field
         if (name === 'prompt') {
             return this.createPromptField(name, schema, required, label, field);
         }
-        
+
         input.id = name;
         input.name = name;
-        
+
         if (schema.default !== undefined && input.type !== 'checkbox') {
             input.value = schema.default;
         } else if (schema.default !== undefined && input.type === 'checkbox') {
             input.checked = schema.default;
         }
-        
+
         if (required) {
             input.required = true;
         }
-        
+
         field.appendChild(label);
         field.appendChild(input);
-        
+
         if (schema.description) {
             const desc = document.createElement('div');
             desc.className = 'field-description';
             desc.textContent = schema.description;
             field.appendChild(desc);
         }
-        
+
         // Add change listener to save settings
         input.addEventListener('change', () => {
             this.saveEndpointSettings();
         });
-        
+
         return field;
     }
-    
+
     createPromptField(name, schema, required, label, field) {
         field.appendChild(label);
-        
+
         const promptContainer = document.createElement('div');
         promptContainer.className = 'prompt-container';
-        
+
         const textarea = document.createElement('textarea');
         textarea.id = name;
         textarea.name = name;
         textarea.placeholder = 'Describe the image you want to generate...';
         textarea.rows = 3;
         if (required) textarea.required = true;
-        
+
         // Example prompts based on endpoint category
         const examples = this.getExamplePrompts();
-        
+
         if (examples.length > 0) {
             const examplesContainer = document.createElement('div');
             examplesContainer.className = 'prompt-examples';
-            
+
             const examplesLabel = document.createElement('div');
             examplesLabel.className = 'examples-label';
             examplesLabel.textContent = 'Example prompts:';
-            
+
             const examplesList = document.createElement('div');
             examplesList.className = 'examples-list';
-            
+
             examples.forEach((example, index) => {
                 const exampleButton = document.createElement('button');
                 exampleButton.type = 'button';
                 exampleButton.className = 'example-prompt';
                 exampleButton.textContent = example;
-                
+
                 exampleButton.addEventListener('click', () => {
                     textarea.value = example;
                     this.saveEndpointSettings();
                 });
-                
+
                 examplesList.appendChild(exampleButton);
             });
-            
+
             examplesContainer.appendChild(examplesLabel);
             examplesContainer.appendChild(examplesList);
             promptContainer.appendChild(examplesContainer);
         }
-        
+
         textarea.addEventListener('input', () => {
             this.saveEndpointSettings();
         });
-        
+
         promptContainer.appendChild(textarea);
         field.appendChild(promptContainer);
-        
+
         if (schema.description) {
             const desc = document.createElement('div');
             desc.className = 'field-description';
             desc.textContent = schema.description;
             field.appendChild(desc);
         }
-        
+
         // Add generation buttons after prompt
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'prompt-buttons';
-        
+
         const resetBtn = document.createElement('button');
         resetBtn.type = 'button';
         resetBtn.id = 'reset-btn';
@@ -549,7 +549,7 @@ class FalAI {
         resetBtn.addEventListener('click', () => {
             this.resetFormToDefaults();
         });
-        
+
         const generateBtn = document.createElement('button');
         generateBtn.type = 'submit';
         generateBtn.className = 'btn primary generate-btn';
@@ -557,21 +557,21 @@ class FalAI {
             <span class="generate-text">Generate</span>
             <span class="generate-loading hidden">Generating...</span>
         `;
-        
+
         buttonContainer.appendChild(resetBtn);
         buttonContainer.appendChild(generateBtn);
         field.appendChild(buttonContainer);
-        
+
         return field;
     }
-    
+
     getExamplePrompts() {
         const endpoint = this.currentEndpoint;
         if (!endpoint) return [];
-        
+
         const category = endpoint.metadata.category;
         const endpointId = endpoint.metadata.endpointId;
-        
+
         if (endpointId.includes('kontext')) {
             return [
                 "A serene lake with mountains in the background, replace the mountains with a modern city skyline",
@@ -594,25 +594,25 @@ class FalAI {
             ];
         }
     }
-    
+
     createImageUploadField(name, schema, required, label, field) {
         field.appendChild(label);
-        
+
         const uploadContainer = document.createElement('div');
         uploadContainer.className = 'image-upload-container';
-        
+
         const urlInput = document.createElement('input');
         urlInput.type = 'text';
         urlInput.id = name;
         urlInput.name = name;
         urlInput.placeholder = 'Enter image URL or upload file';
         if (required) urlInput.required = true;
-        
+
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = 'image/*';
         fileInput.style.display = 'none';
-        
+
         const uploadArea = document.createElement('div');
         uploadArea.className = 'upload-area';
         uploadArea.innerHTML = `
@@ -621,29 +621,29 @@ class FalAI {
                 <small>Supports: JPG, PNG, WebP, GIF</small>
             </div>
         `;
-        
+
         const preview = document.createElement('div');
         preview.className = 'image-preview hidden';
         preview.innerHTML = `
             <img src="" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 4px;">
             <button type="button" class="remove-image btn secondary small">Remove</button>
         `;
-        
+
         // Upload area click
         uploadArea.addEventListener('click', () => {
             fileInput.click();
         });
-        
+
         // Drag and drop
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
             uploadArea.classList.add('drag-over');
         });
-        
+
         uploadArea.addEventListener('dragleave', () => {
             uploadArea.classList.remove('drag-over');
         });
-        
+
         uploadArea.addEventListener('drop', async (e) => {
             e.preventDefault();
             uploadArea.classList.remove('drag-over');
@@ -652,14 +652,14 @@ class FalAI {
                 await this.handleFileUpload(files[0], urlInput, uploadArea, preview);
             }
         });
-        
+
         // File input change
         fileInput.addEventListener('change', async (e) => {
             if (e.target.files.length > 0) {
                 await this.handleFileUpload(e.target.files[0], urlInput, uploadArea, preview);
             }
         });
-        
+
         // Remove button
         preview.querySelector('.remove-image').addEventListener('click', () => {
             urlInput.value = '';
@@ -667,7 +667,7 @@ class FalAI {
             preview.classList.add('hidden');
             this.saveEndpointSettings();
         });
-        
+
         // URL input change
         urlInput.addEventListener('input', () => {
             if (urlInput.value) {
@@ -678,30 +678,30 @@ class FalAI {
             }
             this.saveEndpointSettings();
         });
-        
+
         uploadContainer.appendChild(urlInput);
         uploadContainer.appendChild(uploadArea);
         uploadContainer.appendChild(preview);
         uploadContainer.appendChild(fileInput);
-        
+
         field.appendChild(uploadContainer);
-        
+
         if (schema.description) {
             const desc = document.createElement('div');
             desc.className = 'field-description';
             desc.textContent = schema.description;
             field.appendChild(desc);
         }
-        
+
         return field;
     }
-    
+
     createSliderField(name, schema, required, label, field) {
         field.appendChild(label);
-        
+
         const sliderContainer = document.createElement('div');
         sliderContainer.className = 'slider-container';
-        
+
         const slider = document.createElement('input');
         slider.type = 'range';
         slider.id = name;
@@ -710,45 +710,45 @@ class FalAI {
         slider.max = schema.maximum;
         slider.value = schema.default || schema.minimum;
         slider.step = schema.type === 'integer' ? 1 : 0.1;
-        
+
         const valueDisplay = document.createElement('span');
         valueDisplay.className = 'slider-value';
         valueDisplay.textContent = slider.value;
-        
+
         const sliderLabels = document.createElement('div');
         sliderLabels.className = 'slider-labels';
         sliderLabels.innerHTML = `
             <span>${schema.minimum}</span>
             <span>${schema.maximum}</span>
         `;
-        
+
         slider.addEventListener('input', () => {
             valueDisplay.textContent = slider.value;
             this.saveEndpointSettings();
         });
-        
+
         sliderContainer.appendChild(slider);
         sliderContainer.appendChild(valueDisplay);
         sliderContainer.appendChild(sliderLabels);
-        
+
         field.appendChild(sliderContainer);
-        
+
         if (schema.description) {
             const desc = document.createElement('div');
             desc.className = 'field-description';
             desc.textContent = schema.description;
             field.appendChild(desc);
         }
-        
+
         return field;
     }
-    
+
     async handleFileUpload(file, urlInput, uploadArea, preview) {
         if (!file.type.startsWith('image/')) {
             alert('Please select an image file');
             return;
         }
-        
+
         try {
             // Convert to base64 data URL for immediate use
             const reader = new FileReader();
@@ -758,48 +758,48 @@ class FalAI {
                 this.saveEndpointSettings();
             };
             reader.readAsDataURL(file);
-            
+
         } catch (error) {
             console.error('File upload error:', error);
             alert('Failed to process image file');
         }
     }
-    
+
     showImagePreview(src, uploadArea, preview) {
         const img = preview.querySelector('img');
         img.src = src;
         uploadArea.classList.add('hidden');
         preview.classList.remove('hidden');
     }
-    
+
     setupEventListeners() {
         // API Key modal
         document.getElementById('api-key-btn').addEventListener('click', () => {
             document.getElementById('api-key-input').value = this.apiKey;
             document.getElementById('api-key-modal').classList.remove('hidden');
         });
-        
+
         document.getElementById('save-api-key').addEventListener('click', () => {
             const key = document.getElementById('api-key-input').value.trim();
             this.apiKey = key;
             localStorage.setItem('falai_api_key', key);
             document.getElementById('api-key-modal').classList.add('hidden');
         });
-        
+
         document.getElementById('cancel-api-key').addEventListener('click', () => {
             document.getElementById('api-key-modal').classList.add('hidden');
         });
-        
-        
+
+
         // Panel tabs
         document.getElementById('results-panel-tab').addEventListener('click', () => {
             this.switchRightPanelView('results');
         });
-        
+
         document.getElementById('gallery-panel-tab').addEventListener('click', () => {
             this.switchRightPanelView('gallery');
         });
-        
+
         // Endpoint dropdown
         document.getElementById('endpoint-dropdown').addEventListener('change', (e) => {
             const endpointId = e.target.value;
@@ -809,53 +809,53 @@ class FalAI {
                 this.clearEndpointSelection();
             }
         });
-        
+
         // Full-screen viewer controls
         document.getElementById('fullscreen-close').addEventListener('click', () => {
             this.closeFullscreenViewer();
         });
-        
+
         document.getElementById('fullscreen-prev').addEventListener('click', () => {
             this.navigateFullscreen(-1);
         });
-        
+
         document.getElementById('fullscreen-next').addEventListener('click', () => {
             this.navigateFullscreen(1);
         });
-        
+
         document.getElementById('fullscreen-download').addEventListener('click', () => {
             this.downloadCurrentFullscreenImage();
         });
-        
+
         document.getElementById('fullscreen-delete').addEventListener('click', () => {
             this.deleteCurrentFullscreenImage();
         });
-        
+
         // Results tab switching
         document.getElementById('images-tab').addEventListener('click', () => {
             this.switchResultsTab('images');
         });
-        
+
         document.getElementById('json-tab').addEventListener('click', () => {
             this.switchResultsTab('json');
         });
-        
+
         // Form submission
         document.getElementById('generation-form').addEventListener('submit', (e) => {
             e.preventDefault();
             this.generateImage();
         });
-        
+
         // Cancel generation
         document.getElementById('cancel-btn').addEventListener('click', () => {
             this.cancelGeneration();
         });
-        
+
         // Debug mode toggle
         document.getElementById('debug-checkbox').addEventListener('change', (e) => {
             this.debugMode = e.target.checked;
             localStorage.setItem('falai_debug_mode', this.debugMode);
-            
+
             const debugPanel = document.getElementById('debug-panel');
             if (this.debugMode) {
                 debugPanel.classList.remove('hidden');
@@ -881,12 +881,35 @@ class FalAI {
                 e.target.value = ''; // Reset file input
             }
         });
-        
+
         // Clear debug log
         document.getElementById('clear-debug').addEventListener('click', () => {
             document.getElementById('debug-content').innerHTML = '';
         });
-        
+
+        // Custom endpoint modal
+        document.getElementById('add-endpoint-btn').addEventListener('click', () => {
+            document.getElementById('custom-endpoint-modal').classList.remove('hidden');
+            this.switchEndpointTab('url');
+        });
+
+        document.getElementById('cancel-custom-endpoint').addEventListener('click', () => {
+            this.closeCustomEndpointModal();
+        });
+
+        document.getElementById('add-custom-endpoint').addEventListener('click', () => {
+            this.addCustomEndpoint();
+        });
+
+        // Custom endpoint tabs
+        document.getElementById('url-tab').addEventListener('click', () => {
+            this.switchEndpointTab('url');
+        });
+
+        document.getElementById('file-tab').addEventListener('click', () => {
+            this.switchEndpointTab('file');
+        });
+
         // Close modals on background click
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal')) {
@@ -896,7 +919,7 @@ class FalAI {
                 this.closeFullscreenViewer();
             }
         });
-        
+
         // Keyboard navigation for full-screen viewer
         document.addEventListener('keydown', (e) => {
             const viewer = document.getElementById('fullscreen-viewer');
@@ -923,37 +946,37 @@ class FalAI {
             }
         });
     }
-    
+
     async generateImage() {
         if (!this.apiKey) {
             alert('Please set your API key first');
             return;
         }
-        
+
         if (!this.currentEndpoint) {
             alert('Please select an endpoint first');
             return;
         }
-        
+
         // Collect form data
         const formData = this.collectFormData();
-        
+
         try {
             // Update button state
             const generateBtn = document.querySelector('.generate-btn');
             const generateText = generateBtn.querySelector('.generate-text');
             const generateLoading = generateBtn.querySelector('.generate-loading');
-            
+
             generateBtn.classList.add('loading');
             generateText.classList.add('hidden');
             generateLoading.classList.remove('hidden');
-            
+
             // Show status
             this.showGenerationStatus('Submitting request...');
-            
+
             // Submit to queue
             const queueResponse = await this.submitToQueue(formData);
-            
+
             // Check if response already contains results (synchronous response)
             if (queueResponse.images) {
                 // Direct response with results
@@ -962,54 +985,54 @@ class FalAI {
                 this.resetGenerateButton();
                 return;
             }
-            
+
             // Asynchronous response - need to poll
             this.currentRequestId = queueResponse.request_id;
             this.statusUrl = queueResponse.status_url;
             this.resultUrl = queueResponse.response_url;
-            
+
             // Start polling
             this.startStatusPolling();
-            
+
         } catch (error) {
             console.error('Generation error:', error);
             this.showError('Generation failed: ' + error.message);
             this.resetGenerateButton();
         }
     }
-    
+
     resetGenerateButton() {
         const generateBtn = document.querySelector('.generate-btn');
         const generateText = generateBtn.querySelector('.generate-text');
         const generateLoading = generateBtn.querySelector('.generate-loading');
-        
+
         generateBtn.classList.remove('loading');
         generateText.classList.remove('hidden');
         generateLoading.classList.add('hidden');
     }
-    
+
     collectFormData() {
         const form = document.getElementById('generation-form');
         const data = {};
-        
+
         // Get all form inputs
         const inputs = form.querySelectorAll('input, select, textarea');
-        
+
         inputs.forEach(input => {
             const key = input.name;
             if (!key) return;
-            
+
             // Handle array fields (like loras[0].path)
             if (key.includes('[') && key.includes(']')) {
                 this.setNestedProperty(data, key, this.getInputValue(input));
                 return;
             }
-            
+
             // Skip custom size fields - they'll be handled by image_size logic
             if (key.includes('_width') || key.includes('_height')) {
                 return;
             }
-            
+
             if (input.type === 'checkbox') {
                 data[key] = input.checked;
             } else if (input.type === 'number' || input.type === 'range') {
@@ -1021,22 +1044,22 @@ class FalAI {
                 data[key] = input.value;
             }
         });
-        
+
         // Special handling for image_size field
         this.handleImageSizeData(data, form);
-        
+
         return data;
     }
-    
+
     handleImageSizeData(data, form) {
         const imageSizeSelect = form.querySelector('select[name="image_size"]');
         if (!imageSizeSelect || !imageSizeSelect.value) return;
-        
+
         if (imageSizeSelect.value === 'custom') {
             // Use custom width/height values
             const widthInput = form.querySelector('input[name="image_size_width"]');
             const heightInput = form.querySelector('input[name="image_size_height"]');
-            
+
             if (widthInput && heightInput && widthInput.value && heightInput.value) {
                 data.image_size = {
                     width: parseInt(widthInput.value),
@@ -1048,7 +1071,7 @@ class FalAI {
             data.image_size = imageSizeSelect.value;
         }
     }
-    
+
     getInputValue(input) {
         if (input.type === 'checkbox') {
             return input.checked;
@@ -1059,36 +1082,36 @@ class FalAI {
             return input.value !== '' ? input.value : undefined;
         }
     }
-    
+
     setNestedProperty(obj, path, value) {
         if (value === undefined) return;
-        
+
         // Parse path like "loras[0].path" into ["loras", 0, "path"]
         const parts = path.split(/[\[\].]/).filter(part => part !== '');
         let current = obj;
-        
+
         for (let i = 0; i < parts.length - 1; i++) {
             const part = parts[i];
             const nextPart = parts[i + 1];
-            
+
             if (!current[part]) {
                 // Create array if next part is a number, otherwise create object
                 current[part] = !isNaN(parseInt(nextPart)) ? [] : {};
             }
-            
+
             current = current[part];
         }
-        
+
         const lastPart = parts[parts.length - 1];
         current[lastPart] = value;
     }
-    
+
     async submitToQueue(data) {
         const endpoint = this.currentEndpoint;
         const baseUrl = endpoint.schema.servers[0].url;
         const endpointPath = this.getSubmissionPath(endpoint.schema);
         const fullUrl = baseUrl + endpointPath;
-        
+
         this.logDebug('Submitting request to queue', 'request', {
             url: fullUrl,
             endpoint: endpoint.metadata.endpointId,
@@ -1099,7 +1122,7 @@ class FalAI {
             },
             body: data
         });
-        
+
         const response = await fetch(fullUrl, {
             method: 'POST',
             headers: {
@@ -1108,7 +1131,7 @@ class FalAI {
             },
             body: JSON.stringify(data)
         });
-        
+
         if (!response.ok) {
             const error = await response.text();
             this.logDebug('Request failed', 'error', {
@@ -1118,13 +1141,13 @@ class FalAI {
             });
             throw new Error(`HTTP ${response.status}: ${error}`);
         }
-        
+
         const result = await response.json();
         this.logDebug('Request submitted successfully', 'response', result);
-        
+
         return result;
     }
-    
+
     getSubmissionPath(schema) {
         for (const [path, methods] of Object.entries(schema.paths)) {
             if (methods.post && methods.post.requestBody) {
@@ -1133,12 +1156,12 @@ class FalAI {
         }
         throw new Error('No submission endpoint found');
     }
-    
+
     startStatusPolling() {
         if (this.statusPolling) {
             clearInterval(this.statusPolling);
         }
-        
+
         this.statusPolling = setInterval(async () => {
             try {
                 await this.checkStatus();
@@ -1149,16 +1172,16 @@ class FalAI {
             }
         }, 2000);
     }
-    
+
     async checkStatus() {
         if (!this.statusUrl) return;
-        
+
         const response = await fetch(this.statusUrl, {
             headers: {
                 'Authorization': `Key ${this.apiKey}`
             }
         });
-        
+
         if (!response.ok) {
             // If status endpoint returns 404 or 405, the job might be completed
             // Try to fetch results directly
@@ -1172,18 +1195,18 @@ class FalAI {
                 this.resetGenerateButton();
                 return;
             }
-            
+
             this.logDebug('Status check failed', 'error', {
                 status: response.status,
                 statusText: response.statusText
             });
             throw new Error(`Status check failed: ${response.status}`);
         }
-        
+
         const status = await response.json();
         this.logDebug('Status response', 'response', status);
         this.updateStatusDisplay(status);
-        
+
         if (status.status === 'COMPLETED') {
             clearInterval(this.statusPolling);
             await this.fetchResults();
@@ -1194,7 +1217,7 @@ class FalAI {
             this.resetGenerateButton();
         }
     }
-    
+
     getStatusPath(schema, requestId) {
         for (const [path, methods] of Object.entries(schema.paths)) {
             if (path.includes('/status') && methods.get) {
@@ -1203,15 +1226,15 @@ class FalAI {
         }
         throw new Error('No status endpoint found');
     }
-    
+
     updateStatusDisplay(status) {
         const statusMessage = document.getElementById('status-message');
         const progressFill = document.getElementById('progress-fill');
-        
+
         // Update message based on status
         let message = '';
         let progress = 0;
-        
+
         if (status.status === 'IN_PROGRESS') {
             if (status.percentage !== undefined) {
                 message = `Processing... ${Math.round(status.percentage)}%`;
@@ -1235,22 +1258,22 @@ class FalAI {
             message = status.status.toLowerCase().replace('_', ' ');
             progress = 15;
         }
-        
+
         statusMessage.textContent = message;
         progressFill.style.width = `${progress}%`;
-        
+
         this.logDebug('Status updated', 'status', { status: status.status, progress, message });
     }
-    
+
     async fetchResults() {
         if (!this.resultUrl) return;
-        
+
         const response = await fetch(this.resultUrl, {
             headers: {
                 'Authorization': `Key ${this.apiKey}`
             }
         });
-        
+
         if (!response.ok) {
             this.logDebug('Result fetch failed', 'error', {
                 status: response.status,
@@ -1258,14 +1281,14 @@ class FalAI {
             });
             throw new Error(`Result fetch failed: ${response.status}`);
         }
-        
+
         const result = await response.json();
         this.logDebug('Results fetched successfully', 'response', result);
-        
+
         this.displayResults(result);
         this.hideGenerationStatus();
     }
-    
+
     getResultPath(schema, requestId) {
         for (const [path, methods] of Object.entries(schema.paths)) {
             if (path.includes('/{request_id}') && !path.includes('/status') && !path.includes('/cancel') && methods.get) {
@@ -1274,23 +1297,23 @@ class FalAI {
         }
         throw new Error('No result endpoint found');
     }
-    
+
     displayResults(result) {
         const container = document.getElementById('result-images');
         container.innerHTML = '';
-        
+
         // Store result for JSON display
         this.lastResult = result;
-        
+
         if (result.images && result.images.length > 0) {
             for (const image of result.images) {
                 const imageElement = this.createImageElement(image, result);
                 container.appendChild(imageElement);
             }
-            
+
             // Update JSON display
             this.updateJsonDisplay(result);
-            
+
             // Switch to results view and show results
             this.switchRightPanelView('results');
             document.getElementById('no-images-placeholder').classList.add('hidden');
@@ -1298,13 +1321,13 @@ class FalAI {
             this.switchResultsTab('images');
         }
     }
-    
+
     switchResultsTab(tab) {
         const imagesTab = document.getElementById('images-tab');
         const jsonTab = document.getElementById('json-tab');
         const imagesContent = document.getElementById('result-images');
         const jsonContent = document.getElementById('result-json');
-        
+
         if (tab === 'images') {
             imagesTab.classList.add('active');
             jsonTab.classList.remove('active');
@@ -1317,24 +1340,24 @@ class FalAI {
             imagesContent.classList.add('hidden');
         }
     }
-    
+
     updateJsonDisplay(result) {
         const jsonOutput = document.getElementById('json-output');
         jsonOutput.textContent = JSON.stringify(result, null, 2);
     }
-    
+
     createImageElement(image, metadata) {
         const div = document.createElement('div');
         div.className = 'result-image';
-        
+
         const img = document.createElement('img');
         img.src = image.url;
         img.alt = 'Generated image';
         img.loading = 'lazy';
-        
+
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'result-image-actions';
-        
+
         const downloadBtn = document.createElement('button');
         downloadBtn.className = 'btn secondary';
         downloadBtn.innerHTML = '💾';
@@ -1344,12 +1367,12 @@ class FalAI {
             e.stopPropagation();
             this.downloadImage(image.url, image.file_name || 'image.jpg');
         });
-        
+
         actionsDiv.appendChild(downloadBtn);
-        
+
         div.appendChild(img);
         div.appendChild(actionsDiv);
-        
+
         // Add click handler for image zoom with results context
         img.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1358,42 +1381,42 @@ class FalAI {
             const currentIndex = resultImages.findIndex(img => img.url === image.url);
             this.openImageModalWithNavigation(image.url, resultImages, currentIndex, 'results');
         });
-        
+
         // Try to save to gallery when image is generated (non-blocking)
         this.saveToGallery(image.url, metadata, false); // false = no visual feedback
-        
+
         return div;
     }
-    
+
     switchToGalleryView() {
         this.switchRightPanelView('gallery');
     }
-    
+
     switchRightPanelView(view) {
         const resultsTab = document.getElementById('results-panel-tab');
         const galleryTab = document.getElementById('gallery-panel-tab');
         const placeholder = document.getElementById('no-images-placeholder');
         const results = document.getElementById('results');
         const inlineGallery = document.getElementById('inline-gallery');
-        
+
         if (view === 'gallery') {
             // Switch to gallery view
             resultsTab.classList.remove('active');
             galleryTab.classList.add('active');
-            
+
             placeholder.classList.add('hidden');
             results.classList.add('hidden');
             inlineGallery.classList.remove('hidden');
-            
+
             // Load gallery content
             this.showInlineGallery();
         } else {
             // Switch to results view
             galleryTab.classList.remove('active');
             resultsTab.classList.add('active');
-            
+
             inlineGallery.classList.add('hidden');
-            
+
             // Show appropriate results content
             if (results.classList.contains('hidden') && placeholder.classList.contains('hidden')) {
                 placeholder.classList.remove('hidden');
@@ -1404,16 +1427,16 @@ class FalAI {
             }
         }
     }
-    
+
     showInlineGallery() {
         const container = document.getElementById('inline-gallery-content');
         const countElement = document.getElementById('gallery-count');
-        
+
         if (!container) return;
-        
+
         container.innerHTML = '';
         countElement.textContent = `${this.savedImages.length} images`;
-        
+
         if (this.savedImages.length === 0) {
             container.innerHTML = '<div class="text-center" style="grid-column: 1/-1; padding: 2rem; color: #6b7280;">No saved images yet</div>';
         } else {
@@ -1423,43 +1446,43 @@ class FalAI {
             });
         }
     }
-    
+
     createInlineGalleryItem(imageData, index) {
         const div = document.createElement('div');
         div.className = 'gallery-item';
-        
+
         const date = new Date(imageData.timestamp).toLocaleDateString();
-        
+
         const img = document.createElement('img');
         img.src = imageData.url;
         img.alt = 'Saved image';
         img.loading = 'lazy';
-        
+
         const info = document.createElement('div');
         info.className = 'gallery-item-info';
         info.innerHTML = `
             <div>${imageData.endpoint}</div>
             <div>${date}</div>
         `;
-        
+
         div.appendChild(img);
         div.appendChild(info);
-        
+
         // Click on entire gallery item opens zoom modal with gallery context
         div.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             this.openImageModalWithNavigation(imageData.url, this.savedImages, index, 'gallery');
         });
-        
+
         return div;
     }
-    
+
     openImageModal(imageUrl) {
         // Fallback for simple image viewing
         this.openImageModalWithNavigation(imageUrl, [{ url: imageUrl }], 0, 'single');
     }
-    
+
     openImageModalWithNavigation(imageUrl, images, currentIndex, context) {
         // Create modal if it doesn't exist
         let modal = document.getElementById('image-zoom-modal');
@@ -1482,32 +1505,32 @@ class FalAI {
                 </div>
             `;
             document.body.appendChild(modal);
-            
+
             // Add event listeners
             modal.querySelector('.image-zoom-backdrop').addEventListener('click', () => {
                 this.closeImageModal();
             });
-            
+
             modal.querySelector('#close-zoom').addEventListener('click', () => {
                 this.closeImageModal();
             });
-            
+
             modal.querySelector('#zoom-download').addEventListener('click', () => {
                 this.downloadCurrentZoomImage();
             });
-            
+
             modal.querySelector('#zoom-delete').addEventListener('click', () => {
                 this.deleteCurrentZoomImage();
             });
-            
+
             modal.querySelector('#zoom-prev').addEventListener('click', () => {
                 this.navigateZoomModal(-1);
             });
-            
+
             modal.querySelector('#zoom-next').addEventListener('click', () => {
                 this.navigateZoomModal(1);
             });
-            
+
             // Close on ESC key and navigation keys
             document.addEventListener('keydown', (e) => {
                 if (!modal.classList.contains('hidden')) {
@@ -1521,67 +1544,67 @@ class FalAI {
                 }
             });
         }
-        
+
         // Store navigation data
         modal._navigationData = {
             images,
             currentIndex,
             context
         };
-        
+
         // Set image and show modal
         this.updateZoomModal(imageUrl, currentIndex, images.length);
         modal.classList.remove('hidden');
-        
+
         document.body.style.overflow = 'hidden';
     }
-    
+
     navigateZoomModal(direction) {
         const modal = document.getElementById('image-zoom-modal');
         if (!modal || !modal._navigationData) return;
-        
+
         const { images, currentIndex } = modal._navigationData;
         const newIndex = currentIndex + direction;
-        
+
         if (newIndex >= 0 && newIndex < images.length) {
             modal._navigationData.currentIndex = newIndex;
             const imageUrl = images[newIndex].url || images[newIndex];
             this.updateZoomModal(imageUrl, newIndex, images.length);
         }
     }
-    
+
     updateZoomModal(imageUrl, currentIndex, totalImages) {
         const modal = document.getElementById('image-zoom-modal');
         if (!modal) return;
-        
+
         const zoomImage = modal.querySelector('#zoom-image');
         if (!zoomImage) return;
-        
+
         zoomImage.src = imageUrl;
-        
+
         const counter = modal.querySelector('.zoom-counter');
         counter.textContent = `${currentIndex + 1} / ${totalImages}`;
-        
+
         // Update navigation button visibility
         const prevBtn = modal.querySelector('#zoom-prev');
         const nextBtn = modal.querySelector('#zoom-next');
-        
+
         prevBtn.style.visibility = currentIndex > 0 ? 'visible' : 'hidden';
         nextBtn.style.visibility = currentIndex < totalImages - 1 ? 'visible' : 'hidden';
-        
+
         // Hide navigation entirely if only one image
         const showNav = totalImages > 1;
         prevBtn.style.display = showNav ? 'block' : 'none';
         nextBtn.style.display = showNav ? 'block' : 'none';
         counter.style.display = showNav ? 'block' : 'none';
-        
+
         // Show/hide delete button based on context
         const deleteBtn = modal.querySelector('#zoom-delete');
         if (deleteBtn && modal._navigationData) {
             deleteBtn.style.display = modal._navigationData.context === 'gallery' ? 'block' : 'none';
         }
     }
-    
+
     closeImageModal() {
         const modal = document.getElementById('image-zoom-modal');
         if (modal) {
@@ -1590,15 +1613,15 @@ class FalAI {
             modal._navigationData = null;
         }
     }
-    
+
     downloadCurrentZoomImage() {
         const modal = document.getElementById('image-zoom-modal');
         if (!modal || !modal._navigationData) return;
-        
+
         const { images, currentIndex, context } = modal._navigationData;
         let imageUrl;
         let filename;
-        
+
         if (context === 'gallery') {
             imageUrl = this.savedImages[currentIndex]?.url;
             filename = `gallery-image-${currentIndex + 1}.jpg`;
@@ -1606,23 +1629,23 @@ class FalAI {
             imageUrl = images[currentIndex]?.url || images[currentIndex];
             filename = `generated-image-${currentIndex + 1}.jpg`;
         }
-        
+
         if (imageUrl) {
             this.downloadImage(imageUrl, filename);
         }
     }
-    
+
     deleteCurrentZoomImage() {
         const modal = document.getElementById('image-zoom-modal');
         if (!modal || !modal._navigationData) return;
-        
+
         const { currentIndex, context } = modal._navigationData;
-        
+
         // Only allow deletion from gallery context
         if (context === 'gallery') {
             if (confirm('Are you sure you want to delete this image?')) {
                 this.deleteImageFromGallery(currentIndex);
-                
+
                 // Update modal data after deletion
                 if (this.savedImages.length === 0) {
                     // No images left, close modal
@@ -1632,42 +1655,42 @@ class FalAI {
                     const newIndex = Math.min(currentIndex, this.savedImages.length - 1);
                     modal._navigationData.images = this.savedImages;
                     modal._navigationData.currentIndex = newIndex;
-                    
+
                     // Update display
                     this.updateZoomModal(this.savedImages[newIndex].url, newIndex, this.savedImages.length);
                 }
             }
         }
     }
-    
-    
+
+
     resetFormToDefaults() {
         if (!this.currentEndpoint) return;
-        
+
         const form = document.getElementById('generation-form');
         const inputs = form.querySelectorAll('input, select, textarea');
-        
+
         // Get the input schema for this endpoint
         const inputSchema = this.getInputSchema(this.currentEndpoint.schema);
         if (!inputSchema || !inputSchema.properties) return;
-        
+
         // Clear all array containers first
         const arrayContainers = form.querySelectorAll('.array-items');
         arrayContainers.forEach(container => {
             container.innerHTML = '';
         });
-        
+
         // Reset each field to its default value
         inputs.forEach(input => {
             const fieldName = input.name;
             if (!fieldName) return;
-            
+
             // Skip array fields, they'll be handled separately
             if (fieldName.includes('[') && fieldName.includes(']')) return;
-            
+
             let fieldSchema = inputSchema.properties[fieldName];
             if (!fieldSchema) return;
-            
+
             // Handle anyOf schemas (like image_size)
             if (fieldSchema.anyOf && fieldSchema.anyOf.length > 0) {
                 const enumSchema = fieldSchema.anyOf.find(option => option.enum);
@@ -1677,10 +1700,10 @@ class FalAI {
                     fieldSchema = { ...fieldSchema, ...fieldSchema.anyOf[0] };
                 }
             }
-            
+
             this.setFieldToDefault(input, fieldSchema);
         });
-        
+
         // Handle array fields - reset to default arrays
         Object.entries(inputSchema.properties).forEach(([fieldName, fieldSchema]) => {
             if (fieldSchema.type === 'array') {
@@ -1694,7 +1717,7 @@ class FalAI {
             }
         });
     }
-    
+
     setFieldToDefault(input, schema) {
         if (schema.default === undefined) {
             // Clear the field if no default
@@ -1705,7 +1728,7 @@ class FalAI {
             }
             return;
         }
-        
+
         if (input.type === 'checkbox') {
             input.checked = Boolean(schema.default);
         } else if (input.type === 'range' || input.type === 'number') {
@@ -1719,22 +1742,22 @@ class FalAI {
             input.value = schema.default;
         }
     }
-    
+
     createImageSizeField(name, schema, required, label, field) {
         const container = document.createElement('div');
         container.className = 'image-size-container';
-        
+
         // Get the ImageSize schema from anyOf to check if custom sizes are supported
         const imageSizeSchema = this.getImageSizeSchemaFromAnyOf(schema);
         const supportsCustomSize = imageSizeSchema !== null;
-        
+
         // Create select dropdown with preset options
         const select = document.createElement('select');
         select.name = name;
         select.id = name;
         select.className = 'image-size-select';
         select.innerHTML = '<option value="">Select size...</option>';
-        
+
         // Add preset size options from enum
         for (const option of schema.enum) {
             const opt = document.createElement('option');
@@ -1742,7 +1765,7 @@ class FalAI {
             opt.textContent = option;
             select.appendChild(opt);
         }
-        
+
         // Add Custom option only if ImageSize schema is available
         if (supportsCustomSize) {
             const customOpt = document.createElement('option');
@@ -1750,48 +1773,48 @@ class FalAI {
             customOpt.textContent = 'Custom';
             select.appendChild(customOpt);
         }
-        
+
         container.appendChild(select);
-        
+
         // Create custom size fields from ImageSize schema (initially hidden) only if supported
         if (supportsCustomSize && imageSizeSchema) {
             const customFields = document.createElement('div');
             customFields.className = 'custom-size-fields hidden';
-            
+
             // Create fields based on ImageSize schema properties
             const widthProperty = imageSizeSchema.properties.width;
             const heightProperty = imageSizeSchema.properties.height;
-            
+
             const widthField = document.createElement('div');
             widthField.className = 'custom-size-field';
             widthField.innerHTML = `
                 <label for="${name}_width">${widthProperty.title || 'Width'}</label>
-                <input type="number" 
-                       id="${name}_width" 
-                       name="${name}_width" 
-                       min="${widthProperty.exclusiveMinimum ? widthProperty.exclusiveMinimum + 1 : (widthProperty.minimum || 1)}" 
-                       max="${widthProperty.maximum || 14142}" 
+                <input type="number"
+                       id="${name}_width"
+                       name="${name}_width"
+                       min="${widthProperty.exclusiveMinimum ? widthProperty.exclusiveMinimum + 1 : (widthProperty.minimum || 1)}"
+                       max="${widthProperty.maximum || 14142}"
                        value="${widthProperty.default || 512}"
                        title="${widthProperty.description || ''}">
             `;
-            
+
             const heightField = document.createElement('div');
             heightField.className = 'custom-size-field';
             heightField.innerHTML = `
                 <label for="${name}_height">${heightProperty.title || 'Height'}</label>
-                <input type="number" 
-                       id="${name}_height" 
-                       name="${name}_height" 
-                       min="${heightProperty.exclusiveMinimum ? heightProperty.exclusiveMinimum + 1 : (heightProperty.minimum || 1)}" 
-                       max="${heightProperty.maximum || 14142}" 
+                <input type="number"
+                       id="${name}_height"
+                       name="${name}_height"
+                       min="${heightProperty.exclusiveMinimum ? heightProperty.exclusiveMinimum + 1 : (heightProperty.minimum || 1)}"
+                       max="${heightProperty.maximum || 14142}"
                        value="${heightProperty.default || 512}"
                        title="${heightProperty.description || ''}">
             `;
-            
+
             customFields.appendChild(widthField);
             customFields.appendChild(heightField);
             container.appendChild(customFields);
-            
+
             // Add event listener to show/hide custom fields
             select.addEventListener('change', (e) => {
                 if (e.target.value === 'custom') {
@@ -1801,13 +1824,13 @@ class FalAI {
                 }
             });
         }
-        
+
         field.appendChild(label);
         field.appendChild(container);
-        
+
         return field;
     }
-    
+
     getImageSizeSchemaFromAnyOf(schema) {
         // Find ImageSize schema reference from anyOf
         if (schema.anyOf) {
@@ -1839,7 +1862,7 @@ class FalAI {
                 type: 'application/json'
             });
             const url = URL.createObjectURL(blob);
-            
+
             const a = document.createElement('a');
             const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
             a.href = url;
@@ -1850,7 +1873,7 @@ class FalAI {
             URL.revokeObjectURL(url);
 
             this.logDebug('Settings exported successfully', 'success');
-            
+
         } catch (error) {
             console.error('Export failed:', error);
             alert('Failed to export settings: ' + error.message);
@@ -1870,7 +1893,7 @@ class FalAI {
 
             // Show confirmation dialog
             const message = `Import settings from ${settings.timestamp || 'unknown date'}?\n\nThis will replace:\n- All endpoint settings\n- API key\n- Saved images (${settings.savedImages?.length || 0} images)\n- Other preferences`;
-            
+
             if (!confirm(message)) {
                 return;
             }
@@ -1895,7 +1918,7 @@ class FalAI {
                 this.debugMode = settings.debugMode;
                 localStorage.setItem('falai_debug_mode', this.debugMode);
                 document.getElementById('debug-checkbox').checked = this.debugMode;
-                
+
                 const debugPanel = document.getElementById('debug-panel');
                 if (this.debugMode) {
                     debugPanel.classList.remove('hidden');
@@ -1912,7 +1935,7 @@ class FalAI {
             if (this.currentEndpoint) {
                 this.restoreEndpointSettings(this.currentEndpoint.metadata.endpointId);
             }
-            
+
             // Refresh gallery if open
             const galleryTab = document.getElementById('gallery-panel-tab');
             if (galleryTab && galleryTab.classList.contains('active')) {
@@ -1935,15 +1958,15 @@ class FalAI {
     createArrayField(name, schema, required, label, field) {
         const arrayContainer = document.createElement('div');
         arrayContainer.className = 'array-field-container';
-        
+
         const description = document.createElement('div');
         description.className = 'field-description';
         description.textContent = schema.description || '';
-        
+
         const itemsContainer = document.createElement('div');
         itemsContainer.className = 'array-items';
         itemsContainer.id = `${name}-items`;
-        
+
         const addButton = document.createElement('button');
         addButton.type = 'button';
         addButton.className = 'btn secondary small';
@@ -1951,43 +1974,43 @@ class FalAI {
         addButton.addEventListener('click', () => {
             this.addArrayItem(name, schema, itemsContainer);
         });
-        
+
         field.appendChild(label);
         field.appendChild(description);
         field.appendChild(itemsContainer);
         field.appendChild(addButton);
-        
+
         // Add initial empty item if default is not empty array
         if (schema.default && schema.default.length > 0) {
             schema.default.forEach(() => {
                 this.addArrayItem(name, schema, itemsContainer);
             });
         }
-        
+
         return field;
     }
-    
+
     addArrayItem(arrayName, arraySchema, container) {
         const itemIndex = container.children.length;
         const itemContainer = document.createElement('div');
         itemContainer.className = 'array-item';
-        
+
         // Resolve $ref if present
         let itemSchema = arraySchema.items;
         if (itemSchema.$ref) {
             const refPath = itemSchema.$ref.replace('#/components/schemas/', '');
             itemSchema = this.currentEndpoint.schema.components.schemas[refPath];
         }
-        
+
         if (itemSchema.type === 'object' && itemSchema.properties) {
             // Handle object items (like LoraWeight)
             Object.entries(itemSchema.properties).forEach(([propName, propSchema]) => {
                 const fieldName = `${arrayName}[${itemIndex}].${propName}`;
-                const propField = this.createFormField(fieldName, propSchema, 
+                const propField = this.createFormField(fieldName, propSchema,
                     itemSchema.required && itemSchema.required.includes(propName));
                 propField.classList.add('array-item-field');
                 itemContainer.appendChild(propField);
-                
+
                 // Add change listener to save settings
                 const input = propField.querySelector('input, select, textarea');
                 if (input) {
@@ -2005,7 +2028,7 @@ class FalAI {
             const itemField = this.createFormField(fieldName, itemSchema, false);
             itemField.classList.add('array-item-field');
             itemContainer.appendChild(itemField);
-            
+
             // Add change listener to save settings
             const input = itemField.querySelector('input, select, textarea');
             if (input) {
@@ -2017,7 +2040,7 @@ class FalAI {
                 });
             }
         }
-        
+
         // Add remove button
         const removeButton = document.createElement('button');
         removeButton.type = 'button';
@@ -2029,11 +2052,11 @@ class FalAI {
             this.updateArrayIndices(arrayName, container);
             this.saveEndpointSettings();
         });
-        
+
         itemContainer.appendChild(removeButton);
         container.appendChild(itemContainer);
     }
-    
+
     updateArrayIndices(arrayName, container) {
         Array.from(container.children).forEach((item, index) => {
             const fields = item.querySelectorAll('input, select, textarea');
@@ -2046,46 +2069,46 @@ class FalAI {
             });
         });
     }
-    
+
     async downloadImage(url, filename) {
         try {
             const response = await fetch(url);
             const blob = await response.blob();
             const downloadUrl = URL.createObjectURL(blob);
-            
+
             const a = document.createElement('a');
             a.href = downloadUrl;
             a.download = filename || 'image.jpg';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            
+
             URL.revokeObjectURL(downloadUrl);
         } catch (error) {
             console.error('Download failed:', error);
             alert('Download failed');
         }
     }
-    
+
     saveToGallery(url, metadata, showFeedback = false) {
         try {
             // Don't save base64 images to gallery - they're too large and temporary
             if (url && url.startsWith('data:image/')) {
                 this.logDebug('Skipped saving base64 image to gallery - use download button to save', 'warning');
-                
+
                 // Show warning to user about base64 result
                 if (!showFeedback) { // Only show automatic warning, not for manual saves
                     this.showBase64Warning();
                 }
                 return;
             }
-            
+
             // Check if image already exists to avoid duplicates
             const exists = this.savedImages.some(img => img.url === url);
             if (exists && !showFeedback) {
                 return; // Don't save duplicate unless explicitly requested
             }
-            
+
             if (!exists) {
                 const imageData = {
                     url,
@@ -2093,20 +2116,20 @@ class FalAI {
                     timestamp: Date.now(),
                     endpoint: this.currentEndpoint ? this.currentEndpoint.metadata.endpointId : 'unknown'
                 };
-                
+
                 this.savedImages.unshift(imageData);
-                
+
                 // Try to save with storage management
                 this.saveWithStorageCheck('falai_saved_images', this.savedImages);
-                
+
                 // Update inline gallery if currently visible
                 const inlineGallery = document.getElementById('inline-gallery');
                 if (inlineGallery && !inlineGallery.classList.contains('hidden')) {
                     this.showInlineGallery();
                 }
-                
+
                 this.logDebug(`Image saved to gallery: ${url.substring(0, 50)}... (${url.length} chars)`, 'success');
-                
+
                 if (showFeedback) {
                     this.logDebug(`Image saved to gallery with user feedback`, 'success');
                 }
@@ -2115,7 +2138,7 @@ class FalAI {
             // Don't crash the app if gallery save fails - just log it
             console.warn('Failed to save to gallery (storage full):', error.message);
             this.logDebug(`Gallery save failed: ${error.message}`, 'warning');
-            
+
             if (showFeedback) {
                 // Only show user feedback if they explicitly tried to save
                 alert(`Could not save to gallery: ${error.message}`);
@@ -2125,7 +2148,7 @@ class FalAI {
 
     saveWithStorageCheck(key, data) {
         const maxRetries = 3;
-        
+
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {
                 localStorage.setItem(key, JSON.stringify(data));
@@ -2133,15 +2156,15 @@ class FalAI {
             } catch (error) {
                 if (error.name === 'QuotaExceededError') {
                     this.logDebug(`Storage quota exceeded (attempt ${attempt + 1}/${maxRetries}), cleaning up...`, 'warning');
-                    
+
                     if (attempt < maxRetries - 1) {
                         // Try to free up space - prioritize base64 images first
                         const base64Cleanup = this.cleanupBase64Images();
-                        
+
                         if (base64Cleanup.count === 0) {
                             // No base64 images to clean, try other cleanup methods
                             const settingsCleanup = this.cleanupOldSettings();
-                            
+
                             if (settingsCleanup === 0) {
                                 // Only clean gallery as last resort and only if very large
                                 this.cleanupOldGalleryImages();
@@ -2161,7 +2184,7 @@ class FalAI {
     cleanupBase64Images() {
         let totalCleaned = 0;
         let sizeFreed = 0;
-        
+
         // Clean base64 images from endpoint settings
         for (const [endpointId, settings] of Object.entries(this.endpointSettings)) {
             for (const [key, value] of Object.entries(settings)) {
@@ -2174,40 +2197,40 @@ class FalAI {
                 }
             }
         }
-        
+
         if (totalCleaned > 0) {
             localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
             this.logDebug(`Cleaned up ${totalCleaned} base64 images, freed ${this.formatBytes(sizeFreed)}`, 'success');
         }
-        
+
         return { count: totalCleaned, sizeFreed };
     }
-    
+
     isBase64DataURL(str) {
         // Check if string is a data URL with base64 image
-        return typeof str === 'string' && 
-               str.startsWith('data:image/') && 
-               str.includes('base64,') &&
-               str.length > 1000; // Only consider large data URLs (small ones might be icons)
+        return typeof str === 'string' &&
+            str.startsWith('data:image/') &&
+            str.includes('base64,') &&
+            str.length > 1000; // Only consider large data URLs (small ones might be icons)
     }
-    
+
     cleanupOldGalleryImages(maxImages = 500) {
         // Only clean gallery if it's extremely large (500+ images)
         // Gallery URLs are small, so we keep more
         if (!this.savedImages || this.savedImages.length <= maxImages) {
             return 0; // Nothing to clean
         }
-        
+
         const originalCount = this.savedImages.length;
-        
+
         // Sort by timestamp (newest first) and keep only the most recent images
         this.savedImages.sort((a, b) => b.timestamp - a.timestamp);
         this.savedImages = this.savedImages.slice(0, maxImages);
-        
+
         const removedCount = originalCount - this.savedImages.length;
-        
+
         this.logDebug(`Cleaned up ${removedCount} old gallery entries, kept ${this.savedImages.length} most recent`, 'info');
-        
+
         return removedCount;
     }
 
@@ -2216,26 +2239,26 @@ class FalAI {
         const currentEndpoints = new Set(Array.from(this.endpoints.keys()));
         const settingsKeys = Object.keys(this.endpointSettings);
         let cleaned = 0;
-        
+
         for (const endpointId of settingsKeys) {
             if (!currentEndpoints.has(endpointId)) {
                 delete this.endpointSettings[endpointId];
                 cleaned++;
             }
         }
-        
+
         if (cleaned > 0) {
             localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
             this.logDebug(`Cleaned up settings for ${cleaned} removed endpoints`, 'info');
         }
-        
+
         return cleaned;
     }
-    
+
     showGallery() {
         const container = document.getElementById('gallery-content');
         container.innerHTML = '';
-        
+
         if (this.savedImages.length === 0) {
             container.innerHTML = '<p class="text-center">No saved images yet</p>';
         } else {
@@ -2244,16 +2267,16 @@ class FalAI {
                 container.appendChild(item);
             });
         }
-        
+
         document.getElementById('gallery-modal').classList.remove('hidden');
     }
-    
+
     createGalleryItem(imageData, index) {
         const div = document.createElement('div');
         div.className = 'gallery-item';
-        
+
         const date = new Date(imageData.timestamp).toLocaleDateString();
-        
+
         div.innerHTML = `
             <img src="${imageData.url}" alt="Saved image" loading="lazy">
             <div class="gallery-item-overlay">
@@ -2265,7 +2288,7 @@ class FalAI {
                 <div>${date}</div>
             </div>
         `;
-        
+
         // Click on image (not buttons) opens full-screen viewer
         const img = div.querySelector('img');
         img.addEventListener('click', (e) => {
@@ -2273,44 +2296,44 @@ class FalAI {
             // Open image zoom modal for quick preview
             this.openImageModal(imageData.url);
         });
-        
+
         return div;
     }
-    
+
     openFullscreenViewer(index) {
         // fullscreenImages should already be set by the caller
         if (!this.fullscreenImages) {
             this.fullscreenImages = this.savedImages;
         }
-        
+
         this.currentImageIndex = index;
         this.updateFullscreenViewer();
         document.getElementById('fullscreen-viewer').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
-        
+
         // Hide gallery modal if it exists
         const galleryModal = document.getElementById('gallery-modal');
         if (galleryModal) {
             galleryModal.classList.add('hidden');
         }
     }
-    
+
     updateFullscreenViewer() {
         if (this.fullscreenImages.length === 0) return;
-        
+
         const viewer = document.getElementById('fullscreen-viewer');
         const image = document.getElementById('fullscreen-image');
         const counter = document.getElementById('fullscreen-counter');
         const metadata = document.getElementById('fullscreen-metadata');
-        
+
         const currentImage = this.fullscreenImages[this.currentImageIndex];
-        
+
         image.src = currentImage.url;
         counter.textContent = `${this.currentImageIndex + 1} / ${this.fullscreenImages.length}`;
-        
+
         const date = new Date(currentImage.timestamp).toLocaleDateString();
         metadata.textContent = `${currentImage.endpoint} • ${date}`;
-        
+
         // Toggle single image class
         if (this.fullscreenImages.length === 1) {
             viewer.classList.add('single-image');
@@ -2318,59 +2341,59 @@ class FalAI {
             viewer.classList.remove('single-image');
         }
     }
-    
+
     closeFullscreenViewer() {
         document.getElementById('fullscreen-viewer').classList.add('hidden');
         document.body.style.overflow = '';
-        
+
         // Clear fullscreen images array
         this.fullscreenImages = [];
         this.currentImageIndex = 0;
     }
-    
+
     navigateFullscreen(direction) {
         if (this.fullscreenImages.length <= 1) return;
-        
+
         this.currentImageIndex += direction;
-        
+
         if (this.currentImageIndex < 0) {
             this.currentImageIndex = this.fullscreenImages.length - 1;
         } else if (this.currentImageIndex >= this.fullscreenImages.length) {
             this.currentImageIndex = 0;
         }
-        
+
         this.updateFullscreenViewer();
     }
-    
+
     async downloadCurrentFullscreenImage() {
         if (this.fullscreenImages.length === 0) return;
-        
+
         const currentImage = this.fullscreenImages[this.currentImageIndex];
         const filename = `falai-image-${this.currentImageIndex + 1}.jpg`;
         await this.downloadImage(currentImage.url, filename);
     }
-    
+
     async deleteCurrentFullscreenImage() {
         if (this.fullscreenImages.length === 0) return;
-        
+
         if (!confirm('Are you sure you want to delete this image?')) {
             return;
         }
-        
+
         // Find the actual index in savedImages
         const currentImage = this.fullscreenImages[this.currentImageIndex];
-        const savedIndex = this.savedImages.findIndex(img => 
+        const savedIndex = this.savedImages.findIndex(img =>
             img.url === currentImage.url && img.timestamp === currentImage.timestamp
         );
-        
+
         if (savedIndex !== -1) {
             // Remove from saved images
             this.savedImages.splice(savedIndex, 1);
             localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
-            
+
             // Update fullscreen images array
             this.fullscreenImages.splice(this.currentImageIndex, 1);
-            
+
             if (this.fullscreenImages.length === 0) {
                 // No more images, close viewer and refresh gallery
                 this.closeFullscreenViewer();
@@ -2384,21 +2407,21 @@ class FalAI {
             }
         }
     }
-    
+
     async downloadImageFromGallery(index) {
         const imageData = this.savedImages[index];
         const filename = `falai-image-${index + 1}.jpg`;
         await this.downloadImage(imageData.url, filename);
     }
-    
+
     deleteImageFromGallery(index) {
         if (!confirm('Are you sure you want to delete this image?')) {
             return;
         }
-        
+
         this.savedImages.splice(index, 1);
         localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
-        
+
         // Refresh current gallery view
         const inlineGallery = document.getElementById('inline-gallery');
         if (!inlineGallery.classList.contains('hidden')) {
@@ -2409,29 +2432,29 @@ class FalAI {
             this.showGallery();
         }
     }
-    
+
     async cancelGeneration() {
         if (!this.currentRequestId) return;
-        
+
         try {
             const endpoint = this.currentEndpoint;
             const baseUrl = endpoint.schema.servers[0].url;
             const cancelPath = this.getCancelPath(endpoint.schema, this.currentRequestId);
-            
+
             await fetch(baseUrl + cancelPath, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Key ${this.apiKey}`
                 }
             });
-            
+
             clearInterval(this.statusPolling);
             this.hideGenerationStatus();
         } catch (error) {
             console.error('Cancel failed:', error);
         }
     }
-    
+
     getCancelPath(schema, requestId) {
         for (const [path, methods] of Object.entries(schema.paths)) {
             if (path.includes('/cancel') && methods.put) {
@@ -2440,24 +2463,24 @@ class FalAI {
         }
         throw new Error('No cancel endpoint found');
     }
-    
+
     showGenerationStatus(message, type = 'generating') {
         const statusPanel = document.getElementById('generation-status');
         const statusMessage = document.getElementById('status-message');
         const statusContainer = statusPanel.querySelector('.status-container');
         const progressFill = document.getElementById('progress-fill');
-        
+
         // Hide placeholder and results
         document.getElementById('no-images-placeholder').classList.add('hidden');
         document.getElementById('results').classList.add('hidden');
         document.getElementById('inline-gallery').classList.add('hidden');
-        
+
         // Update message
         statusMessage.textContent = message;
-        
+
         // Reset container classes
         statusContainer.className = 'status-container';
-        
+
         // Add type-specific styling
         if (type === 'success') {
             statusContainer.classList.add('status-success');
@@ -2471,70 +2494,70 @@ class FalAI {
             statusContainer.querySelector('.status-title').textContent = 'Generating Image';
             // Keep current progress
         }
-        
+
         // Show status panel
         statusPanel.classList.remove('hidden');
-        
+
         this.logDebug(`Status shown: ${message}`, 'status', { type });
     }
-    
+
     hideGenerationStatus() {
         document.getElementById('generation-status').classList.add('hidden');
         this.currentRequestId = null;
-        
+
         // Reset progress
         document.getElementById('progress-fill').style.width = '0%';
-        
+
         this.logDebug('Status hidden', 'status');
     }
-    
+
     showError(message) {
         this.showGenerationStatus(message, 'error');
-        
+
         // Auto-hide error status after 5 seconds
         setTimeout(() => {
             this.hideGenerationStatus();
             document.getElementById('no-images-placeholder').classList.remove('hidden');
         }, 5000);
-        
+
         this.logDebug('Error shown: ' + message, 'error');
     }
-    
+
     hideResults() {
         document.getElementById('results').classList.add('hidden');
     }
-    
+
     saveEndpointSettings() {
         if (!this.currentEndpoint) return;
-        
+
         const formData = this.collectFormData();
         this.endpointSettings[this.currentEndpoint.metadata.endpointId] = formData;
         localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
     }
-    
+
     restoreEndpointSettings(endpointId) {
         const settings = this.endpointSettings[endpointId];
         if (!settings) return;
-        
+
         const form = document.getElementById('generation-form');
-        
+
         for (const [key, value] of Object.entries(settings)) {
             // Handle array fields (like loras)
             if (Array.isArray(value)) {
                 this.restoreArrayField(key, value, form);
                 continue;
             }
-            
+
             // Handle image_size object
             if (key === 'image_size' && typeof value === 'object') {
                 this.restoreImageSizeField(value, form);
                 continue;
             }
-            
+
             // Handle simple fields
             const input = form.querySelector(`[name="${key}"]`);
             if (!input) continue;
-            
+
             if (input.type === 'checkbox') {
                 input.checked = Boolean(value);
             } else if (input.type === 'range') {
@@ -2547,27 +2570,27 @@ class FalAI {
             } else {
                 input.value = value;
             }
-            
+
             // Trigger change event to update any dependent elements
             input.dispatchEvent(new Event('change'));
         }
     }
-    
+
     restoreArrayField(fieldName, arrayValue, form) {
         const container = form.querySelector(`#${fieldName}-items`);
         if (!container) return;
-        
+
         // Clear existing items
         container.innerHTML = '';
-        
+
         // Add items for each saved value
         arrayValue.forEach((itemValue, index) => {
             // Get the schema for this array field
             const schema = this.getFieldSchema(fieldName);
             if (!schema) return;
-            
+
             this.addArrayItem(fieldName, schema, container);
-            
+
             // Set values for the newly added item
             if (typeof itemValue === 'object') {
                 for (const [propName, propValue] of Object.entries(itemValue)) {
@@ -2584,30 +2607,30 @@ class FalAI {
             }
         });
     }
-    
+
     restoreImageSizeField(value, form) {
         const select = form.querySelector('select[name="image_size"]');
         if (!select) return;
-        
+
         if (value.width && value.height) {
             // Custom size
             select.value = 'custom';
             select.dispatchEvent(new Event('change')); // Show custom fields
-            
+
             const widthInput = form.querySelector('input[name="image_size_width"]');
             const heightInput = form.querySelector('input[name="image_size_height"]');
-            
+
             if (widthInput) widthInput.value = value.width;
             if (heightInput) heightInput.value = value.height;
         }
     }
-    
+
     getFieldSchema(fieldName) {
         if (!this.currentEndpoint) return null;
-        
+
         const inputSchema = this.findInputSchema(this.currentEndpoint.schema);
         if (!inputSchema || !inputSchema.properties) return null;
-        
+
         return inputSchema.properties[fieldName];
     }
 
@@ -2615,7 +2638,7 @@ class FalAI {
     getStorageSize() {
         let totalSize = 0;
         const storageData = {};
-        
+
         for (let key in localStorage) {
             if (localStorage.hasOwnProperty(key)) {
                 const value = localStorage.getItem(key);
@@ -2623,13 +2646,13 @@ class FalAI {
                 storageData[key] = {
                     size: size,
                     sizeFormatted: this.formatBytes(size),
-                    items: key.startsWith('falai_') ? 
+                    items: key.startsWith('falai_') ?
                         (key === 'falai_saved_images' ? JSON.parse(value || '[]').length : 1) : 1
                 };
                 totalSize += size;
             }
         }
-        
+
         return {
             total: totalSize,
             totalFormatted: this.formatBytes(totalSize),
@@ -2639,7 +2662,7 @@ class FalAI {
             breakdown: storageData
         };
     }
-    
+
     formatBytes(bytes) {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -2647,55 +2670,55 @@ class FalAI {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
-    
+
     getStorageLimit() {
         // Return cached limit if already calculated
         if (this._cachedStorageLimit) {
             return this._cachedStorageLimit;
         }
-        
+
         try {
             // Use common browser limits (testing is risky when storage is full)
             const userAgent = navigator.userAgent.toLowerCase();
             let limit = 10 * 1024 * 1024; // Default 10MB
-            
+
             if (userAgent.includes('chrome') || userAgent.includes('edge')) {
                 limit = 10 * 1024 * 1024; // Chrome/Edge: ~10MB
             } else if (userAgent.includes('firefox')) {
-                limit = 10 * 1024 * 1024; // Firefox: ~10MB  
+                limit = 10 * 1024 * 1024; // Firefox: ~10MB
             } else if (userAgent.includes('safari')) {
                 limit = 5 * 1024 * 1024;  // Safari: ~5MB
             }
-            
+
             // Cache the result
             this._cachedStorageLimit = limit;
             return limit;
-            
+
         } catch (e) {
             this._cachedStorageLimit = 5 * 1024 * 1024; // 5MB fallback
             return this._cachedStorageLimit;
         }
     }
-    
+
     logStorageInfo() {
         const info = this.getStorageSize();
-        
+
         // Analyze base64 images in settings
         const base64Analysis = this.analyzeBase64Images();
-        
+
         console.group('📊 LocalStorage Usage');
         console.log(`Total: ${info.totalFormatted} / ${info.limitFormatted} (${info.usage}%)`);
-        
+
         if (base64Analysis.count > 0) {
             console.log(`⚠️  Base64 images found: ${base64Analysis.count} images (${this.formatBytes(base64Analysis.totalSize)})`);
         }
-        
+
         console.log('Breakdown:');
-        
+
         // Sort by size descending
         const sorted = Object.entries(info.breakdown)
-            .sort(([,a], [,b]) => b.size - a.size);
-            
+            .sort(([, a], [, b]) => b.size - a.size);
+
         for (const [key, data] of sorted) {
             let extra = data.items > 1 ? ` (${data.items} items)` : '';
             if (key === 'falai_endpoint_settings' && base64Analysis.count > 0) {
@@ -2703,20 +2726,20 @@ class FalAI {
             }
             console.log(`  ${key}: ${data.sizeFormatted}${extra}`);
         }
-        
+
         if (base64Analysis.count > 0) {
             console.log(`💡 Run falaiStorage.cleanBase64() to free up ${this.formatBytes(base64Analysis.totalSize)}`);
         }
-        
+
         console.groupEnd();
-        
+
         return info;
     }
-    
+
     analyzeBase64Images() {
         let count = 0;
         let totalSize = 0;
-        
+
         for (const settings of Object.values(this.endpointSettings)) {
             for (const value of Object.values(settings)) {
                 if (typeof value === 'string' && this.isBase64DataURL(value)) {
@@ -2725,7 +2748,7 @@ class FalAI {
                 }
             }
         }
-        
+
         return { count, totalSize };
     }
 
@@ -2768,37 +2791,37 @@ class FalAI {
                     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
                     animation: slideIn 0.3s ease-out;
                 }
-                
+
                 .warning-content {
                     display: flex;
                     align-items: flex-start;
                     gap: 12px;
                     padding: 16px;
                 }
-                
+
                 .warning-icon {
                     font-size: 24px;
                     flex-shrink: 0;
                 }
-                
+
                 .warning-text {
                     flex: 1;
                 }
-                
+
                 .warning-text strong {
                     color: #92400e;
                     font-size: 14px;
                     display: block;
                     margin-bottom: 4px;
                 }
-                
+
                 .warning-text p {
                     color: #78350f;
                     font-size: 13px;
                     margin: 0;
                     line-height: 1.4;
                 }
-                
+
                 .warning-close {
                     background: none;
                     border: none;
@@ -2809,11 +2832,11 @@ class FalAI {
                     border-radius: 4px;
                     flex-shrink: 0;
                 }
-                
+
                 .warning-close:hover {
                     background: rgba(146, 64, 14, 0.1);
                 }
-                
+
                 @keyframes slideIn {
                     from {
                         transform: translateX(100%);
@@ -2838,7 +2861,7 @@ class FalAI {
             }
         }, 10000);
     }
-    
+
     restoreUIState() {
         // Restore advanced options state
         const advancedVisible = localStorage.getItem('falai_advanced_visible') === 'true';
@@ -2852,21 +2875,21 @@ class FalAI {
                 }
             }, 100);
         }
-        
+
         // Save advanced options state when toggled
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('advanced-options-toggle')) {
                 setTimeout(() => {
                     const content = document.querySelector('.advanced-options-content');
                     if (content) {
-                        localStorage.setItem('falai_advanced_visible', 
+                        localStorage.setItem('falai_advanced_visible',
                             content.classList.contains('visible'));
                     }
                 }, 10);
             }
         });
     }
-    
+
     setupPWA() {
         // Register service worker
         if ('serviceWorker' in navigator) {
@@ -2880,47 +2903,47 @@ class FalAI {
                     });
             });
         }
-        
+
         // Handle install prompt
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             // Prevent the mini-infobar from appearing
             e.preventDefault();
             deferredPrompt = e;
-            
+
             // Show install button in header
             this.showInstallButton(deferredPrompt);
         });
-        
+
         // Handle successful installation
         window.addEventListener('appinstalled', () => {
             console.log('FalAI was installed');
             this.hideInstallButton();
         });
-        
+
         // Check if launched from PWA
         if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
             console.log('Running as PWA');
         }
-        
+
         // Handle gallery shortcut
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('gallery') === 'true') {
             setTimeout(() => this.showGallery(), 1000);
         }
     }
-    
+
     showInstallButton(deferredPrompt) {
         const headerControls = document.querySelector('.header-controls');
-        
+
         // Check if install button already exists
         if (headerControls.querySelector('#install-btn')) return;
-        
+
         const installBtn = document.createElement('button');
         installBtn.id = 'install-btn';
         installBtn.className = 'btn secondary';
         installBtn.textContent = 'Install App';
-        
+
         installBtn.addEventListener('click', async () => {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
@@ -2930,14 +2953,215 @@ class FalAI {
                 this.hideInstallButton();
             }
         });
-        
+
         headerControls.insertBefore(installBtn, headerControls.firstChild);
     }
-    
+
     hideInstallButton() {
         const installBtn = document.getElementById('install-btn');
         if (installBtn) {
             installBtn.remove();
+        }
+    }
+
+    // Custom endpoint functions
+    switchEndpointTab(tab) {
+        const urlTab = document.getElementById('url-tab');
+        const fileTab = document.getElementById('file-tab');
+        const urlMethod = document.getElementById('url-method');
+        const fileMethod = document.getElementById('file-method');
+
+        if (tab === 'url') {
+            urlTab.classList.add('active');
+            fileTab.classList.remove('active');
+            urlMethod.classList.remove('hidden');
+            fileMethod.classList.add('hidden');
+        } else {
+            fileTab.classList.add('active');
+            urlTab.classList.remove('active');
+            fileMethod.classList.remove('hidden');
+            urlMethod.classList.add('hidden');
+        }
+    }
+
+    closeCustomEndpointModal() {
+        document.getElementById('custom-endpoint-modal').classList.add('hidden');
+        // Reset form
+        document.getElementById('openapi-url').value = '';
+        document.getElementById('openapi-file').value = '';
+        this.switchEndpointTab('url'); // Reset to URL tab
+    }
+
+    async addCustomEndpoint() {
+        try {
+            const urlTab = document.getElementById('url-tab');
+            const isUrlMethod = urlTab.classList.contains('active');
+
+            let schema;
+            let endpointName;
+
+            if (isUrlMethod) {
+                // Load from URL
+                const url = document.getElementById('openapi-url').value.trim();
+                if (!url) {
+                    alert('Please enter a valid URL');
+                    return;
+                }
+
+                this.logDebug(`Loading custom endpoint from URL: ${url}`, 'info');
+                schema = await this.loadEndpointFromUrl(url);
+                endpointName = this.extractEndpointNameFromUrl(url);
+            } else {
+                // Load from file
+                const fileInput = document.getElementById('openapi-file');
+                const file = fileInput.files[0];
+                if (!file) {
+                    alert('Please select a JSON file');
+                    return;
+                }
+
+                this.logDebug(`Loading custom endpoint from file: ${file.name}`, 'info');
+                schema = await this.loadEndpointFromFile(file);
+                endpointName = file.name.replace(/\.json$/, '');
+            }
+
+            // Validate schema
+            if (!this.validateOpenAPISchema(schema)) {
+                return; // Error already shown in validate function
+            }
+
+            // Add to endpoints
+            const customId = `custom-${Date.now()}`;
+            this.endpoints.set(customId, {
+                schema: schema,
+                metadata: this.extractMetadata(schema, endpointName)
+            });
+
+            // Save custom endpoints to localStorage
+            this.saveCustomEndpoints();
+
+            // Update dropdown
+            this.renderEndpointDropdown();
+
+            // Close modal
+            this.closeCustomEndpointModal();
+
+            // Show success message
+            this.logDebug(`Successfully added custom endpoint: ${endpointName}`, 'success');
+            alert(`Successfully added custom endpoint: ${endpointName}`);
+
+        } catch (error) {
+            console.error('Failed to add custom endpoint:', error);
+            this.logDebug(`Failed to add custom endpoint: ${error.message}`, 'error');
+            alert(`Failed to add custom endpoint: ${error.message}`);
+        }
+    }
+
+    async loadEndpointFromUrl(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to load from URL: ${response.status} ${response.statusText}`);
+        }
+        return await response.json();
+    }
+
+    async loadEndpointFromFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const schema = JSON.parse(e.target.result);
+                    resolve(schema);
+                } catch (error) {
+                    reject(new Error('Invalid JSON file'));
+                }
+            };
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsText(file);
+        });
+    }
+
+    validateOpenAPISchema(schema) {
+        if (!schema || typeof schema !== 'object') {
+            alert('Invalid schema: must be a JSON object');
+            return false;
+        }
+
+        if (!schema.openapi) {
+            alert('Invalid schema: missing "openapi" field');
+            return false;
+        }
+
+        if (!schema.info) {
+            alert('Invalid schema: missing "info" field');
+            return false;
+        }
+
+        if (!schema.paths) {
+            alert('Invalid schema: missing "paths" field');
+            return false;
+        }
+
+        // Check for POST endpoints
+        const hasPostEndpoint = Object.values(schema.paths).some(path => path.post);
+        if (!hasPostEndpoint) {
+            alert('Warning: No POST endpoints found in schema');
+        }
+
+        return true;
+    }
+
+    extractMetadata(schema, fallbackName) {
+        const info = schema.info;
+        let metadata = {
+            endpointId: info.title || fallbackName,
+            category: 'custom',
+            thumbnailUrl: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%234f46e5"/><text x="50" y="50" text-anchor="middle" dy="0.35em" fill="white" font-size="40">🔧</text></svg>',
+            playgroundUrl: '#',
+            documentationUrl: info.externalDocs?.url || '#'
+        };
+
+        // Try to extract fal.ai metadata if present
+        if (info['x-fal-metadata']) {
+            metadata = { ...metadata, ...info['x-fal-metadata'] };
+        }
+
+        return metadata;
+    }
+
+    extractEndpointNameFromUrl(url) {
+        try {
+            const urlObj = new URL(url);
+            const segments = urlObj.pathname.split('/');
+            const filename = segments[segments.length - 1];
+            return filename.replace(/\.json$/, '') || 'custom-endpoint';
+        } catch {
+            return 'custom-endpoint';
+        }
+    }
+
+    saveCustomEndpoints() {
+        const customEndpoints = {};
+        for (const [id, endpoint] of this.endpoints.entries()) {
+            if (id.startsWith('custom-')) {
+                customEndpoints[id] = endpoint;
+            }
+        }
+        localStorage.setItem('falai_custom_endpoints', JSON.stringify(customEndpoints));
+    }
+
+    loadCustomEndpoints() {
+        try {
+            const saved = localStorage.getItem('falai_custom_endpoints');
+            if (saved) {
+                const customEndpoints = JSON.parse(saved);
+                for (const [id, endpoint] of Object.entries(customEndpoints)) {
+                    this.endpoints.set(id, endpoint);
+                }
+                this.logDebug(`Loaded ${Object.keys(customEndpoints).length} custom endpoints`, 'info');
+            }
+        } catch (error) {
+            console.warn('Failed to load custom endpoints:', error);
         }
     }
 }

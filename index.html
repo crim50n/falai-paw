@@ -22,6 +22,7 @@
         <header class="header">
             <h1>FalAI</h1>
             <div class="header-controls">
+                <button id="add-endpoint-btn" class="btn secondary" title="Add Custom Endpoint">➕</button>
                 <button id="export-settings-btn" class="btn secondary" title="Export Settings">📤</button>
                 <button id="import-settings-btn" class="btn secondary" title="Import Settings">📥</button>
                 <button id="api-key-btn" class="btn secondary">Set API Key</button>
@@ -164,6 +165,34 @@
             <div class="fullscreen-info">
                 <div id="fullscreen-counter"></div>
                 <div id="fullscreen-metadata"></div>
+            </div>
+        </div>
+        
+        <!-- Custom Endpoint Modal -->
+        <div id="custom-endpoint-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>Add Custom Endpoint</h3>
+                <div class="custom-endpoint-tabs">
+                    <button id="url-tab" class="tab-button active">From URL</button>
+                    <button id="file-tab" class="tab-button">From File</button>
+                </div>
+                
+                <div id="url-method" class="endpoint-method">
+                    <label for="openapi-url">OpenAPI Schema URL</label>
+                    <input type="url" id="openapi-url" placeholder="https://example.com/openapi.json">
+                    <small>Enter a URL to an OpenAPI 3.0+ JSON schema</small>
+                </div>
+                
+                <div id="file-method" class="endpoint-method hidden">
+                    <label for="openapi-file">OpenAPI Schema File</label>
+                    <input type="file" id="openapi-file" accept=".json">
+                    <small>Select a JSON file with OpenAPI 3.0+ schema</small>
+                </div>
+                
+                <div class="modal-actions">
+                    <button id="add-custom-endpoint" class="btn primary">Add Endpoint</button>
+                    <button id="cancel-custom-endpoint" class="btn secondary">Cancel</button>
+                </div>
             </div>
         </div>
         
