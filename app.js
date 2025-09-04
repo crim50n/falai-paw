@@ -251,7 +251,7 @@ class FalAI {
 
         // Update delete button visibility for current selection
         this.updateDeleteButtonVisibility(dropdown.value);
-        
+
         // Auto-select last used endpoint if available
         const lastEndpoint = localStorage.getItem('falai_last_endpoint');
         if (lastEndpoint && this.endpoints.has(lastEndpoint) && dropdown.value === '') {
@@ -440,11 +440,11 @@ class FalAI {
             const field = this.createFormField(fieldName, fieldSchema, isRequired);
 
             // Determine which fields should be in main interface vs advanced options
-            const isMainField = fieldName === 'prompt' || 
-                              (fieldName.includes('image') && fieldName.includes('_url')) || 
+            const isMainField = fieldName === 'prompt' ||
+                              (fieldName.includes('image') && fieldName.includes('_url')) ||
                               fieldName.includes('mask') ||
                               fieldName.includes('reference');
-            
+
             if (isMainField) {
                 // Main fields: prompt and all image/mask fields
                 mainFields.appendChild(field);
@@ -789,7 +789,7 @@ class FalAI {
         urlInput.addEventListener('input', () => {
             if (urlInput.value) {
                 this.showImagePreview(urlInput.value, uploadArea, preview);
-                
+
                 // Auto-set custom dimensions based on image URL
                 this.autoSetImageDimensions(urlInput.value);
             } else {
@@ -898,10 +898,10 @@ class FalAI {
             reader.onload = (e) => {
                 urlInput.value = e.target.result;
                 this.showImagePreview(e.target.result, uploadArea, preview);
-                
+
                 // Auto-set custom dimensions based on image size
                 this.autoSetImageDimensions(e.target.result);
-                
+
                 this.saveEndpointSettings();
             };
             reader.readAsDataURL(file);
@@ -1115,7 +1115,7 @@ class FalAI {
         document.addEventListener('keydown', (e) => {
             const viewer = document.getElementById('fullscreen-viewer');
             const mobileMenu = document.getElementById('mobile-menu');
-            
+
             // Handle Escape key
             if (e.key === 'Escape') {
                 // Close mobile menu if it's open
@@ -1129,7 +1129,7 @@ class FalAI {
                     return;
                 }
             }
-            
+
             if (!viewer.classList.contains('hidden')) {
                 switch (e.key) {
                     case 'ArrowLeft':
@@ -1196,9 +1196,9 @@ class FalAI {
         const hamburgerMenu = document.getElementById('hamburger-menu');
         const mobileMenu = document.getElementById('mobile-menu');
         const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
-        
+
         const isOpen = hamburgerMenu.classList.contains('active');
-        
+
         if (isOpen) {
             this.closeMobileMenu();
         } else {
@@ -1210,14 +1210,14 @@ class FalAI {
         const hamburgerMenu = document.getElementById('hamburger-menu');
         const mobileMenu = document.getElementById('mobile-menu');
         const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
-        
+
         hamburgerMenu.classList.add('active');
         mobileMenu.classList.add('active');
         mobileMenuOverlay.classList.add('active');
-        
+
         // Populate mobile menu with advanced options
         this.populateMobileAdvancedOptions();
-        
+
         // Prevent body scroll when menu is open
         document.body.style.overflow = 'hidden';
     }
@@ -1226,11 +1226,11 @@ class FalAI {
         const hamburgerMenu = document.getElementById('hamburger-menu');
         const mobileMenu = document.getElementById('mobile-menu');
         const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
-        
+
         hamburgerMenu.classList.remove('active');
         mobileMenu.classList.remove('active');
         mobileMenuOverlay.classList.remove('active');
-        
+
         // Restore body scroll
         document.body.style.overflow = '';
     }
@@ -1238,38 +1238,38 @@ class FalAI {
     populateMobileAdvancedOptions() {
         const mobileContainer = document.getElementById('mobile-advanced-options');
         const advancedContainer = document.querySelector('.advanced-options');
-        
+
         // Clear existing content
         mobileContainer.innerHTML = '';
-        
+
         if (!advancedContainer || !this.currentEndpoint) {
             mobileContainer.innerHTML = '<p class="no-options-message">Select an endpoint to see advanced options</p>';
             return;
         }
-        
+
         // Find the actual content container (the fields inside advanced options)
         const advancedContent = advancedContainer.querySelector('.advanced-options-content');
         if (!advancedContent) {
             mobileContainer.innerHTML = '<p class="no-options-message">No advanced options available</p>';
             return;
         }
-        
+
         // Clone only the content (form fields), not the wrapper with toggle button
         const clonedContent = advancedContent.cloneNode(true);
         clonedContent.classList.add('mobile-advanced-content');
         clonedContent.classList.remove('hidden');
         clonedContent.style.display = 'block';
-        
+
         // Keep mask editor elements in mobile version
-        
+
         // Update any IDs to avoid conflicts
         const elements = clonedContent.querySelectorAll('[id]');
         elements.forEach(el => {
             el.id = 'mobile-' + el.id;
         });
-        
+
         mobileContainer.appendChild(clonedContent);
-        
+
         // Re-attach event listeners for mobile advanced options
         this.attachMobileAdvancedOptionEvents(mobileContainer);
     }
@@ -1283,7 +1283,7 @@ class FalAI {
                 this.syncMobileToDesktop(e.target);
                 this.saveEndpointSettings();
             });
-            
+
             // Sync change events (for dropdowns, checkboxes, etc.)
             input.addEventListener('change', (e) => {
                 this.syncMobileToDesktop(e.target);
@@ -1299,11 +1299,11 @@ class FalAI {
                 button.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    
+
                     // Find the corresponding desktop button and click it
                     const buttonText = button.textContent;
                     const desktopButtons = document.querySelectorAll(`#generation-form .btn.secondary.small`);
-                    
+
                     // Find the matching desktop button by text content
                     for (let dBtn of desktopButtons) {
                         if (dBtn.textContent === buttonText) {
@@ -1325,13 +1325,13 @@ class FalAI {
             button.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 // Find the corresponding desktop remove button
                 const arrayItem = button.closest('.array-item');
                 if (arrayItem) {
                     const itemIndex = Array.from(arrayItem.parentNode.children).indexOf(arrayItem);
                     const desktopArrayItems = document.querySelectorAll('#generation-form .array-item');
-                    
+
                     if (desktopArrayItems[itemIndex]) {
                         const desktopRemoveBtn = desktopArrayItems[itemIndex].querySelector('.btn.danger');
                         if (desktopRemoveBtn) {
@@ -1351,32 +1351,32 @@ class FalAI {
         sliderContainers.forEach(sliderContainer => {
             const slider = sliderContainer.querySelector('input[type="range"]');
             const valueInput = sliderContainer.querySelector('input[type="number"].slider-value-input');
-            
+
             if (slider && valueInput) {
                 // Ensure initial sync
                 valueInput.value = slider.value;
-                
+
                 // Add event listeners for slider
                 slider.addEventListener('input', (e) => {
                     e.stopPropagation();
                     const newValue = slider.value;
                     valueInput.value = newValue;
-                    
+
                     // Sync to desktop
                     this.syncMobileToDesktop(slider);
                     this.saveEndpointSettings();
                 });
-                
+
                 // Add event listeners for value input
                 valueInput.addEventListener('input', (e) => {
                     e.stopPropagation();
                     const value = parseFloat(valueInput.value);
                     const min = parseFloat(slider.min);
                     const max = parseFloat(slider.max);
-                    
+
                     if (!isNaN(value) && value >= min && value <= max) {
                         slider.value = value;
-                        
+
                         // Sync both slider and value input to desktop
                         this.syncMobileToDesktop(slider);
                         this.saveEndpointSettings();
@@ -1388,26 +1388,26 @@ class FalAI {
 
     syncMobileToDesktop(mobileElement) {
         let desktopElement = null;
-        
+
         // Try to find desktop element by ID first
         const mobileId = mobileElement.id;
         if (mobileId && mobileId.startsWith('mobile-')) {
             const desktopId = mobileId.replace('mobile-', '');
             desktopElement = document.getElementById(desktopId);
         }
-        
+
         // If not found by ID, try to find by name attribute
         if (!desktopElement && mobileElement.name) {
             desktopElement = document.querySelector(`#generation-form [name="${mobileElement.name}"]`);
         }
-        
+
         if (desktopElement) {
             if (mobileElement.type === 'checkbox') {
                 desktopElement.checked = mobileElement.checked;
             } else {
                 desktopElement.value = mobileElement.value;
             }
-            
+
             // Trigger events on desktop element to maintain consistency
             desktopElement.dispatchEvent(new Event('input', { bubbles: true }));
             desktopElement.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1418,35 +1418,68 @@ class FalAI {
         return window.innerWidth <= 768;
     }
 
+    setupMobileTouchFix(fabricCanvas) {
+        console.log('📱 Setting up mobile touch coordinate fix');
+
+        // Force proper offset calculation
+        fabricCanvas.calcOffset();
+
+        // Override touch event handling
+        const canvas = fabricCanvas.upperCanvasEl;
+        const originalTouch = canvas.ontouchstart;
+
+        // Add touch coordinate correction
+        fabricCanvas.on('path:created', (e) => {
+            if (this.isMobileDevice() && e.path) {
+                // Get canvas container for correct offset calculation
+                const container = canvas.parentElement;
+                const containerRect = container.getBoundingClientRect();
+                const canvasRect = canvas.getBoundingClientRect();
+
+                // Calculate any offset due to container positioning
+                const offsetX = canvasRect.left - containerRect.left;
+                const offsetY = canvasRect.top - containerRect.top;
+
+                console.log('🖱️ Touch offset compensation:', offsetX, offsetY);
+            }
+        });
+
+        // Recalculate offset after any resize or change
+        const observer = new ResizeObserver(() => {
+            fabricCanvas.calcOffset();
+        });
+        observer.observe(canvas.parentElement);
+    }
+
     fixMobileTouchCoordinates(fabricCanvas) {
         // Override the _getPointer method to fix touch coordinates on mobile
         const originalGetPointer = fabricCanvas._getPointer;
-        
+
         if (!originalGetPointer || typeof originalGetPointer !== 'function') {
             console.warn('⚠️ Original _getPointer method not found, skipping touch coordinate fix');
             return;
         }
-        
+
         fabricCanvas._getPointer = function(e, ignoreZoom) {
             // Use the original method as base
             const pointer = originalGetPointer.call(this, e, ignoreZoom);
-            
+
             // For touch events, we need to recalculate coordinates
             if (e.touches || e.changedTouches) {
                 const canvasElement = this.upperCanvasEl;
                 const rect = canvasElement.getBoundingClientRect();
                 const touch = e.touches?.[0] || e.changedTouches?.[0];
-                
+
                 if (touch) {
                     // Calculate correct touch coordinates relative to canvas
                     const scaleX = canvasElement.width / rect.width;
                     const scaleY = canvasElement.height / rect.height;
-                    
+
                     pointer.x = (touch.clientX - rect.left) * scaleX;
                     pointer.y = (touch.clientY - rect.top) * scaleY;
                 }
             }
-            
+
             return pointer;
         };
 
@@ -1468,7 +1501,7 @@ class FalAI {
         if (window.devicePixelRatio > 1) {
             const canvas = fabricCanvas.upperCanvasEl;
             const context = canvas.getContext('2d');
-            
+
             // Scale the drawing context for retina
             const pixelRatio = window.devicePixelRatio;
             canvas.width = canvas.offsetWidth * pixelRatio;
@@ -1494,7 +1527,7 @@ class FalAI {
 
         // Collect form data
         const formData = this.collectFormData();
-        
+
         // Filter out LoRAs with weight 0 before sending request
         this.filterLoRAs(formData);
 
@@ -1612,49 +1645,49 @@ class FalAI {
     autoSetImageDimensions(imageUrl) {
         // Create an image element to get dimensions
         const img = new Image();
-        
+
         img.onload = () => {
             const width = img.naturalWidth;
             const height = img.naturalHeight;
-            
+
             // Only set dimensions if we got valid values
             if (width > 0 && height > 0) {
                 // Find image_size select and custom dimension inputs
                 const imageSizeSelect = document.querySelector('select[name="image_size"]');
                 const widthInput = document.querySelector('input[name="image_size_width"]');
                 const heightInput = document.querySelector('input[name="image_size_height"]');
-                
+
                 if (imageSizeSelect && widthInput && heightInput) {
                     // Set to custom mode
                     imageSizeSelect.value = 'custom';
-                    
+
                     // Set width and height to match the uploaded image
                     widthInput.value = width;
                     heightInput.value = height;
-                    
+
                     // Trigger change events to update UI and save settings
                     imageSizeSelect.dispatchEvent(new Event('change', { bubbles: true }));
                     widthInput.dispatchEvent(new Event('input', { bubbles: true }));
                     heightInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    
+
                     if (this.debugMode) {
                         console.log(`✅ Auto-set image dimensions: ${width}x${height}`);
                     }
                 }
             }
         };
-        
+
         img.onerror = () => {
             if (this.debugMode) {
                 console.warn('⚠️ Could not determine image dimensions - image failed to load');
             }
         };
-        
+
         // Set crossOrigin for external URLs (may help with CORS)
         if (!imageUrl.startsWith('data:')) {
             img.crossOrigin = 'anonymous';
         }
-        
+
         img.src = imageUrl;
     }
 
@@ -1699,11 +1732,11 @@ class FalAI {
                 // Keep LoRA if it has a valid path and weight > 0
                 const hasPath = lora && lora.path && lora.path.trim() !== '';
                 const hasValidWeight = lora && lora.weight !== undefined && lora.weight !== null && lora.weight > 0;
-                
+
                 if (this.debugMode && lora && hasPath && !hasValidWeight) {
                     console.log(`🚫 Filtering out LoRA "${lora.path}" with weight ${lora.weight}`);
                 }
-                
+
                 return hasPath && hasValidWeight;
             });
 
@@ -3829,12 +3862,13 @@ class FalAI {
                 <div class="mask-editor-body">
                     <div class="mask-editor-controls">
                         <div class="control-group">
-                            <label>Brush Size:
+                            <label>Brush Size:</label>
+                            <div class="brush-size-row">
                                 <button type="button" id="brush-smaller" class="btn secondary small">-</button>
                                 <input type="range" id="brush-size" min="1" max="100" value="20">
                                 <span id="brush-size-value">20px</span>
                                 <button type="button" id="brush-larger" class="btn secondary small">+</button>
-                            </label>
+                            </div>
                         </div>
                         <div class="control-group">
                             <button type="button" id="zoom-out" class="btn secondary small" title="Zoom out">🔍-</button>
@@ -3896,7 +3930,7 @@ class FalAI {
         let fabricCanvas;
         let undoStack = [];
         let redoStack = [];
-        
+
         // State for zoom and pan
         let zoomLevel = 1;
         let panX = 0;
@@ -3930,14 +3964,18 @@ class FalAI {
                 preserveObjectStacking: true,
                 enableRetinaScaling: true
             });
-            
+
+            // Force canvas element to match exact dimensions (prevent CSS stretching)
+            canvasElement.style.width = canvasWidth + 'px';
+            canvasElement.style.height = canvasHeight + 'px';
+
             // Store original dimensions for zoom calculations
             fabricCanvas.originalWidth = canvasWidth;
             fabricCanvas.originalHeight = canvasHeight;
-            
+
             // Fix touch coordinates for mobile devices
             if (this.isMobileDevice()) {
-                this.fixMobileTouchCoordinates(fabricCanvas);
+                this.setupMobileTouchFix(fabricCanvas);
             }
 
             // Add background image with exact fit (no additional scaling)
@@ -3956,7 +3994,7 @@ class FalAI {
 
                 // Force canvas to update its internal coordinates
                 fabricCanvas.calcOffset();
-                
+
                 // Additional calibration for mobile devices
                 if (this.isMobileDevice()) {
                     // Force recalculation after a short delay to ensure proper sizing
@@ -3981,6 +4019,34 @@ class FalAI {
                 const pointer = fabricCanvas.getPointer(e.e);
                 console.log('🖱️ Click at canvas coordinates:', pointer.x, pointer.y);
             });
+
+            // Improved touch coordinate handling for mobile
+            if (this.isMobileDevice()) {
+                console.log('📱 Setting up improved touch coordinates for mobile');
+
+                // Override default pointer calculation for better accuracy
+                const originalGetPointer = fabricCanvas.getPointer;
+                fabricCanvas.getPointer = function(e, ignoreZoom) {
+                    const pointer = originalGetPointer.call(this, e, ignoreZoom);
+
+                    // For touch events, recalculate more precisely
+                    if (e.touches || e.changedTouches) {
+                        const touch = e.touches?.[0] || e.changedTouches?.[0];
+                        if (touch) {
+                            const rect = this.upperCanvasEl.getBoundingClientRect();
+                            const scaleX = this.width / rect.width;
+                            const scaleY = this.height / rect.height;
+
+                            pointer.x = (touch.clientX - rect.left) * scaleX;
+                            pointer.y = (touch.clientY - rect.top) * scaleY;
+
+                            console.log('📱 Touch corrected to:', pointer.x, pointer.y);
+                        }
+                    }
+
+                    return pointer;
+                };
+            }
 
             // Store initial state for undo after everything is set up
             setTimeout(() => {
@@ -4025,7 +4091,7 @@ class FalAI {
                 fabricCanvas.renderAll();
                 saveState();
             });
-            
+
             // Zoom controls
             zoomFitBtn.addEventListener('click', fitToContainer);
             zoomResetBtn.addEventListener('click', resetZoom);
@@ -4138,7 +4204,7 @@ class FalAI {
                     }, 300);
                 }, 800);
             }
-            
+
             // Mouse wheel zoom with Shift key (instead of Ctrl to avoid browser zoom conflict)
             canvasContainer.addEventListener('wheel', (e) => {
                 if (e.shiftKey) {
@@ -4154,13 +4220,13 @@ class FalAI {
                     adjustBrushSize(e.deltaY > 0 ? -5 : 5);
                 }
             }, { passive: false });
-            
+
             // Pan with middle mouse or Ctrl+drag (when not drawing)
             let isPanning = false;
             let lastPanPoint = null;
-            
+
             canvasContainer.addEventListener('mousedown', (e) => {
-                if (e.button === 1 || (e.button === 0 && e.ctrlKey && !fabricCanvas.isDrawingMode)) { 
+                if (e.button === 1 || (e.button === 0 && e.ctrlKey && !fabricCanvas.isDrawingMode)) {
                     isPanning = true;
                     lastPanPoint = { x: e.clientX, y: e.clientY };
                     canvasContainer.style.cursor = 'grabbing';
@@ -4168,7 +4234,7 @@ class FalAI {
                     e.preventDefault();
                 }
             });
-            
+
             canvasContainer.addEventListener('mousemove', (e) => {
                 if (isPanning && lastPanPoint) {
                     const deltaX = e.clientX - lastPanPoint.x;
@@ -4177,7 +4243,7 @@ class FalAI {
                     lastPanPoint = { x: e.clientX, y: e.clientY };
                 }
             });
-            
+
             canvasContainer.addEventListener('mouseup', () => {
                 if (isPanning) {
                     isPanning = false;
@@ -4195,12 +4261,12 @@ class FalAI {
 
                 canvasContainer.addEventListener('touchstart', (e) => {
                     touches = Array.from(e.touches);
-                    
+
                     if (touches.length === 2) {
                         // Two-finger touch for zoom
                         e.preventDefault();
                         fabricCanvas.isDrawingMode = false; // Disable drawing during zoom
-                        
+
                         const touch1 = touches[0];
                         const touch2 = touches[1];
                         initialDistance = Math.hypot(
@@ -4213,31 +4279,31 @@ class FalAI {
 
                 canvasContainer.addEventListener('touchmove', (e) => {
                     touches = Array.from(e.touches);
-                    
+
                     if (touches.length === 2) {
                         e.preventDefault();
-                        
+
                         const touch1 = touches[0];
                         const touch2 = touches[1];
                         const currentDistance = Math.hypot(
                             touch2.clientX - touch1.clientX,
                             touch2.clientY - touch1.clientY
                         );
-                        
+
                         if (initialDistance > 0) {
                             const scale = (currentDistance / initialDistance) * initialScale;
                             const centerX = (touch1.clientX + touch2.clientX) / 2;
                             const centerY = (touch1.clientY + touch2.clientY) / 2;
-                            
+
                             // Convert screen coordinates to canvas coordinates
                             const rect = canvasContainer.getBoundingClientRect();
                             const pointer = {
                                 x: (centerX - rect.left) * (fabricCanvas.width / rect.width),
                                 y: (centerY - rect.top) * (fabricCanvas.height / rect.height)
                             };
-                            
+
                             fabricCanvas.zoomToPoint(new fabric.Point(pointer.x, pointer.y), Math.max(0.1, Math.min(5, scale)));
-                            
+
                             // Show zoom level feedback on mobile
                             if (this.isMobileDevice()) {
                                 showZoomFeedback(scale);
@@ -4255,12 +4321,12 @@ class FalAI {
                 }, { passive: false });
             }
         }
-        
+
         function setupHotkeys() {
             const handleKeydown = (e) => {
                 // Only handle keys if mask editor modal is active
                 if (!modal.parentNode) return;
-                
+
                 switch (e.key.toLowerCase()) {
                     case 'r':
                         if (!e.ctrlKey && !e.altKey) {
@@ -4295,14 +4361,14 @@ class FalAI {
                         break;
                 }
             };
-            
+
             document.addEventListener('keydown', handleKeydown);
-            
+
             // Clean up event listener on modal close
             const cleanup = () => document.removeEventListener('keydown', handleKeydown);
             modal.addEventListener('remove', cleanup);
         }
-        
+
         function adjustBrushSize(delta) {
             const currentSize = parseInt(brushSizeSlider.value);
             const newSize = Math.max(1, Math.min(100, currentSize + delta));
@@ -4310,15 +4376,15 @@ class FalAI {
             fabricCanvas.freeDrawingBrush.width = newSize;
             brushSizeValue.textContent = newSize + 'px';
         }
-        
+
         function zoom(point, delta) {
             const oldZoom = fabricCanvas.getZoom();
             const newZoom = Math.max(0.1, Math.min(5, oldZoom * delta));
-            
+
             fabricCanvas.zoomToPoint(new fabric.Point(point.x, point.y), newZoom);
             zoomLevel = newZoom;
         }
-        
+
         function pan(deltaX, deltaY) {
             const vpt = fabricCanvas.viewportTransform;
             vpt[4] += deltaX;
@@ -4326,31 +4392,31 @@ class FalAI {
             fabricCanvas.setViewportTransform(vpt);
             fabricCanvas.renderAll();
         }
-        
+
         function resetZoom() {
             fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
             fabricCanvas.setZoom(1);
             zoomLevel = 1;
             fabricCanvas.renderAll();
         }
-        
+
         function fitToContainer() {
             const containerWidth = canvasContainer.clientWidth - 40;
             const containerHeight = canvasContainer.clientHeight - 40;
-            
+
             const scaleX = containerWidth / fabricCanvas.originalWidth;
             const scaleY = containerHeight / fabricCanvas.originalHeight;
             const scale = Math.min(scaleX, scaleY, 1);
-            
+
             fabricCanvas.setZoom(scale);
-            
+
             // Center the canvas
             const vpt = fabricCanvas.viewportTransform;
             vpt[4] = (containerWidth - fabricCanvas.originalWidth * scale) / 2;
             vpt[5] = (containerHeight - fabricCanvas.originalHeight * scale) / 2;
             fabricCanvas.setViewportTransform(vpt);
             fabricCanvas.renderAll();
-            
+
             zoomLevel = scale;
         }
 

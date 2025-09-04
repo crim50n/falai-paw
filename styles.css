@@ -2090,6 +2090,12 @@ body {
     cursor: crosshair;
 }
 
+.canvas-container canvas {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain;
+}
+
 .canvas-container.panning {
     cursor: grabbing !important;
 }
@@ -2248,6 +2254,13 @@ body {
         background: rgba(0, 0, 0, 0.05);
     }
 
+    .canvas-container canvas {
+        width: auto !important;
+        height: auto !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+    }
+
     .mask-editor-actions {
         flex-direction: column;
         gap: 0.75rem;
@@ -2283,7 +2296,7 @@ body {
         padding: 0.75rem;
         font-size: 1rem;
     }
-    
+
     /* Touch-friendly mask editor button */
     .mask-editor-btn {
         padding: 0.75rem 1rem !important;
