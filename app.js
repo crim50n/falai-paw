@@ -251,6 +251,14 @@ class FalAI {
 
         // Update delete button visibility for current selection
         this.updateDeleteButtonVisibility(dropdown.value);
+        
+        // Auto-select last used endpoint if available
+        const lastEndpoint = localStorage.getItem('falai_last_endpoint');
+        if (lastEndpoint && this.endpoints.has(lastEndpoint) && dropdown.value === '') {
+            dropdown.value = lastEndpoint;
+            this.selectEndpoint(lastEndpoint);
+            this.updateDeleteButtonVisibility(lastEndpoint);
+        }
     }
 
     selectEndpoint(endpointId) {
@@ -431,8 +439,14 @@ class FalAI {
             const isRequired = required.includes(fieldName);
             const field = this.createFormField(fieldName, fieldSchema, isRequired);
 
-            if (fieldName === 'prompt') {
-                // Only prompt field is shown by default
+            // Determine which fields should be in main interface vs advanced options
+            const isMainField = fieldName === 'prompt' || 
+                              (fieldName.includes('image') && fieldName.includes('_url')) || 
+                              fieldName.includes('mask') ||
+                              fieldName.includes('reference');
+            
+            if (isMainField) {
+                // Main fields: prompt and all image/mask fields
                 mainFields.appendChild(field);
             } else {
                 // All other fields go to advanced options
@@ -714,8 +728,8 @@ class FalAI {
             <button type="button" class="remove-image btn secondary small">Remove</button>
         `;
 
-        // Add mask editor for mask fields (only on desktop)
-        if (isMaskField && !this.isMobileDevice()) {
+        // Add mask editor for mask fields
+        if (isMaskField) {
             const maskEditorContainer = document.createElement('div');
             maskEditorContainer.className = 'mask-editor-container hidden';
 
@@ -939,6 +953,8 @@ class FalAI {
             if (endpointId) {
                 this.selectEndpoint(endpointId);
                 this.updateDeleteButtonVisibility(endpointId);
+                // Save last selected endpoint
+                localStorage.setItem('falai_last_endpoint', endpointId);
             } else {
                 this.clearEndpointSelection();
                 this.updateDeleteButtonVisibility(null);
@@ -1244,9 +1260,7 @@ class FalAI {
         clonedContent.classList.remove('hidden');
         clonedContent.style.display = 'block';
         
-        // Remove mask editor elements from mobile version
-        const maskEditorElements = clonedContent.querySelectorAll('.mask-editor-btn, .mask-editor-container');
-        maskEditorElements.forEach(el => el.remove());
+        // Keep mask editor elements in mobile version
         
         // Update any IDs to avoid conflicts
         const elements = clonedContent.querySelectorAll('[id]');
@@ -1402,6 +1416,69 @@ class FalAI {
 
     isMobileDevice() {
         return window.innerWidth <= 768;
+    }
+
+    fixMobileTouchCoordinates(fabricCanvas) {
+        // Override the _getPointer method to fix touch coordinates on mobile
+        const originalGetPointer = fabricCanvas._getPointer;
+        
+        if (!originalGetPointer || typeof originalGetPointer !== 'function') {
+            console.warn('⚠️ Original _getPointer method not found, skipping touch coordinate fix');
+            return;
+        }
+        
+        fabricCanvas._getPointer = function(e, ignoreZoom) {
+            // Use the original method as base
+            const pointer = originalGetPointer.call(this, e, ignoreZoom);
+            
+            // For touch events, we need to recalculate coordinates
+            if (e.touches || e.changedTouches) {
+                const canvasElement = this.upperCanvasEl;
+                const rect = canvasElement.getBoundingClientRect();
+                const touch = e.touches?.[0] || e.changedTouches?.[0];
+                
+                if (touch) {
+                    // Calculate correct touch coordinates relative to canvas
+                    const scaleX = canvasElement.width / rect.width;
+                    const scaleY = canvasElement.height / rect.height;
+                    
+                    pointer.x = (touch.clientX - rect.left) * scaleX;
+                    pointer.y = (touch.clientY - rect.top) * scaleY;
+                }
+            }
+            
+            return pointer;
+        };
+
+        // Also fix the getPointer method for public API
+        const originalPublicGetPointer = fabricCanvas.getPointer;
+        fabricCanvas.getPointer = function(e, ignoreZoom) {
+            if (e.touches || e.changedTouches) {
+                return this._getPointer(e, ignoreZoom);
+            }
+            return originalPublicGetPointer.call(this, e, ignoreZoom);
+        };
+
+        // Force canvas to recalculate offset on touch start
+        fabricCanvas.on('mouse:down', function() {
+            this.calcOffset();
+        });
+
+        // Additional fix for retina displays
+        if (window.devicePixelRatio > 1) {
+            const canvas = fabricCanvas.upperCanvasEl;
+            const context = canvas.getContext('2d');
+            
+            // Scale the drawing context for retina
+            const pixelRatio = window.devicePixelRatio;
+            canvas.width = canvas.offsetWidth * pixelRatio;
+            canvas.height = canvas.offsetHeight * pixelRatio;
+            context.scale(pixelRatio, pixelRatio);
+            canvas.style.width = canvas.offsetWidth + 'px';
+            canvas.style.height = canvas.offsetHeight + 'px';
+        }
+
+        console.log('✅ Mobile touch coordinates fixed for mask editor');
     }
 
     async generateImage() {
@@ -3753,13 +3830,19 @@ class FalAI {
                     <div class="mask-editor-controls">
                         <div class="control-group">
                             <label>Brush Size:
+                                <button type="button" id="brush-smaller" class="btn secondary small">-</button>
                                 <input type="range" id="brush-size" min="1" max="100" value="20">
                                 <span id="brush-size-value">20px</span>
+                                <button type="button" id="brush-larger" class="btn secondary small">+</button>
                             </label>
                         </div>
                         <div class="control-group">
+                            <button type="button" id="zoom-out" class="btn secondary small" title="Zoom out">🔍-</button>
+                            <button type="button" id="zoom-in" class="btn secondary small" title="Zoom in">🔍+</button>
                             <button type="button" id="zoom-fit" class="btn secondary small" title="Fit to screen (F)">🔍 Fit</button>
                             <button type="button" id="zoom-reset" class="btn secondary small" title="Reset zoom (R)">↻ Reset</button>
+                        </div>
+                        <div class="control-group">
                             <button type="button" id="undo-mask" class="btn secondary small" disabled title="Undo (Ctrl+Z)">↶ Undo</button>
                             <button type="button" id="redo-mask" class="btn secondary small" disabled title="Redo (Ctrl+Y)">↷ Redo</button>
                             <button type="button" id="clear-mask" class="btn secondary small" title="Clear all">🗑 Clear</button>
@@ -3779,6 +3862,11 @@ class FalAI {
         document.body.appendChild(modal);
         modal.classList.remove('hidden');
 
+        // Block body scrolling on mobile
+        if (this.isMobileDevice()) {
+            document.body.style.overflow = 'hidden';
+        }
+
         // Initialize mask editor
         this.initializeMaskEditor(modal, fieldName, urlInput, referenceImageUrl);
     }
@@ -3794,6 +3882,10 @@ class FalAI {
         const redoBtn = modal.querySelector('#redo-mask');
         const zoomFitBtn = modal.querySelector('#zoom-fit');
         const zoomResetBtn = modal.querySelector('#zoom-reset');
+        const zoomInBtn = modal.querySelector('#zoom-in');
+        const zoomOutBtn = modal.querySelector('#zoom-out');
+        const brushSmallerBtn = modal.querySelector('#brush-smaller');
+        const brushLargerBtn = modal.querySelector('#brush-larger');
 
         // Debug: Check if all required elements exist
         if (!canvasElement) {
@@ -3842,6 +3934,11 @@ class FalAI {
             // Store original dimensions for zoom calculations
             fabricCanvas.originalWidth = canvasWidth;
             fabricCanvas.originalHeight = canvasHeight;
+            
+            // Fix touch coordinates for mobile devices
+            if (this.isMobileDevice()) {
+                this.fixMobileTouchCoordinates(fabricCanvas);
+            }
 
             // Add background image with exact fit (no additional scaling)
             const backgroundImg = new fabric.Image(img, {
@@ -3859,6 +3956,15 @@ class FalAI {
 
                 // Force canvas to update its internal coordinates
                 fabricCanvas.calcOffset();
+                
+                // Additional calibration for mobile devices
+                if (this.isMobileDevice()) {
+                    // Force recalculation after a short delay to ensure proper sizing
+                    setTimeout(() => {
+                        fabricCanvas.calcOffset();
+                        console.log('📱 Mobile canvas coordinates recalibrated');
+                    }, 100);
+                }
 
                 console.log('✅ Canvas size:', canvasWidth, 'x', canvasHeight);
                 console.log('✅ Image scale:', scale);
@@ -3885,7 +3991,7 @@ class FalAI {
             // Setup event listeners
             setupControls();
             setupUndoRedo();
-            setupZoomPan();
+            setupZoomPan.call(this);
             setupHotkeys();
 
             console.log('✅ Fabric.js canvas initialized successfully');
@@ -3923,6 +4029,22 @@ class FalAI {
             // Zoom controls
             zoomFitBtn.addEventListener('click', fitToContainer);
             zoomResetBtn.addEventListener('click', resetZoom);
+            zoomInBtn.addEventListener('click', () => {
+                const center = { x: fabricCanvas.width / 2, y: fabricCanvas.height / 2 };
+                zoom(center, 1.2);
+            });
+            zoomOutBtn.addEventListener('click', () => {
+                const center = { x: fabricCanvas.width / 2, y: fabricCanvas.height / 2 };
+                zoom(center, 0.8);
+            });
+
+            // Brush size controls
+            brushSmallerBtn.addEventListener('click', () => {
+                adjustBrushSize(-5);
+            });
+            brushLargerBtn.addEventListener('click', () => {
+                adjustBrushSize(5);
+            });
         }
 
         function setupUndoRedo() {
@@ -3976,6 +4098,47 @@ class FalAI {
         }
 
         function setupZoomPan() {
+            function showZoomFeedback(zoomLevel) {
+                // Remove existing feedback if present
+                const existingFeedback = document.querySelector('.zoom-feedback');
+                if (existingFeedback) {
+                    existingFeedback.remove();
+                }
+
+                // Create zoom feedback element
+                const feedback = document.createElement('div');
+                feedback.className = 'zoom-feedback';
+                feedback.textContent = `${Math.round(zoomLevel * 100)}%`;
+                feedback.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 0.5rem 1rem;
+                    border-radius: 20px;
+                    font-size: 1.2rem;
+                    font-weight: bold;
+                    z-index: 3000;
+                    pointer-events: none;
+                    opacity: 0.9;
+                    transition: opacity 0.3s ease;
+                `;
+
+                document.body.appendChild(feedback);
+
+                // Remove feedback after a short delay
+                setTimeout(() => {
+                    feedback.style.opacity = '0';
+                    setTimeout(() => {
+                        if (feedback.parentNode) {
+                            feedback.remove();
+                        }
+                    }, 300);
+                }, 800);
+            }
+            
             // Mouse wheel zoom with Shift key (instead of Ctrl to avoid browser zoom conflict)
             canvasContainer.addEventListener('wheel', (e) => {
                 if (e.shiftKey) {
@@ -4023,6 +4186,74 @@ class FalAI {
                     fabricCanvas.isDrawingMode = true; // Re-enable drawing
                 }
             });
+
+            // Touch gestures for mobile
+            if (this.isMobileDevice()) {
+                let initialDistance = 0;
+                let initialScale = 1;
+                let touches = [];
+
+                canvasContainer.addEventListener('touchstart', (e) => {
+                    touches = Array.from(e.touches);
+                    
+                    if (touches.length === 2) {
+                        // Two-finger touch for zoom
+                        e.preventDefault();
+                        fabricCanvas.isDrawingMode = false; // Disable drawing during zoom
+                        
+                        const touch1 = touches[0];
+                        const touch2 = touches[1];
+                        initialDistance = Math.hypot(
+                            touch2.clientX - touch1.clientX,
+                            touch2.clientY - touch1.clientY
+                        );
+                        initialScale = fabricCanvas.getZoom();
+                    }
+                }, { passive: false });
+
+                canvasContainer.addEventListener('touchmove', (e) => {
+                    touches = Array.from(e.touches);
+                    
+                    if (touches.length === 2) {
+                        e.preventDefault();
+                        
+                        const touch1 = touches[0];
+                        const touch2 = touches[1];
+                        const currentDistance = Math.hypot(
+                            touch2.clientX - touch1.clientX,
+                            touch2.clientY - touch1.clientY
+                        );
+                        
+                        if (initialDistance > 0) {
+                            const scale = (currentDistance / initialDistance) * initialScale;
+                            const centerX = (touch1.clientX + touch2.clientX) / 2;
+                            const centerY = (touch1.clientY + touch2.clientY) / 2;
+                            
+                            // Convert screen coordinates to canvas coordinates
+                            const rect = canvasContainer.getBoundingClientRect();
+                            const pointer = {
+                                x: (centerX - rect.left) * (fabricCanvas.width / rect.width),
+                                y: (centerY - rect.top) * (fabricCanvas.height / rect.height)
+                            };
+                            
+                            fabricCanvas.zoomToPoint(new fabric.Point(pointer.x, pointer.y), Math.max(0.1, Math.min(5, scale)));
+                            
+                            // Show zoom level feedback on mobile
+                            if (this.isMobileDevice()) {
+                                showZoomFeedback(scale);
+                            }
+                        }
+                    }
+                }, { passive: false });
+
+                canvasContainer.addEventListener('touchend', (e) => {
+                    if (touches.length === 2) {
+                        fabricCanvas.isDrawingMode = true; // Re-enable drawing
+                    }
+                    touches = [];
+                    initialDistance = 0;
+                }, { passive: false });
+            }
         }
         
         function setupHotkeys() {
@@ -4058,6 +4289,8 @@ class FalAI {
                     case 'escape':
                         e.preventDefault();
                         if (fabricCanvas) fabricCanvas.dispose();
+                        // Restore body scrolling
+                        document.body.style.overflow = '';
                         modal.remove();
                         break;
                 }
@@ -4124,11 +4357,15 @@ class FalAI {
         // Close modal handlers
         modal.querySelector('#close-mask-editor').addEventListener('click', () => {
             if (fabricCanvas) fabricCanvas.dispose();
+            // Restore body scrolling
+            document.body.style.overflow = '';
             modal.remove();
         });
 
         modal.querySelector('#cancel-mask').addEventListener('click', () => {
             if (fabricCanvas) fabricCanvas.dispose();
+            // Restore body scrolling
+            document.body.style.overflow = '';
             modal.remove();
         });
 
@@ -4138,6 +4375,8 @@ class FalAI {
                 this.generateMaskFromFabricCanvas(fabricCanvas, urlInput);
                 fabricCanvas.dispose();
             }
+            // Restore body scrolling
+            document.body.style.overflow = '';
             modal.remove();
         });
     }
