@@ -858,6 +858,7 @@ body {
     background: #e5e7eb;
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
 }
 
 .slider-container input[type="range"]::-webkit-slider-thumb {
@@ -2137,41 +2138,89 @@ body {
 
 /* Responsive mask editor */
 @media (max-width: 768px) {
+    /* Fullscreen modal on mobile */
+    .modal {
+        background: rgba(0, 0, 0, 0.95);
+    }
+    
     .mask-editor-content {
-        margin: 0.5rem;
-        max-width: calc(100vw - 1rem);
-        max-height: 95vh;
+        margin: 0;
+        max-width: 100vw;
+        max-height: 100vh;
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        padding: 0.5rem;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .mask-editor-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        position: relative;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+    }
+
+    .modal-header h3 {
+        font-size: 1.1rem;
+        margin-right: 3rem; /* Space for close button */
+    }
+
+    #close-mask-editor {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        width: 32px !important;
+        height: 32px !important;
+        padding: 0 !important;
+        font-size: 1.2rem;
+        background: rgba(220, 53, 69, 0.9) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 50% !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        z-index: 1001;
     }
 
     .mask-editor-hotkeys {
-        font-size: 0.8rem;
-        padding: 0.5rem;
+        font-size: 0.7rem;
+        padding: 0.3rem;
         text-align: center;
         background: rgba(255, 193, 7, 0.1);
         border: 1px solid rgba(255, 193, 7, 0.3);
         border-radius: 6px;
-        margin-bottom: 0.5rem;
+        margin: 0.3rem 0;
     }
 
     .mask-editor-hotkeys small {
         display: block;
-        line-height: 1.4;
+        line-height: 1.2;
     }
 
     .mask-editor-controls {
         flex-direction: column;
         align-items: stretch;
-        gap: 0.75rem;
-        padding: 0.75rem;
+        gap: 0.5rem; /* Reduced gap */
+        padding: 0.5rem; /* Reduced padding */
         background: rgba(255, 255, 255, 0.05);
         border-radius: 8px;
         margin-bottom: 0.5rem;
+        flex-shrink: 0; /* Prevent shrinking */
     }
 
     .mask-editor-controls .control-group {
         flex-wrap: wrap;
         justify-content: center;
-        gap: 0.5rem;
+        gap: 0.3rem; /* Reduced gap between buttons */
     }
 
     /* Separate brush controls into their own row */
@@ -2228,14 +2277,15 @@ body {
     }
 
     .mask-editor-controls .btn.small {
-        padding: 0.75rem;
-        margin: 0.25rem;
+        padding: 0.4rem 0.6rem; /* Smaller padding */
+        margin: 0.2rem;
         flex: 1;
-        min-width: 80px;
-        min-height: 44px; /* Touch-friendly minimum size */
-        font-size: 1rem;
-        border-radius: 8px;
+        min-width: 60px; /* Reduced from 80px */
+        min-height: 36px; /* Reduced from 44px but still touch-friendly */
+        font-size: 0.85rem; /* Slightly smaller font */
+        border-radius: 6px;
         transition: all 0.2s ease;
+        max-width: 100px; /* Prevent buttons from getting too wide */
     }
 
     .mask-editor-controls .btn.small:active {
@@ -2244,14 +2294,16 @@ body {
     }
 
     .canvas-container {
-        max-height: 60vh; /* Увеличиваем высоту для рисования */
-        min-height: 300px; /* Минимальная высота */
-        padding: 0.5rem;
+        flex: 1; /* Take remaining space */
+        max-height: none; /* Remove max-height constraint */
+        min-height: 200px; /* Reduced minimum height */
+        padding: 0.3rem; /* Reduced padding */
         touch-action: none; /* Prevent browser touch gestures */
         overflow: hidden;
         border: 2px solid rgba(255, 255, 255, 0.2);
         border-radius: 8px;
         background: rgba(0, 0, 0, 0.05);
+        margin: 0.5rem 0;
     }
 
     .canvas-container canvas {
@@ -2262,17 +2314,19 @@ body {
     }
 
     .mask-editor-actions {
-        flex-direction: column;
-        gap: 0.75rem;
-        padding: 0.75rem;
+        flex-direction: row; /* Changed to row for mobile */
+        gap: 0.5rem; /* Reduced gap */
+        padding: 0.5rem; /* Reduced padding */
+        flex-shrink: 0; /* Prevent shrinking */
     }
 
     .mask-editor-actions .btn {
-        min-height: 48px; /* Touch-friendly size */
-        font-size: 1.1rem;
+        min-height: 40px; /* Reduced from 48px */
+        font-size: 1rem; /* Reduced from 1.1rem */
         font-weight: 600;
         border-radius: 8px;
         transition: all 0.2s ease;
+        flex: 1; /* Equal width buttons */
     }
 
     .mask-editor-actions .btn:active {
