@@ -482,8 +482,8 @@ class FalAI {
 
         // Handle image URL fields with file upload
         if (name.includes('image_url') || name.includes('mask_url') ||
-            (name.includes('image') && schema.type === 'string') ||
-            (name.includes('mask') && schema.type === 'string')) {
+            (name.includes('image') && schema.type === 'string' && !schema.enum) ||
+            (name.includes('mask') && schema.type === 'string' && !schema.enum)) {
             return this.createImageUploadField(name, schema, required, label, field);
         }
 
