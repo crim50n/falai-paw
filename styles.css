@@ -1544,14 +1544,12 @@ body {
     margin-bottom: 0.75rem;
     position: relative;
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 1rem;
-    align-items: flex-end;
 }
 
 .array-item-field {
-    flex: 1;
-    min-width: 200px;
+    width: 100%;
     margin: 0;
 }
 
@@ -1568,7 +1566,9 @@ body {
     font-size: 1.2rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    flex-shrink: 0;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
 }
 
 .array-item .btn.danger:hover {
@@ -1786,6 +1786,10 @@ body {
     }
 
     .debug-toggle {
+        display: none !important;
+    }
+
+    .prompt-examples {
         display: none !important;
     }
 

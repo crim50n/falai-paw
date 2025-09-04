@@ -775,6 +775,9 @@ class FalAI {
         urlInput.addEventListener('input', () => {
             if (urlInput.value) {
                 this.showImagePreview(urlInput.value, uploadArea, preview);
+                
+                // Auto-set custom dimensions based on image URL
+                this.autoSetImageDimensions(urlInput.value);
             } else {
                 uploadArea.classList.remove('hidden');
                 preview.classList.add('hidden');
@@ -881,6 +884,10 @@ class FalAI {
             reader.onload = (e) => {
                 urlInput.value = e.target.result;
                 this.showImagePreview(e.target.result, uploadArea, preview);
+                
+                // Auto-set custom dimensions based on image size
+                this.autoSetImageDimensions(e.target.result);
+                
                 this.saveEndpointSettings();
             };
             reader.readAsDataURL(file);
@@ -1270,6 +1277,61 @@ class FalAI {
             });
         });
 
+        // Handle array add buttons for mobile (LoRA, etc.)
+        const arrayAddButtons = container.querySelectorAll('.btn.secondary.small');
+        arrayAddButtons.forEach(button => {
+            // Check if this is an "Add LoRA" or similar button
+            if (button.textContent.includes('Add')) {
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Find the corresponding desktop button and click it
+                    const buttonText = button.textContent;
+                    const desktopButtons = document.querySelectorAll(`#generation-form .btn.secondary.small`);
+                    
+                    // Find the matching desktop button by text content
+                    for (let dBtn of desktopButtons) {
+                        if (dBtn.textContent === buttonText) {
+                            dBtn.click();
+                            // Re-populate mobile menu to show the new item
+                            setTimeout(() => {
+                                this.populateMobileAdvancedOptions();
+                            }, 100);
+                            break;
+                        }
+                    }
+                });
+            }
+        });
+
+        // Handle array remove buttons for mobile
+        const arrayRemoveButtons = container.querySelectorAll('.btn.danger');
+        arrayRemoveButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Find the corresponding desktop remove button
+                const arrayItem = button.closest('.array-item');
+                if (arrayItem) {
+                    const itemIndex = Array.from(arrayItem.parentNode.children).indexOf(arrayItem);
+                    const desktopArrayItems = document.querySelectorAll('#generation-form .array-item');
+                    
+                    if (desktopArrayItems[itemIndex]) {
+                        const desktopRemoveBtn = desktopArrayItems[itemIndex].querySelector('.btn.danger');
+                        if (desktopRemoveBtn) {
+                            desktopRemoveBtn.click();
+                            // Re-populate mobile menu to show the updated list
+                            setTimeout(() => {
+                                this.populateMobileAdvancedOptions();
+                            }, 100);
+                        }
+                    }
+                }
+            });
+        });
+
         // Handle special slider-input pairs for mobile
         const sliderContainers = container.querySelectorAll('.slider-container');
         sliderContainers.forEach(sliderContainer => {
@@ -1468,6 +1530,55 @@ class FalAI {
             // Use preset size
             data.image_size = imageSizeSelect.value;
         }
+    }
+
+    autoSetImageDimensions(imageUrl) {
+        // Create an image element to get dimensions
+        const img = new Image();
+        
+        img.onload = () => {
+            const width = img.naturalWidth;
+            const height = img.naturalHeight;
+            
+            // Only set dimensions if we got valid values
+            if (width > 0 && height > 0) {
+                // Find image_size select and custom dimension inputs
+                const imageSizeSelect = document.querySelector('select[name="image_size"]');
+                const widthInput = document.querySelector('input[name="image_size_width"]');
+                const heightInput = document.querySelector('input[name="image_size_height"]');
+                
+                if (imageSizeSelect && widthInput && heightInput) {
+                    // Set to custom mode
+                    imageSizeSelect.value = 'custom';
+                    
+                    // Set width and height to match the uploaded image
+                    widthInput.value = width;
+                    heightInput.value = height;
+                    
+                    // Trigger change events to update UI and save settings
+                    imageSizeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    widthInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    heightInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    
+                    if (this.debugMode) {
+                        console.log(`✅ Auto-set image dimensions: ${width}x${height}`);
+                    }
+                }
+            }
+        };
+        
+        img.onerror = () => {
+            if (this.debugMode) {
+                console.warn('⚠️ Could not determine image dimensions - image failed to load');
+            }
+        };
+        
+        // Set crossOrigin for external URLs (may help with CORS)
+        if (!imageUrl.startsWith('data:')) {
+            img.crossOrigin = 'anonymous';
+        }
+        
+        img.src = imageUrl;
     }
 
     getInputValue(input) {
