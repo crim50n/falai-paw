@@ -1968,19 +1968,20 @@ class FalAI {
             }
             
             data.loras = data.loras.filter(lora => {
-                // Keep LoRA if it has a valid path and weight is not exactly 0
+                // Keep LoRA if it has a valid path and scale is not exactly 0
                 const hasPath = lora && lora.path && lora.path.trim() !== '';
-                const hasValidWeight = lora && lora.weight !== undefined && lora.weight !== null && lora.weight !== 0;
+                const scaleValue = lora && (lora.scale !== undefined ? lora.scale : lora.weight);
+                const hasValidScale = scaleValue !== undefined && scaleValue !== null && scaleValue !== 0;
 
                 if (this.debugMode) {
-                    console.log(`🔍 LoRA "${lora?.path}": path=${hasPath}, weight=${lora?.weight}, valid=${hasValidWeight}`);
+                    console.log(`🔍 LoRA "${lora?.path}": path=${hasPath}, scale=${scaleValue}, valid=${hasValidScale}`);
                 }
 
-                if (this.debugMode && lora && hasPath && !hasValidWeight) {
-                    console.log(`🚫 Filtering out LoRA "${lora.path}" with weight ${lora.weight} (should be !== 0)`);
+                if (this.debugMode && lora && hasPath && !hasValidScale) {
+                    console.log(`🚫 Filtering out LoRA "${lora.path}" with scale ${scaleValue} (should be !== 0)`);
                 }
 
-                return hasPath && hasValidWeight;
+                return hasPath && hasValidScale;
             });
 
             // Remove loras field completely if empty
