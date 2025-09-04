@@ -1797,7 +1797,7 @@ body {
         display: block;
     }
 
-    .advanced-options {
+    .left-panel .advanced-options {
         display: none !important;
     }
 

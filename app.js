@@ -1232,27 +1232,70 @@ class FalAI {
     }
 
     attachMobileAdvancedOptionEvents(container) {
-        // Re-attach any specific event listeners needed for advanced options in mobile context
+        // Re-attach event listeners for all form elements in mobile menu
         const inputs = container.querySelectorAll('input, select, textarea');
         inputs.forEach(input => {
+            // Sync input events (for typing, slider movement, etc.)
             input.addEventListener('input', (e) => {
-                // Find the corresponding desktop element and sync its value
-                const mobileId = e.target.id;
-                const desktopId = mobileId.replace('mobile-', '');
-                const desktopElement = document.getElementById(desktopId);
-                
-                if (desktopElement) {
-                    if (e.target.type === 'checkbox') {
-                        desktopElement.checked = e.target.checked;
-                    } else {
-                        desktopElement.value = e.target.value;
-                    }
-                    
-                    // Trigger change event on desktop element
-                    desktopElement.dispatchEvent(new Event('change', { bubbles: true }));
-                }
+                this.syncMobileToDesktop(e.target);
+                this.saveEndpointSettings();
+            });
+            
+            // Sync change events (for dropdowns, checkboxes, etc.)
+            input.addEventListener('change', (e) => {
+                this.syncMobileToDesktop(e.target);
+                this.saveEndpointSettings();
             });
         });
+
+        // Handle special slider-input pairs for mobile
+        const sliders = container.querySelectorAll('input[type="range"]');
+        sliders.forEach(slider => {
+            const valueInputId = slider.id.replace('-slider', '-value');
+            const valueInput = container.querySelector(`#${valueInputId}`);
+            
+            if (valueInput) {
+                // Update value input when slider moves
+                slider.addEventListener('input', () => {
+                    valueInput.value = slider.value;
+                    this.syncMobileToDesktop(slider);
+                    this.syncMobileToDesktop(valueInput);
+                    this.saveEndpointSettings();
+                });
+                
+                // Update slider when value input changes
+                valueInput.addEventListener('input', () => {
+                    const value = parseFloat(valueInput.value);
+                    const min = parseFloat(slider.min);
+                    const max = parseFloat(slider.max);
+                    
+                    if (!isNaN(value) && value >= min && value <= max) {
+                        slider.value = value;
+                        this.syncMobileToDesktop(slider);
+                        this.syncMobileToDesktop(valueInput);
+                        this.saveEndpointSettings();
+                    }
+                });
+            }
+        });
+    }
+
+    syncMobileToDesktop(mobileElement) {
+        const mobileId = mobileElement.id;
+        const desktopId = mobileId.replace('mobile-', '');
+        const desktopElement = document.getElementById(desktopId);
+        
+        if (desktopElement) {
+            if (mobileElement.type === 'checkbox') {
+                desktopElement.checked = mobileElement.checked;
+            } else {
+                desktopElement.value = mobileElement.value;
+            }
+            
+            // Trigger change event on desktop element to maintain consistency
+            desktopElement.dispatchEvent(new Event('change', { bubbles: true }));
+            desktopElement.dispatchEvent(new Event('input', { bubbles: true }));
+        }
     }
 
     isMobileDevice() {
@@ -1272,6 +1315,9 @@ class FalAI {
 
         // Collect form data
         const formData = this.collectFormData();
+        
+        // Filter out LoRAs with weight 0 before sending request
+        this.filterLoRAs(formData);
 
         try {
             // Update button state
@@ -1416,6 +1462,28 @@ class FalAI {
 
         const lastPart = parts[parts.length - 1];
         current[lastPart] = value;
+    }
+
+    filterLoRAs(data) {
+        // Filter out LoRAs with weight 0 from the request
+        if (data.loras && Array.isArray(data.loras)) {
+            data.loras = data.loras.filter(lora => {
+                // Keep LoRA if it has a valid path and weight > 0
+                const hasPath = lora && lora.path && lora.path.trim() !== '';
+                const hasValidWeight = lora && lora.weight !== undefined && lora.weight !== null && lora.weight > 0;
+                
+                if (this.debugMode && lora && hasPath && !hasValidWeight) {
+                    console.log(`🚫 Filtering out LoRA "${lora.path}" with weight ${lora.weight}`);
+                }
+                
+                return hasPath && hasValidWeight;
+            });
+
+            // Remove loras field completely if empty
+            if (data.loras.length === 0) {
+                delete data.loras;
+            }
+        }
     }
 
     async submitToQueue(data) {
