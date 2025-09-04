@@ -27,6 +27,9 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .header h1 {
@@ -38,6 +41,152 @@ body {
 .header-controls {
     display: flex;
     gap: 1rem;
+}
+
+.hamburger-menu {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 101;
+}
+
+.hamburger-menu span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background-color: #334155;
+    margin: 3px 0;
+    transition: all 0.3s ease;
+    transform-origin: center;
+}
+
+.hamburger-menu.active span:nth-child(1) {
+    transform: rotate(45deg) translate(6px, 6px);
+}
+
+.hamburger-menu.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-menu.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(6px, -6px);
+}
+
+.mobile-menu-overlay {
+    display: none;
+}
+
+.mobile-menu {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: white;
+    z-index: 200;
+    transition: left 0.3s ease;
+    padding: 4rem 1.5rem 1.5rem;
+    overflow-y: auto;
+}
+
+.mobile-menu.active {
+    left: 0;
+}
+
+.mobile-menu-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+}
+
+.mobile-menu-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.mobile-menu-close {
+    position: absolute;
+    top: -2rem;
+    right: 0;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #64748b;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.mobile-menu-close:hover {
+    background-color: #f1f5f9;
+    color: #334155;
+}
+
+.mobile-menu-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.mobile-menu-controls .btn {
+    justify-content: flex-start;
+    text-align: left;
+}
+
+.no-options-message {
+    color: #64748b;
+    font-style: italic;
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+.mobile-advanced-options {
+    width: 100%;
+}
+
+.mobile-advanced-options .field-group {
+    margin-bottom: 1rem;
+}
+
+.mobile-advanced-options .form-control {
+    width: 100%;
+}
+
+.mobile-advanced-options .advanced-options-content {
+    display: block !important;
+}
+
+.mobile-advanced-options .advanced-options-toggle {
+    display: none !important;
+}
+
+.mobile-advanced-content {
+    width: 100%;
+}
+
+.mobile-advanced-content .field-group {
+    margin-bottom: 1rem;
+}
+
+.mobile-advanced-content .form-control {
+    width: 100%;
 }
 
 .main {
@@ -1624,13 +1773,48 @@ body {
 
     .header {
         padding: 1rem;
-        flex-direction: column;
-        gap: 1rem;
-        text-align: center;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        text-align: left;
+    }
+
+    .header h1 {
+        display: none;
+    }
+
+    .hamburger-menu {
+        display: flex;
+        order: -1;
     }
 
     .header-controls {
         justify-content: center;
+    }
+
+
+    .mobile-menu {
+        display: block;
+    }
+
+    .advanced-options {
+        display: none !important;
+    }
+
+    .mask-editor-btn {
+        display: none !important;
+    }
+
+    .mask-editor-container {
+        display: none !important;
+    }
+
+    .debug-panel {
+        display: none !important;
+    }
+
+    .debug-toggle {
+        display: none !important;
     }
 
     .endpoint-header {

@@ -23,6 +23,11 @@
 <body>
     <div id="app">
         <header class="header">
+            <button id="hamburger-menu" class="hamburger-menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
             <h1>FalAI</h1>
             <div class="header-controls">
                 <button id="add-endpoint-btn" class="btn secondary" title="Add Custom Endpoint">➕</button>
@@ -31,6 +36,20 @@
                 <button id="api-key-btn" class="btn secondary">Set API Key</button>
             </div>
         </header>
+
+        <!-- Mobile Menu Overlay -->
+        <div id="mobile-menu-overlay" class="mobile-menu-overlay"></div>
+        
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="mobile-menu">
+            <div class="mobile-menu-header">
+                <h2>Advanced Options</h2>
+                <button id="mobile-menu-close" class="mobile-menu-close">✕</button>
+            </div>
+            <div id="mobile-advanced-options" class="mobile-menu-controls">
+                <!-- Advanced options will be populated here dynamically -->
+            </div>
+        </div>
 
         <main class="main">
             <div class="left-panel">

@@ -714,8 +714,8 @@ class FalAI {
             <button type="button" class="remove-image btn secondary small">Remove</button>
         `;
 
-        // Add mask editor for mask fields
-        if (isMaskField) {
+        // Add mask editor for mask fields (only on desktop)
+        if (isMaskField && !this.isMobileDevice()) {
             const maskEditorContainer = document.createElement('div');
             maskEditorContainer.className = 'mask-editor-container hidden';
 
@@ -1090,11 +1090,24 @@ class FalAI {
         // Keyboard navigation for full-screen viewer
         document.addEventListener('keydown', (e) => {
             const viewer = document.getElementById('fullscreen-viewer');
+            const mobileMenu = document.getElementById('mobile-menu');
+            
+            // Handle Escape key
+            if (e.key === 'Escape') {
+                // Close mobile menu if it's open
+                if (mobileMenu.classList.contains('active')) {
+                    this.closeMobileMenu();
+                    return;
+                }
+                // Close fullscreen viewer if it's open
+                if (!viewer.classList.contains('hidden')) {
+                    this.closeFullscreenViewer();
+                    return;
+                }
+            }
+            
             if (!viewer.classList.contains('hidden')) {
                 switch (e.key) {
-                    case 'Escape':
-                        this.closeFullscreenViewer();
-                        break;
                     case 'ArrowLeft':
                         this.navigateFullscreen(-1);
                         break;
@@ -1112,6 +1125,138 @@ class FalAI {
                 }
             }
         });
+
+        // Mobile hamburger menu
+        const hamburgerMenu = document.getElementById('hamburger-menu');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+
+        hamburgerMenu.addEventListener('click', () => {
+            this.toggleMobileMenu();
+        });
+
+        mobileMenuOverlay.addEventListener('click', () => {
+            this.closeMobileMenu();
+        });
+
+        // Mobile menu close button
+        const mobileMenuCloseBtn = document.getElementById('mobile-menu-close');
+        mobileMenuCloseBtn.addEventListener('click', () => {
+            this.closeMobileMenu();
+        });
+
+    }
+
+    toggleMobileMenu() {
+        const hamburgerMenu = document.getElementById('hamburger-menu');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+        
+        const isOpen = hamburgerMenu.classList.contains('active');
+        
+        if (isOpen) {
+            this.closeMobileMenu();
+        } else {
+            this.openMobileMenu();
+        }
+    }
+
+    openMobileMenu() {
+        const hamburgerMenu = document.getElementById('hamburger-menu');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+        
+        hamburgerMenu.classList.add('active');
+        mobileMenu.classList.add('active');
+        mobileMenuOverlay.classList.add('active');
+        
+        // Populate mobile menu with advanced options
+        this.populateMobileAdvancedOptions();
+        
+        // Prevent body scroll when menu is open
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeMobileMenu() {
+        const hamburgerMenu = document.getElementById('hamburger-menu');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+        
+        hamburgerMenu.classList.remove('active');
+        mobileMenu.classList.remove('active');
+        mobileMenuOverlay.classList.remove('active');
+        
+        // Restore body scroll
+        document.body.style.overflow = '';
+    }
+
+    populateMobileAdvancedOptions() {
+        const mobileContainer = document.getElementById('mobile-advanced-options');
+        const advancedContainer = document.querySelector('.advanced-options');
+        
+        // Clear existing content
+        mobileContainer.innerHTML = '';
+        
+        if (!advancedContainer || !this.currentEndpoint) {
+            mobileContainer.innerHTML = '<p class="no-options-message">Select an endpoint to see advanced options</p>';
+            return;
+        }
+        
+        // Find the actual content container (the fields inside advanced options)
+        const advancedContent = advancedContainer.querySelector('.advanced-options-content');
+        if (!advancedContent) {
+            mobileContainer.innerHTML = '<p class="no-options-message">No advanced options available</p>';
+            return;
+        }
+        
+        // Clone only the content (form fields), not the wrapper with toggle button
+        const clonedContent = advancedContent.cloneNode(true);
+        clonedContent.classList.add('mobile-advanced-content');
+        clonedContent.classList.remove('hidden');
+        clonedContent.style.display = 'block';
+        
+        // Remove mask editor elements from mobile version
+        const maskEditorElements = clonedContent.querySelectorAll('.mask-editor-btn, .mask-editor-container');
+        maskEditorElements.forEach(el => el.remove());
+        
+        // Update any IDs to avoid conflicts
+        const elements = clonedContent.querySelectorAll('[id]');
+        elements.forEach(el => {
+            el.id = 'mobile-' + el.id;
+        });
+        
+        mobileContainer.appendChild(clonedContent);
+        
+        // Re-attach event listeners for mobile advanced options
+        this.attachMobileAdvancedOptionEvents(mobileContainer);
+    }
+
+    attachMobileAdvancedOptionEvents(container) {
+        // Re-attach any specific event listeners needed for advanced options in mobile context
+        const inputs = container.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('input', (e) => {
+                // Find the corresponding desktop element and sync its value
+                const mobileId = e.target.id;
+                const desktopId = mobileId.replace('mobile-', '');
+                const desktopElement = document.getElementById(desktopId);
+                
+                if (desktopElement) {
+                    if (e.target.type === 'checkbox') {
+                        desktopElement.checked = e.target.checked;
+                    } else {
+                        desktopElement.value = e.target.value;
+                    }
+                    
+                    // Trigger change event on desktop element
+                    desktopElement.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        });
+    }
+
+    isMobileDevice() {
+        return window.innerWidth <= 768;
     }
 
     async generateImage() {
