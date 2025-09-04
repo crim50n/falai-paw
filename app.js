@@ -893,18 +893,15 @@ class FalAI {
         }
 
         try {
-            // Convert to base64 data URL for immediate use
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                urlInput.value = e.target.result;
-                this.showImagePreview(e.target.result, uploadArea, preview);
+            // Compress image to user's specified size
+            const compressedDataURL = await this.compressImageToUserSize(file);
+            urlInput.value = compressedDataURL;
+            this.showImagePreview(compressedDataURL, uploadArea, preview);
 
-                // Auto-set custom dimensions based on image size
-                this.autoSetImageDimensions(e.target.result);
+            // Auto-set custom dimensions based on compressed image size
+            this.autoSetImageDimensions(compressedDataURL);
 
-                this.saveEndpointSettings();
-            };
-            reader.readAsDataURL(file);
+            this.saveEndpointSettings();
 
         } catch (error) {
             console.error('File upload error:', error);
@@ -1412,6 +1409,104 @@ class FalAI {
             desktopElement.dispatchEvent(new Event('input', { bubbles: true }));
             desktopElement.dispatchEvent(new Event('change', { bubbles: true }));
         }
+    }
+
+    // Get target dimensions from user's image_size setting
+    getTargetImageSize() {
+        const imageSizeSelect = document.querySelector('select[name="image_size"]');
+        if (!imageSizeSelect || !imageSizeSelect.value) {
+            return null; // No size specified
+        }
+
+        if (imageSizeSelect.value === 'custom') {
+            // Get custom dimensions
+            const widthInput = document.querySelector('input[name="image_size_width"]');
+            const heightInput = document.querySelector('input[name="image_size_height"]');
+            
+            if (widthInput && heightInput && widthInput.value && heightInput.value) {
+                return {
+                    width: parseInt(widthInput.value),
+                    height: parseInt(heightInput.value)
+                };
+            }
+            return null;
+        } else {
+            // Parse preset size (e.g. "1024x1024", "512x768")
+            const match = imageSizeSelect.value.match(/(\d+)x(\d+)/);
+            if (match) {
+                return {
+                    width: parseInt(match[1]),
+                    height: parseInt(match[2])
+                };
+            }
+        }
+        
+        return null;
+    }
+
+    // Compress image to user's specified dimensions
+    async compressImageToUserSize(file) {
+        const targetSize = this.getTargetImageSize();
+        
+        // If no target size specified, return original file as data URL
+        if (!targetSize) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = () => {
+                const originalWidth = img.naturalWidth;
+                const originalHeight = img.naturalHeight;
+                
+                // Set canvas to exact target dimensions
+                canvas.width = targetSize.width;
+                canvas.height = targetSize.height;
+                
+                // Calculate scaling to fit target size while maintaining aspect ratio
+                const scaleX = targetSize.width / originalWidth;
+                const scaleY = targetSize.height / originalHeight;
+                const scale = Math.min(scaleX, scaleY); // Fit within target size
+                
+                // Calculate centered position
+                const scaledWidth = originalWidth * scale;
+                const scaledHeight = originalHeight * scale;
+                const offsetX = (targetSize.width - scaledWidth) / 2;
+                const offsetY = (targetSize.height - scaledHeight) / 2;
+                
+                // Fill background with black (important for masks)
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw scaled image
+                ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+                
+                // Export as JPEG with good quality
+                const compressedDataURL = canvas.toDataURL('image/jpeg', 0.85);
+                
+                if (this.debugMode) {
+                    console.log(`🗜️ Compressed image from ${originalWidth}×${originalHeight} to ${targetSize.width}×${targetSize.height}`);
+                }
+                
+                resolve(compressedDataURL);
+            };
+            
+            img.onerror = () => {
+                // Fallback to original if compression fails
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            };
+            
+            img.src = URL.createObjectURL(file);
+        });
     }
 
     isMobileDevice() {
@@ -4685,19 +4780,32 @@ class FalAI {
         console.log('📐 Canvas size:', fabricCanvas.width, 'x', fabricCanvas.height);
         console.log('📐 Number of drawn objects:', fabricCanvas.getObjects().length);
 
-        // Create a temporary canvas with original image size
+        // Get target size from user's image_size setting
+        const targetSize = this.getTargetImageSize();
+        let maskWidth = originalWidth;
+        let maskHeight = originalHeight;
+        
+        if (targetSize) {
+            maskWidth = targetSize.width;
+            maskHeight = targetSize.height;
+            console.log(`📏 Using target size for mask: ${maskWidth}×${maskHeight}`);
+        } else {
+            console.log('📏 No target size specified, using original image size');
+        }
+
+        // Create a temporary canvas with target mask size
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d');
 
-        tempCanvas.width = originalWidth;
-        tempCanvas.height = originalHeight;
+        tempCanvas.width = maskWidth;
+        tempCanvas.height = maskHeight;
 
         // Start with black background
         tempCtx.fillStyle = 'black';
         tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
-        // Calculate scale factor from canvas to original size
-        const scaleToOriginal = originalWidth / fabricCanvas.width;
+        // Calculate scale factor from fabric canvas to mask size
+        const scaleToMask = maskWidth / fabricCanvas.width;
 
         // Get all drawn objects (paths)
         const objects = fabricCanvas.getObjects();
@@ -4721,7 +4829,7 @@ class FalAI {
                     const pathData = obj.path;
                     if (pathData && pathData.length > 0) {
                         tempCtx.beginPath();
-                        tempCtx.lineWidth = (obj.strokeWidth || 20) * scaleToOriginal;
+                        tempCtx.lineWidth = (obj.strokeWidth || 20) * scaleToMask;
                         tempCtx.lineCap = 'round';
                         tempCtx.lineJoin = 'round';
 
@@ -4732,22 +4840,22 @@ class FalAI {
 
                             switch (command) {
                                 case 'M': // Move to
-                                    tempCtx.moveTo(cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal);
+                                    tempCtx.moveTo(cmd[1] * scaleToMask, cmd[2] * scaleToMask);
                                     break;
                                 case 'L': // Line to
-                                    tempCtx.lineTo(cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal);
+                                    tempCtx.lineTo(cmd[1] * scaleToMask, cmd[2] * scaleToMask);
                                     break;
                                 case 'Q': // Quadratic curve
                                     tempCtx.quadraticCurveTo(
-                                        cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal,
-                                        cmd[3] * scaleToOriginal, cmd[4] * scaleToOriginal
+                                        cmd[1] * scaleToMask, cmd[2] * scaleToMask,
+                                        cmd[3] * scaleToMask, cmd[4] * scaleToMask
                                     );
                                     break;
                                 case 'C': // Cubic curve
                                     tempCtx.bezierCurveTo(
-                                        cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal,
-                                        cmd[3] * scaleToOriginal, cmd[4] * scaleToOriginal,
-                                        cmd[5] * scaleToOriginal, cmd[6] * scaleToOriginal
+                                        cmd[1] * scaleToMask, cmd[2] * scaleToMask,
+                                        cmd[3] * scaleToMask, cmd[4] * scaleToMask,
+                                        cmd[5] * scaleToMask, cmd[6] * scaleToMask
                                     );
                                     break;
                             }
