@@ -3744,6 +3744,9 @@ class FalAI {
             <div class="modal-content mask-editor-content">
                 <div class="modal-header">
                     <h3>🎨 Mask Editor</h3>
+                    <div class="mask-editor-hotkeys">
+                        <small>💡 Hotkeys: Shift+Wheel (zoom), Alt+Wheel (brush size), Ctrl+Z (undo), Ctrl+Y (redo), R (reset zoom), F (fit screen), Esc (close)</small>
+                    </div>
                     <button type="button" id="close-mask-editor" class="btn secondary small">✕</button>
                 </div>
                 <div class="mask-editor-body">
@@ -3755,12 +3758,14 @@ class FalAI {
                             </label>
                         </div>
                         <div class="control-group">
-                            <button type="button" id="undo-mask" class="btn secondary small" disabled>↶ Undo</button>
-                            <button type="button" id="redo-mask" class="btn secondary small" disabled>↷ Redo</button>
-                            <button type="button" id="clear-mask" class="btn secondary small">🗑 Clear All</button>
+                            <button type="button" id="zoom-fit" class="btn secondary small" title="Fit to screen (F)">🔍 Fit</button>
+                            <button type="button" id="zoom-reset" class="btn secondary small" title="Reset zoom (R)">↻ Reset</button>
+                            <button type="button" id="undo-mask" class="btn secondary small" disabled title="Undo (Ctrl+Z)">↶ Undo</button>
+                            <button type="button" id="redo-mask" class="btn secondary small" disabled title="Redo (Ctrl+Y)">↷ Redo</button>
+                            <button type="button" id="clear-mask" class="btn secondary small" title="Clear all">🗑 Clear</button>
                         </div>
                     </div>
-                    <div class="canvas-container">
+                    <div class="canvas-container" id="canvas-container">
                         <canvas id="mask-canvas"></canvas>
                     </div>
                     <div class="mask-editor-actions">
@@ -3782,10 +3787,13 @@ class FalAI {
         console.log('🎨 Initializing Fabric.js mask editor for field:', fieldName);
 
         const canvasElement = modal.querySelector('#mask-canvas');
+        const canvasContainer = modal.querySelector('#canvas-container');
         const brushSizeSlider = modal.querySelector('#brush-size');
         const brushSizeValue = modal.querySelector('#brush-size-value');
         const undoBtn = modal.querySelector('#undo-mask');
         const redoBtn = modal.querySelector('#redo-mask');
+        const zoomFitBtn = modal.querySelector('#zoom-fit');
+        const zoomResetBtn = modal.querySelector('#zoom-reset');
 
         // Debug: Check if all required elements exist
         if (!canvasElement) {
@@ -3796,6 +3804,11 @@ class FalAI {
         let fabricCanvas;
         let undoStack = [];
         let redoStack = [];
+        
+        // State for zoom and pan
+        let zoomLevel = 1;
+        let panX = 0;
+        let panY = 0;
 
         // Load reference image first
         const img = new Image();
@@ -3822,8 +3835,13 @@ class FalAI {
                 height: canvasHeight,
                 isDrawingMode: true,
                 selection: false,
-                preserveObjectStacking: true
+                preserveObjectStacking: true,
+                enableRetinaScaling: true
             });
+            
+            // Store original dimensions for zoom calculations
+            fabricCanvas.originalWidth = canvasWidth;
+            fabricCanvas.originalHeight = canvasHeight;
 
             // Add background image with exact fit (no additional scaling)
             const backgroundImg = new fabric.Image(img, {
@@ -3858,12 +3876,17 @@ class FalAI {
                 console.log('🖱️ Click at canvas coordinates:', pointer.x, pointer.y);
             });
 
-            // Store initial state for undo
-            saveState();
+            // Store initial state for undo after everything is set up
+            setTimeout(() => {
+                saveState();
+                updateUndoRedoButtons();
+            }, 100);
 
             // Setup event listeners
             setupControls();
             setupUndoRedo();
+            setupZoomPan();
+            setupHotkeys();
 
             console.log('✅ Fabric.js canvas initialized successfully');
         };
@@ -3887,14 +3910,19 @@ class FalAI {
             modal.querySelector('#clear-mask').addEventListener('click', () => {
                 // Get all objects except background
                 const objects = fabricCanvas.getObjects();
-                // Remove all objects (drawn paths) but keep background image
-                fabricCanvas.clear();
-                // Restore background image
-                fabricCanvas.setBackgroundImage(backgroundImg, () => {
-                    fabricCanvas.renderAll();
-                    saveState();
+                // Remove only drawn objects (paths), keeping background
+                objects.forEach(obj => {
+                    if (obj.type === 'path') {
+                        fabricCanvas.remove(obj);
+                    }
                 });
+                fabricCanvas.renderAll();
+                saveState();
             });
+            
+            // Zoom controls
+            zoomFitBtn.addEventListener('click', fitToContainer);
+            zoomResetBtn.addEventListener('click', resetZoom);
         }
 
         function setupUndoRedo() {
@@ -3945,6 +3973,152 @@ class FalAI {
         function updateUndoRedoButtons() {
             undoBtn.disabled = undoStack.length <= 1;
             redoBtn.disabled = redoStack.length === 0;
+        }
+
+        function setupZoomPan() {
+            // Mouse wheel zoom with Shift key (instead of Ctrl to avoid browser zoom conflict)
+            canvasContainer.addEventListener('wheel', (e) => {
+                if (e.shiftKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                    const pointer = fabricCanvas.getPointer(e);
+                    zoom(pointer, delta);
+                } else if (e.altKey) {
+                    // Alt + wheel for brush size
+                    e.preventDefault();
+                    e.stopPropagation();
+                    adjustBrushSize(e.deltaY > 0 ? -5 : 5);
+                }
+            }, { passive: false });
+            
+            // Pan with middle mouse or Ctrl+drag (when not drawing)
+            let isPanning = false;
+            let lastPanPoint = null;
+            
+            canvasContainer.addEventListener('mousedown', (e) => {
+                if (e.button === 1 || (e.button === 0 && e.ctrlKey && !fabricCanvas.isDrawingMode)) { 
+                    isPanning = true;
+                    lastPanPoint = { x: e.clientX, y: e.clientY };
+                    canvasContainer.style.cursor = 'grabbing';
+                    fabricCanvas.isDrawingMode = false; // Disable drawing during pan
+                    e.preventDefault();
+                }
+            });
+            
+            canvasContainer.addEventListener('mousemove', (e) => {
+                if (isPanning && lastPanPoint) {
+                    const deltaX = e.clientX - lastPanPoint.x;
+                    const deltaY = e.clientY - lastPanPoint.y;
+                    pan(deltaX, deltaY);
+                    lastPanPoint = { x: e.clientX, y: e.clientY };
+                }
+            });
+            
+            canvasContainer.addEventListener('mouseup', () => {
+                if (isPanning) {
+                    isPanning = false;
+                    lastPanPoint = null;
+                    canvasContainer.style.cursor = 'default';
+                    fabricCanvas.isDrawingMode = true; // Re-enable drawing
+                }
+            });
+        }
+        
+        function setupHotkeys() {
+            const handleKeydown = (e) => {
+                // Only handle keys if mask editor modal is active
+                if (!modal.parentNode) return;
+                
+                switch (e.key.toLowerCase()) {
+                    case 'r':
+                        if (!e.ctrlKey && !e.altKey) {
+                            e.preventDefault();
+                            resetZoom();
+                        }
+                        break;
+                    case 'f':
+                        if (!e.ctrlKey && !e.altKey) {
+                            e.preventDefault();
+                            fitToContainer();
+                        }
+                        break;
+                    case 'z':
+                        if (e.ctrlKey && !e.shiftKey) {
+                            e.preventDefault();
+                            undo();
+                        }
+                        break;
+                    case 'y':
+                        if (e.ctrlKey) {
+                            e.preventDefault();
+                            redo();
+                        }
+                        break;
+                    case 'escape':
+                        e.preventDefault();
+                        if (fabricCanvas) fabricCanvas.dispose();
+                        modal.remove();
+                        break;
+                }
+            };
+            
+            document.addEventListener('keydown', handleKeydown);
+            
+            // Clean up event listener on modal close
+            const cleanup = () => document.removeEventListener('keydown', handleKeydown);
+            modal.addEventListener('remove', cleanup);
+        }
+        
+        function adjustBrushSize(delta) {
+            const currentSize = parseInt(brushSizeSlider.value);
+            const newSize = Math.max(1, Math.min(100, currentSize + delta));
+            brushSizeSlider.value = newSize;
+            fabricCanvas.freeDrawingBrush.width = newSize;
+            brushSizeValue.textContent = newSize + 'px';
+        }
+        
+        function zoom(point, delta) {
+            const oldZoom = fabricCanvas.getZoom();
+            const newZoom = Math.max(0.1, Math.min(5, oldZoom * delta));
+            
+            fabricCanvas.zoomToPoint(new fabric.Point(point.x, point.y), newZoom);
+            zoomLevel = newZoom;
+        }
+        
+        function pan(deltaX, deltaY) {
+            const vpt = fabricCanvas.viewportTransform;
+            vpt[4] += deltaX;
+            vpt[5] += deltaY;
+            fabricCanvas.setViewportTransform(vpt);
+            fabricCanvas.renderAll();
+        }
+        
+        function resetZoom() {
+            fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+            fabricCanvas.setZoom(1);
+            zoomLevel = 1;
+            fabricCanvas.renderAll();
+        }
+        
+        function fitToContainer() {
+            const containerWidth = canvasContainer.clientWidth - 40;
+            const containerHeight = canvasContainer.clientHeight - 40;
+            
+            const scaleX = containerWidth / fabricCanvas.originalWidth;
+            const scaleY = containerHeight / fabricCanvas.originalHeight;
+            const scale = Math.min(scaleX, scaleY, 1);
+            
+            fabricCanvas.setZoom(scale);
+            
+            // Center the canvas
+            const vpt = fabricCanvas.viewportTransform;
+            vpt[4] = (containerWidth - fabricCanvas.originalWidth * scale) / 2;
+            vpt[5] = (containerHeight - fabricCanvas.originalHeight * scale) / 2;
+            fabricCanvas.setViewportTransform(vpt);
+            fabricCanvas.renderAll();
+            
+            zoomLevel = scale;
         }
 
         // Close modal handlers
