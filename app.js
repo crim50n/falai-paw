@@ -3853,8 +3853,7 @@ class FalAI {
         modal.innerHTML = `
             <div class="modal-content mask-editor-content">
                 <div class="modal-header">
-                    <h3>🎨 Mask Editor</h3>
-                    <div class="mask-editor-hotkeys">
+                    <div class="mask-editor-hotkeys" style="display: ${this.isMobileDevice() ? 'none' : 'block'}">
                         <small>💡 Hotkeys: Shift+Wheel (zoom), Alt+Wheel (brush size), Ctrl+Z (undo), Ctrl+Y (redo), R (reset zoom), F (fit screen), Esc (close)</small>
                     </div>
                     <button type="button" id="close-mask-editor" class="btn secondary small">✕</button>
@@ -3984,13 +3983,19 @@ class FalAI {
                 enableRetinaScaling: true
             });
 
-            // Force canvas element to match exact dimensions (prevent CSS stretching)
-            canvasElement.style.width = canvasWidth + 'px';
-            canvasElement.style.height = canvasHeight + 'px';
-
             // Store original dimensions for zoom calculations
             fabricCanvas.originalWidth = canvasWidth;
             fabricCanvas.originalHeight = canvasHeight;
+            
+            // Make canvas container properly sized and scrollable for zoom
+            canvasContainer.style.position = 'relative';
+            canvasContainer.style.overflow = 'auto';
+            canvasContainer.style.width = '100%';
+            canvasContainer.style.height = '100%';
+            
+            // Set initial canvas size but allow viewport adjustments
+            canvasElement.style.width = canvasWidth + 'px';
+            canvasElement.style.height = canvasHeight + 'px';
 
             // Fix touch coordinates for mobile devices
             if (this.isMobileDevice()) {
@@ -4416,6 +4421,14 @@ class FalAI {
 
             fabricCanvas.zoomToPoint(new fabric.Point(point.x, point.y), newZoom);
             zoomLevel = newZoom;
+            
+            // Update canvas display size to match new zoom level
+            const imageWidth = fabricCanvas.originalWidth;
+            const imageHeight = fabricCanvas.originalHeight;
+            const scaledWidth = imageWidth * newZoom;
+            const scaledHeight = imageHeight * newZoom;
+            canvasElement.style.width = scaledWidth + 'px';
+            canvasElement.style.height = scaledHeight + 'px';
 
             // Force offset recalculation after zoom (especially important on mobile)
             setTimeout(() => {
@@ -4434,12 +4447,16 @@ class FalAI {
         function resetZoom() {
             // Reset should show image in real size (1:1 pixel ratio)
             fabricCanvas.setZoom(1);
+            
+            // Restore original canvas display size
+            const imageWidth = fabricCanvas.originalWidth;
+            const imageHeight = fabricCanvas.originalHeight;
+            canvasElement.style.width = imageWidth + 'px';
+            canvasElement.style.height = imageHeight + 'px';
 
             // Center the image in the container
             const containerWidth = canvasContainer.clientWidth;
             const containerHeight = canvasContainer.clientHeight;
-            const imageWidth = fabricCanvas.originalWidth;
-            const imageHeight = fabricCanvas.originalHeight;
 
             const vpt = fabricCanvas.viewportTransform;
             vpt[4] = (containerWidth - imageWidth) / 2;
@@ -4477,11 +4494,14 @@ class FalAI {
             scale = Math.min(scale, 1);
 
             fabricCanvas.setZoom(scale);
-
-            // Center the image
+            
+            // Update canvas display size to match viewport
             const scaledWidth = imageWidth * scale;
             const scaledHeight = imageHeight * scale;
+            canvasElement.style.width = scaledWidth + 'px';
+            canvasElement.style.height = scaledHeight + 'px';
 
+            // Center the image
             const vpt = fabricCanvas.viewportTransform;
             vpt[4] = (containerWidth - scaledWidth) / 2 + 20; // +20 for padding
             vpt[5] = (containerHeight - scaledHeight) / 2 + 20;
