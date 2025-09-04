@@ -1145,6 +1145,27 @@ class FalAI {
             this.closeMobileMenu();
         });
 
+        // Mobile menu control buttons
+        document.getElementById('mobile-api-key-btn').addEventListener('click', () => {
+            this.closeMobileMenu();
+            document.getElementById('api-key-btn').click();
+        });
+
+        document.getElementById('mobile-add-endpoint-btn').addEventListener('click', () => {
+            this.closeMobileMenu();
+            document.getElementById('add-endpoint-btn').click();
+        });
+
+        document.getElementById('mobile-export-settings-btn').addEventListener('click', () => {
+            this.closeMobileMenu();
+            document.getElementById('export-settings-btn').click();
+        });
+
+        document.getElementById('mobile-import-settings-btn').addEventListener('click', () => {
+            this.closeMobileMenu();
+            document.getElementById('import-settings-btn').click();
+        });
+
     }
 
     toggleMobileMenu() {
