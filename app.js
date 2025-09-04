@@ -1448,12 +1448,57 @@ class FalAI {
     async compressImageToUserSize(file) {
         const targetSize = this.getTargetImageSize();
         
-        // If no target size specified, return original file as data URL
+        // If no target size specified, apply fallback size limit
+        let finalTargetSize = targetSize;
         if (!targetSize) {
+            // Load image to check its size
             return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.readAsDataURL(file);
+                const img = new Image();
+                img.onload = () => {
+                    const originalWidth = img.naturalWidth;
+                    const originalHeight = img.naturalHeight;
+                    
+                    // Apply fallback limit to prevent 413 errors
+                    const maxDimension = 1024;
+                    if (originalWidth > maxDimension || originalHeight > maxDimension) {
+                        const resizeScale = maxDimension / Math.max(originalWidth, originalHeight);
+                        const targetWidth = Math.round(originalWidth * resizeScale);
+                        const targetHeight = Math.round(originalHeight * resizeScale);
+                        
+                        console.log(`⚠️ Image too large! Auto-reducing from ${originalWidth}×${originalHeight} to ${targetWidth}×${targetHeight}`);
+                        
+                        // Create compressed version
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        canvas.width = targetWidth;
+                        canvas.height = targetHeight;
+                        
+                        // Fill background with black (important for masks)
+                        ctx.fillStyle = 'black';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        
+                        // Calculate centered position
+                        const scale = Math.min(targetWidth / originalWidth, targetHeight / originalHeight);
+                        const scaledWidth = originalWidth * scale;
+                        const scaledHeight = originalHeight * scale;
+                        const offsetX = (targetWidth - scaledWidth) / 2;
+                        const offsetY = (targetHeight - scaledHeight) / 2;
+                        
+                        // Draw scaled image
+                        ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+                        
+                        // Export as JPEG
+                        const compressedDataURL = canvas.toDataURL('image/jpeg', 0.85);
+                        resolve(compressedDataURL);
+                    } else {
+                        // Image is small enough, return as-is
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.readAsDataURL(file);
+                    }
+                };
+                img.src = URL.createObjectURL(file);
             });
         }
 
@@ -4791,6 +4836,19 @@ class FalAI {
             console.log(`📏 Using target size for mask: ${maskWidth}×${maskHeight}`);
         } else {
             console.log('📏 No target size specified, using original image size');
+        }
+        
+        // Apply fallback size limit to prevent 413 errors (~2MB base64 limit)
+        const maxDimension = 1024;
+        if (maskWidth > maxDimension || maskHeight > maxDimension) {
+            const scale = maxDimension / Math.max(maskWidth, maskHeight);
+            const newWidth = Math.round(maskWidth * scale);
+            const newHeight = Math.round(maskHeight * scale);
+            
+            console.log(`⚠️ Mask too large for API! Reducing from ${maskWidth}×${maskHeight} to ${newWidth}×${newHeight}`);
+            
+            maskWidth = newWidth;
+            maskHeight = newHeight;
         }
 
         // Create a temporary canvas with target mask size
