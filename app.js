@@ -1554,6 +1554,83 @@ class FalAI {
         });
     }
 
+    // Compress all images in form data to target size before API submission
+    async compressFormImages(formData) {
+        const targetSize = this.getTargetImageSize();
+        if (!targetSize) {
+            console.log('📏 No target size specified, skipping image compression');
+            return;
+        }
+
+        console.log(`🗜️ Compressing form images to target size: ${targetSize.width}×${targetSize.height}`);
+
+        // Find all image fields in the form data
+        const imageFields = [];
+        for (const [key, value] of Object.entries(formData)) {
+            // Check if it's a base64 image data URL
+            if (typeof value === 'string' && this.isBase64DataURL(value)) {
+                imageFields.push(key);
+            }
+        }
+
+        // Compress each image field
+        for (const fieldName of imageFields) {
+            const originalDataURL = formData[fieldName];
+            try {
+                const compressedDataURL = await this.compressDataURLToSize(originalDataURL, targetSize);
+                formData[fieldName] = compressedDataURL;
+                
+                if (this.debugMode) {
+                    const originalSize = new Blob([originalDataURL]).size;
+                    const compressedSize = new Blob([compressedDataURL]).size;
+                    console.log(`🗜️ Compressed ${fieldName}: ${this.formatBytes(originalSize)} → ${this.formatBytes(compressedSize)}`);
+                }
+            } catch (error) {
+                console.warn(`⚠️ Failed to compress ${fieldName}:`, error);
+            }
+        }
+    }
+
+    // Compress a data URL to specific dimensions
+    async compressDataURLToSize(dataURL, targetSize) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Set canvas to target dimensions
+                canvas.width = targetSize.width;
+                canvas.height = targetSize.height;
+
+                // Calculate scaling to fit within target size while maintaining aspect ratio
+                const scaleX = targetSize.width / img.naturalWidth;
+                const scaleY = targetSize.height / img.naturalHeight;
+                const scale = Math.min(scaleX, scaleY);
+
+                // Calculate centered position
+                const scaledWidth = img.naturalWidth * scale;
+                const scaledHeight = img.naturalHeight * scale;
+                const offsetX = (targetSize.width - scaledWidth) / 2;
+                const offsetY = (targetSize.height - scaledHeight) / 2;
+
+                // Fill background with black
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw scaled image
+                ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+
+                // Export as JPEG with good quality
+                const compressedDataURL = canvas.toDataURL('image/jpeg', 0.85);
+                resolve(compressedDataURL);
+            };
+            
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = dataURL;
+        });
+    }
+
     isMobileDevice() {
         return window.innerWidth <= 768;
     }
@@ -1667,6 +1744,9 @@ class FalAI {
 
         // Collect form data
         const formData = this.collectFormData();
+        
+        // Compress all images to target size before sending to API
+        await this.compressFormImages(formData);
 
         // Filter out LoRAs with weight 0 before sending request
         this.filterLoRAs(formData);
@@ -4825,31 +4905,11 @@ class FalAI {
         console.log('📐 Canvas size:', fabricCanvas.width, 'x', fabricCanvas.height);
         console.log('📐 Number of drawn objects:', fabricCanvas.getObjects().length);
 
-        // Get target size from user's image_size setting
-        const targetSize = this.getTargetImageSize();
+        // Create mask in original image size for maximum quality
         let maskWidth = originalWidth;
         let maskHeight = originalHeight;
         
-        if (targetSize) {
-            maskWidth = targetSize.width;
-            maskHeight = targetSize.height;
-            console.log(`📏 Using target size for mask: ${maskWidth}×${maskHeight}`);
-        } else {
-            console.log('📏 No target size specified, using original image size');
-        }
-        
-        // Apply fallback size limit to prevent 413 errors (~2MB base64 limit)
-        const maxDimension = 1024;
-        if (maskWidth > maxDimension || maskHeight > maxDimension) {
-            const scale = maxDimension / Math.max(maskWidth, maskHeight);
-            const newWidth = Math.round(maskWidth * scale);
-            const newHeight = Math.round(maskHeight * scale);
-            
-            console.log(`⚠️ Mask too large for API! Reducing from ${maskWidth}×${maskHeight} to ${newWidth}×${newHeight}`);
-            
-            maskWidth = newWidth;
-            maskHeight = newHeight;
-        }
+        console.log('📏 Creating mask in original image size for quality');
 
         // Create a temporary canvas with target mask size
         const tempCanvas = document.createElement('canvas');
@@ -4862,8 +4922,8 @@ class FalAI {
         tempCtx.fillStyle = 'black';
         tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
-        // Calculate scale factor from fabric canvas to mask size
-        const scaleToMask = maskWidth / fabricCanvas.width;
+        // Calculate scale factor from fabric canvas to original image size
+        const scaleToOriginal = maskWidth / fabricCanvas.width;
 
         // Get all drawn objects (paths)
         const objects = fabricCanvas.getObjects();
@@ -4887,7 +4947,7 @@ class FalAI {
                     const pathData = obj.path;
                     if (pathData && pathData.length > 0) {
                         tempCtx.beginPath();
-                        tempCtx.lineWidth = (obj.strokeWidth || 20) * scaleToMask;
+                        tempCtx.lineWidth = (obj.strokeWidth || 20) * scaleToOriginal;
                         tempCtx.lineCap = 'round';
                         tempCtx.lineJoin = 'round';
 
@@ -4898,22 +4958,22 @@ class FalAI {
 
                             switch (command) {
                                 case 'M': // Move to
-                                    tempCtx.moveTo(cmd[1] * scaleToMask, cmd[2] * scaleToMask);
+                                    tempCtx.moveTo(cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal);
                                     break;
                                 case 'L': // Line to
-                                    tempCtx.lineTo(cmd[1] * scaleToMask, cmd[2] * scaleToMask);
+                                    tempCtx.lineTo(cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal);
                                     break;
                                 case 'Q': // Quadratic curve
                                     tempCtx.quadraticCurveTo(
-                                        cmd[1] * scaleToMask, cmd[2] * scaleToMask,
-                                        cmd[3] * scaleToMask, cmd[4] * scaleToMask
+                                        cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal,
+                                        cmd[3] * scaleToOriginal, cmd[4] * scaleToOriginal
                                     );
                                     break;
                                 case 'C': // Cubic curve
                                     tempCtx.bezierCurveTo(
-                                        cmd[1] * scaleToMask, cmd[2] * scaleToMask,
-                                        cmd[3] * scaleToMask, cmd[4] * scaleToMask,
-                                        cmd[5] * scaleToMask, cmd[6] * scaleToMask
+                                        cmd[1] * scaleToOriginal, cmd[2] * scaleToOriginal,
+                                        cmd[3] * scaleToOriginal, cmd[4] * scaleToOriginal,
+                                        cmd[5] * scaleToOriginal, cmd[6] * scaleToOriginal
                                     );
                                     break;
                             }
