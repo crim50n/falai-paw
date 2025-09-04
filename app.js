@@ -2493,7 +2493,8 @@ class FalAI {
 
     exportSettings() {
         try {
-            // Collect all settings
+            // Collect all settings including custom endpoints
+            const customEndpoints = JSON.parse(localStorage.getItem('falai_custom_endpoints') || '{}');
             const settings = {
                 version: '1.0.0',
                 timestamp: new Date().toISOString(),
@@ -2501,7 +2502,8 @@ class FalAI {
                 endpointSettings: this.endpointSettings,
                 savedImages: this.savedImages,
                 debugMode: this.debugMode,
-                advancedVisible: localStorage.getItem('falai_advanced_visible') === 'true'
+                advancedVisible: localStorage.getItem('falai_advanced_visible') === 'true',
+                customEndpoints: customEndpoints
             };
 
             // Create and download file
@@ -2539,7 +2541,8 @@ class FalAI {
             }
 
             // Show confirmation dialog
-            const message = `Import settings from ${settings.timestamp || 'unknown date'}?\n\nThis will replace:\n- All endpoint settings\n- API key\n- Saved images (${settings.savedImages?.length || 0} images)\n- Other preferences`;
+            const customEndpointsCount = settings.customEndpoints ? Object.keys(settings.customEndpoints).length : 0;
+            const message = `Import settings from ${settings.timestamp || 'unknown date'}?\n\nThis will replace:\n- All endpoint settings\n- API key\n- Saved images (${settings.savedImages?.length || 0} images)\n- Custom endpoints (${customEndpointsCount} endpoints)\n- Other preferences`;
 
             if (!confirm(message)) {
                 return;
@@ -2565,6 +2568,17 @@ class FalAI {
             if (settings.savedImages) {
                 this.savedImages = settings.savedImages;
                 localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
+            }
+            if (settings.customEndpoints) {
+                // Import custom endpoints
+                localStorage.setItem('falai_custom_endpoints', JSON.stringify(settings.customEndpoints));
+                // Reload custom endpoints into the current session
+                for (const [id, endpoint] of Object.entries(settings.customEndpoints)) {
+                    this.endpoints.set(id, endpoint);
+                }
+                // Re-render dropdown to show imported custom endpoints
+                this.renderEndpointDropdown();
+                this.logDebug(`Imported ${Object.keys(settings.customEndpoints).length} custom endpoints`, 'info');
             }
 
             if (settings.debugMode !== undefined) {
