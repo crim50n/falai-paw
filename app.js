@@ -1660,18 +1660,33 @@ class FalAI {
                 if (imageSizeSelect && widthInput && heightInput) {
                     // Set to custom mode
                     imageSizeSelect.value = 'custom';
+                    // Show custom fields first
+                    imageSizeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    
+                    // Set original dimensions in the scale control
+                    const container = imageSizeSelect.closest('.image-size-container');
+                    if (container && container.setOriginalDimensions) {
+                        container.setOriginalDimensions(width, height);
+                    }
 
-                    // Set width and height to match the uploaded image
+                    // Set width and height to match the uploaded image (scale 1:1 initially)
                     widthInput.value = width;
                     heightInput.value = height;
+                    
+                    // Reset scale to 100%
+                    const scaleInput = document.querySelector('input[name="image_size_scale"]');
+                    const scaleValue = document.querySelector('.scale-value');
+                    if (scaleInput && scaleValue) {
+                        scaleInput.value = '1';
+                        scaleValue.textContent = '100%';
+                    }
 
-                    // Trigger change events to update UI and save settings
-                    imageSizeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    // Trigger input events to save settings
                     widthInput.dispatchEvent(new Event('input', { bubbles: true }));
                     heightInput.dispatchEvent(new Event('input', { bubbles: true }));
 
                     if (this.debugMode) {
-                        console.log(`✅ Auto-set image dimensions: ${width}x${height}`);
+                        console.log(`✅ Auto-set image dimensions: ${width}x${height} (with scale controls)`);
                     }
                 }
             }
@@ -2458,8 +2473,31 @@ class FalAI {
                        title="${heightProperty.description || ''}">
             `;
 
+            // Add scale field for proportional resizing
+            const scaleField = document.createElement('div');
+            scaleField.className = 'custom-size-field scale-field';
+            scaleField.innerHTML = `
+                <label for="${name}_scale">Scale</label>
+                <div class="scale-controls">
+                    <input type="range" 
+                           id="${name}_scale" 
+                           name="${name}_scale" 
+                           min="0.1" 
+                           max="2" 
+                           step="0.1" 
+                           value="1"
+                           title="Scale factor for original image dimensions">
+                    <span class="scale-value">100%</span>
+                    <button type="button" class="btn secondary small reset-scale" title="Reset to original size">1:1</button>
+                </div>
+                <div class="original-size-info hidden">
+                    <small>Original: <span class="original-dimensions">-</span> → Scaled: <span class="scaled-dimensions">-</span></small>
+                </div>
+            `;
+
             customFields.appendChild(widthField);
             customFields.appendChild(heightField);
+            customFields.appendChild(scaleField);
             container.appendChild(customFields);
 
             // Add event listener to show/hide custom fields
@@ -2470,6 +2508,53 @@ class FalAI {
                     customFields.classList.add('hidden');
                 }
             });
+
+            // Add scale control functionality
+            const scaleInput = scaleField.querySelector('input[type="range"]');
+            const scaleValue = scaleField.querySelector('.scale-value');
+            const resetButton = scaleField.querySelector('.reset-scale');
+            const widthInput = widthField.querySelector('input');
+            const heightInput = heightField.querySelector('input');
+            const originalInfo = scaleField.querySelector('.original-size-info');
+            const originalDimensions = scaleField.querySelector('.original-dimensions');
+            const scaledDimensions = scaleField.querySelector('.scaled-dimensions');
+
+            // Store original dimensions
+            let originalWidth = 0, originalHeight = 0;
+
+            // Scale slider change handler
+            scaleInput.addEventListener('input', (e) => {
+                const scale = parseFloat(e.target.value);
+                scaleValue.textContent = Math.round(scale * 100) + '%';
+                
+                if (originalWidth > 0 && originalHeight > 0) {
+                    const newWidth = Math.round(originalWidth * scale);
+                    const newHeight = Math.round(originalHeight * scale);
+                    
+                    widthInput.value = newWidth;
+                    heightInput.value = newHeight;
+                    scaledDimensions.textContent = `${newWidth}×${newHeight}`;
+                    
+                    // Trigger input events to save settings
+                    widthInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    heightInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+
+            // Reset scale button
+            resetButton.addEventListener('click', () => {
+                scaleInput.value = '1';
+                scaleInput.dispatchEvent(new Event('input'));
+            });
+
+            // Function to set original dimensions and show scale controls
+            container.setOriginalDimensions = (width, height) => {
+                originalWidth = width;
+                originalHeight = height;
+                originalDimensions.textContent = `${width}×${height}`;
+                scaledDimensions.textContent = `${width}×${height}`;
+                originalInfo.classList.remove('hidden');
+            };
         }
 
         field.appendChild(label);
