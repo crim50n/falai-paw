@@ -4793,8 +4793,11 @@ class FalAI {
         }
 
         function resetZoom() {
-            // Reset should show image in real size (1:1 pixel ratio)
+            // Reset zoom to 1:1 and center the viewport
             fabricCanvas.setZoom(1);
+            
+            // Reset viewport transform to center position
+            fabricCanvas.absolutePan({ x: 0, y: 0 });
             
             // Restore original canvas display size
             const imageWidth = fabricCanvas.originalWidth;
@@ -4802,15 +4805,6 @@ class FalAI {
             canvasElement.style.width = imageWidth + 'px';
             canvasElement.style.height = imageHeight + 'px';
 
-            // Center the image in the container
-            const containerWidth = canvasContainer.clientWidth;
-            const containerHeight = canvasContainer.clientHeight;
-
-            const vpt = fabricCanvas.viewportTransform;
-            vpt[4] = (containerWidth - imageWidth) / 2;
-            vpt[5] = (containerHeight - imageHeight) / 2;
-
-            fabricCanvas.setViewportTransform(vpt);
             fabricCanvas.renderAll();
             zoomLevel = 1;
 
@@ -4819,43 +4813,34 @@ class FalAI {
                 fabricCanvas.calcOffset();
             }, 50);
 
-            console.log('🔄 Reset zoom to 1:1, image centered');
+            console.log('🔄 Reset zoom to 1:1, viewport centered');
         }
 
         function fitToContainer() {
-            // Fit should fit image to container width while maintaining aspect ratio
+            // Fit image to container while maintaining aspect ratio
             const containerWidth = canvasContainer.clientWidth - 40; // padding
             const containerHeight = canvasContainer.clientHeight - 40;
 
             const imageWidth = fabricCanvas.originalWidth;
             const imageHeight = fabricCanvas.originalHeight;
 
-            // Calculate scale to fit width, but check if height fits too
-            let scale = containerWidth / imageWidth;
-
-            // If scaled height exceeds container height, scale by height instead
-            if (imageHeight * scale > containerHeight) {
-                scale = containerHeight / imageHeight;
-            }
+            // Calculate scale to fit within container
+            let scale = Math.min(containerWidth / imageWidth, containerHeight / imageHeight);
 
             // Don't scale up beyond original size
             scale = Math.min(scale, 1);
 
+            // Set zoom and center viewport
             fabricCanvas.setZoom(scale);
+            fabricCanvas.absolutePan({ x: 0, y: 0 });
             
-            // Update canvas display size to match viewport
+            // Update canvas display size to match scaled dimensions
             const scaledWidth = imageWidth * scale;
             const scaledHeight = imageHeight * scale;
             canvasElement.style.width = scaledWidth + 'px';
             canvasElement.style.height = scaledHeight + 'px';
 
-            // Center the image
-            const vpt = fabricCanvas.viewportTransform;
-            vpt[4] = (containerWidth - scaledWidth) / 2 + 20; // +20 for padding
-            vpt[5] = (containerHeight - scaledHeight) / 2 + 20;
-            fabricCanvas.setViewportTransform(vpt);
             fabricCanvas.renderAll();
-
             zoomLevel = scale;
 
             // Force offset recalculation
