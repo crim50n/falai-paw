@@ -2522,8 +2522,8 @@ class FalAI {
             // Store original dimensions
             let originalWidth = 0, originalHeight = 0;
 
-            // Scale slider change handler
-            scaleInput.addEventListener('input', (e) => {
+            // Scale slider change handler function
+            const handleScaleChange = (e) => {
                 const scale = parseFloat(e.target.value);
                 scaleValue.textContent = Math.round(scale * 100) + '%';
                 
@@ -2539,7 +2539,36 @@ class FalAI {
                     widthInput.dispatchEvent(new Event('input', { bubbles: true }));
                     heightInput.dispatchEvent(new Event('input', { bubbles: true }));
                 }
-            });
+            };
+
+            // Multiple event handlers for better mobile support
+            scaleInput.addEventListener('input', handleScaleChange);
+            scaleInput.addEventListener('change', handleScaleChange);
+            
+            // Additional mobile-specific touch support
+            if (this.isMobileDevice()) {
+                let isDragging = false;
+                
+                scaleInput.addEventListener('touchstart', () => {
+                    isDragging = true;
+                }, { passive: true });
+                
+                scaleInput.addEventListener('touchmove', (e) => {
+                    if (isDragging) {
+                        // Force update on touch move for mobile
+                        setTimeout(() => {
+                            handleScaleChange(e);
+                        }, 10);
+                    }
+                }, { passive: true });
+                
+                scaleInput.addEventListener('touchend', (e) => {
+                    if (isDragging) {
+                        handleScaleChange(e);
+                        isDragging = false;
+                    }
+                }, { passive: true });
+            }
 
             // Reset scale button
             resetButton.addEventListener('click', () => {
