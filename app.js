@@ -4793,27 +4793,32 @@ class FalAI {
         }
 
         function resetZoom() {
-            // Reset zoom to 1:1 and center the viewport
-            fabricCanvas.setZoom(1);
+            // Reset to show actual 1:1 pixel ratio of original image
+            // Canvas is already scaled down, so we need to zoom up to compensate
+            const bgImage = fabricCanvas.backgroundImage;
+            const originalImageWidth = bgImage.width; // Real image size
+            const canvasScale = originalImageWidth / fabricCanvas.width; // How much canvas was scaled down
             
-            // Reset viewport transform to center position
+            // Set zoom to compensate for canvas scaling
+            const realZoom = canvasScale;
+            fabricCanvas.setZoom(realZoom);
+            
+            // Reset viewport position
             fabricCanvas.absolutePan({ x: 0, y: 0 });
             
-            // Restore original canvas display size
-            const imageWidth = fabricCanvas.originalWidth;
-            const imageHeight = fabricCanvas.originalHeight;
-            canvasElement.style.width = imageWidth + 'px';
-            canvasElement.style.height = imageHeight + 'px';
+            // Update canvas display size to show real image size
+            canvasElement.style.width = originalImageWidth + 'px';
+            canvasElement.style.height = bgImage.height + 'px';
 
             fabricCanvas.renderAll();
-            zoomLevel = 1;
+            zoomLevel = realZoom;
 
             // Force offset recalculation
             setTimeout(() => {
                 fabricCanvas.calcOffset();
             }, 50);
 
-            console.log('🔄 Reset zoom to 1:1, viewport centered');
+            console.log(`🔄 Reset to 1:1 - zoom: ${realZoom.toFixed(3)} (canvas was scaled down by ${canvasScale.toFixed(3)})`);
         }
 
         function fitToContainer() {
@@ -4821,34 +4826,40 @@ class FalAI {
             const containerWidth = canvasContainer.clientWidth - 40; // padding
             const containerHeight = canvasContainer.clientHeight - 40;
 
-            const imageWidth = fabricCanvas.originalWidth;
-            const imageHeight = fabricCanvas.originalHeight;
+            // Get real image dimensions
+            const bgImage = fabricCanvas.backgroundImage;
+            const originalImageWidth = bgImage.width;
+            const originalImageHeight = bgImage.height;
 
-            // Calculate scale to fit within container
-            let scale = Math.min(containerWidth / imageWidth, containerHeight / imageHeight);
+            // Calculate scale to fit real image within container
+            let fitScale = Math.min(containerWidth / originalImageWidth, containerHeight / originalImageHeight);
 
             // Don't scale up beyond original size
-            scale = Math.min(scale, 1);
+            fitScale = Math.min(fitScale, 1);
+
+            // Canvas was already scaled down, so we need to account for that
+            const canvasDownscale = originalImageWidth / fabricCanvas.width;
+            const fabricZoom = fitScale * canvasDownscale;
 
             // Set zoom and center viewport
-            fabricCanvas.setZoom(scale);
+            fabricCanvas.setZoom(fabricZoom);
             fabricCanvas.absolutePan({ x: 0, y: 0 });
             
-            // Update canvas display size to match scaled dimensions
-            const scaledWidth = imageWidth * scale;
-            const scaledHeight = imageHeight * scale;
-            canvasElement.style.width = scaledWidth + 'px';
-            canvasElement.style.height = scaledHeight + 'px';
+            // Update canvas display size to match fitted dimensions
+            const displayWidth = originalImageWidth * fitScale;
+            const displayHeight = originalImageHeight * fitScale;
+            canvasElement.style.width = displayWidth + 'px';
+            canvasElement.style.height = displayHeight + 'px';
 
             fabricCanvas.renderAll();
-            zoomLevel = scale;
+            zoomLevel = fabricZoom;
 
             // Force offset recalculation
             setTimeout(() => {
                 fabricCanvas.calcOffset();
             }, 50);
 
-            console.log('📐 Fit to container:', { scale, scaledWidth, scaledHeight });
+            console.log(`📐 Fit to container: display ${displayWidth}×${displayHeight}, fabric zoom: ${fabricZoom.toFixed(3)}`);
         }
 
         // Close modal handlers
