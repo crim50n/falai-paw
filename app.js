@@ -817,6 +817,7 @@ class FalAI {
         const valueInput = document.createElement('input');
         valueInput.type = 'number';
         valueInput.className = 'slider-value-input';
+        valueInput.name = name; // Add name attribute for proper syncing
         valueInput.value = slider.value;
         valueInput.min = schema.minimum;
         valueInput.max = schema.maximum;
@@ -1270,37 +1271,38 @@ class FalAI {
         });
 
         // Handle special slider-input pairs for mobile
-        const sliders = container.querySelectorAll('input[type="range"]');
-        sliders.forEach(slider => {
-            // Find the associated number input in the same slider container
-            const sliderContainer = slider.closest('.slider-container');
-            const valueInput = sliderContainer ? sliderContainer.querySelector('input[type="number"].slider-value-input') : null;
+        const sliderContainers = container.querySelectorAll('.slider-container');
+        sliderContainers.forEach(sliderContainer => {
+            const slider = sliderContainer.querySelector('input[type="range"]');
+            const valueInput = sliderContainer.querySelector('input[type="number"].slider-value-input');
             
-            if (valueInput) {
-                // Remove existing event listeners to avoid duplicates
-                const newSlider = slider.cloneNode(true);
-                const newValueInput = valueInput.cloneNode(true);
+            if (slider && valueInput) {
+                // Ensure initial sync
+                valueInput.value = slider.value;
                 
-                slider.parentNode.replaceChild(newSlider, slider);
-                valueInput.parentNode.replaceChild(newValueInput, valueInput);
-                
-                // Add fresh event listeners
-                newSlider.addEventListener('input', () => {
-                    newValueInput.value = newSlider.value;
-                    this.syncMobileToDesktop(newSlider);
-                    this.syncMobileToDesktop(newValueInput);
+                // Add event listeners for slider
+                slider.addEventListener('input', (e) => {
+                    e.stopPropagation();
+                    const newValue = slider.value;
+                    valueInput.value = newValue;
+                    
+                    // Sync to desktop
+                    this.syncMobileToDesktop(slider);
                     this.saveEndpointSettings();
                 });
                 
-                newValueInput.addEventListener('input', () => {
-                    const value = parseFloat(newValueInput.value);
-                    const min = parseFloat(newSlider.min);
-                    const max = parseFloat(newSlider.max);
+                // Add event listeners for value input
+                valueInput.addEventListener('input', (e) => {
+                    e.stopPropagation();
+                    const value = parseFloat(valueInput.value);
+                    const min = parseFloat(slider.min);
+                    const max = parseFloat(slider.max);
                     
                     if (!isNaN(value) && value >= min && value <= max) {
-                        newSlider.value = value;
-                        this.syncMobileToDesktop(newSlider);
-                        this.syncMobileToDesktop(newValueInput);
+                        slider.value = value;
+                        
+                        // Sync both slider and value input to desktop
+                        this.syncMobileToDesktop(slider);
                         this.saveEndpointSettings();
                     }
                 });
@@ -1309,9 +1311,19 @@ class FalAI {
     }
 
     syncMobileToDesktop(mobileElement) {
+        let desktopElement = null;
+        
+        // Try to find desktop element by ID first
         const mobileId = mobileElement.id;
-        const desktopId = mobileId.replace('mobile-', '');
-        const desktopElement = document.getElementById(desktopId);
+        if (mobileId && mobileId.startsWith('mobile-')) {
+            const desktopId = mobileId.replace('mobile-', '');
+            desktopElement = document.getElementById(desktopId);
+        }
+        
+        // If not found by ID, try to find by name attribute
+        if (!desktopElement && mobileElement.name) {
+            desktopElement = document.querySelector(`#generation-form [name="${mobileElement.name}"]`);
+        }
         
         if (desktopElement) {
             if (mobileElement.type === 'checkbox') {
@@ -1320,9 +1332,9 @@ class FalAI {
                 desktopElement.value = mobileElement.value;
             }
             
-            // Trigger change event on desktop element to maintain consistency
-            desktopElement.dispatchEvent(new Event('change', { bubbles: true }));
+            // Trigger events on desktop element to maintain consistency
             desktopElement.dispatchEvent(new Event('input', { bubbles: true }));
+            desktopElement.dispatchEvent(new Event('change', { bubbles: true }));
         }
     }
 
