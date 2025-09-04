@@ -1272,28 +1272,35 @@ class FalAI {
         // Handle special slider-input pairs for mobile
         const sliders = container.querySelectorAll('input[type="range"]');
         sliders.forEach(slider => {
-            const valueInputId = slider.id.replace('-slider', '-value');
-            const valueInput = container.querySelector(`#${valueInputId}`);
+            // Find the associated number input in the same slider container
+            const sliderContainer = slider.closest('.slider-container');
+            const valueInput = sliderContainer ? sliderContainer.querySelector('input[type="number"].slider-value-input') : null;
             
             if (valueInput) {
-                // Update value input when slider moves
-                slider.addEventListener('input', () => {
-                    valueInput.value = slider.value;
-                    this.syncMobileToDesktop(slider);
-                    this.syncMobileToDesktop(valueInput);
+                // Remove existing event listeners to avoid duplicates
+                const newSlider = slider.cloneNode(true);
+                const newValueInput = valueInput.cloneNode(true);
+                
+                slider.parentNode.replaceChild(newSlider, slider);
+                valueInput.parentNode.replaceChild(newValueInput, valueInput);
+                
+                // Add fresh event listeners
+                newSlider.addEventListener('input', () => {
+                    newValueInput.value = newSlider.value;
+                    this.syncMobileToDesktop(newSlider);
+                    this.syncMobileToDesktop(newValueInput);
                     this.saveEndpointSettings();
                 });
                 
-                // Update slider when value input changes
-                valueInput.addEventListener('input', () => {
-                    const value = parseFloat(valueInput.value);
-                    const min = parseFloat(slider.min);
-                    const max = parseFloat(slider.max);
+                newValueInput.addEventListener('input', () => {
+                    const value = parseFloat(newValueInput.value);
+                    const min = parseFloat(newSlider.min);
+                    const max = parseFloat(newSlider.max);
                     
                     if (!isNaN(value) && value >= min && value <= max) {
-                        slider.value = value;
-                        this.syncMobileToDesktop(slider);
-                        this.syncMobileToDesktop(valueInput);
+                        newSlider.value = value;
+                        this.syncMobileToDesktop(newSlider);
+                        this.syncMobileToDesktop(newValueInput);
                         this.saveEndpointSettings();
                     }
                 });

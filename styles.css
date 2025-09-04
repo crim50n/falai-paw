@@ -1794,6 +1794,13 @@ body {
     text-align: center;
 }
 
+/* Desktop - ensure advanced options are visible */
+@media (min-width: 769px) {
+    .advanced-options {
+        display: block !important;
+    }
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     .main {
