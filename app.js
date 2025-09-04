@@ -1963,13 +1963,21 @@ class FalAI {
     filterLoRAs(data) {
         // Filter out LoRAs with weight 0 from the request
         if (data.loras && Array.isArray(data.loras)) {
+            if (this.debugMode) {
+                console.log('🔍 LoRA data before filtering:', JSON.stringify(data.loras, null, 2));
+            }
+            
             data.loras = data.loras.filter(lora => {
-                // Keep LoRA if it has a valid path and weight > 0
+                // Keep LoRA if it has a valid path and weight is not exactly 0
                 const hasPath = lora && lora.path && lora.path.trim() !== '';
-                const hasValidWeight = lora && lora.weight !== undefined && lora.weight !== null && lora.weight > 0;
+                const hasValidWeight = lora && lora.weight !== undefined && lora.weight !== null && lora.weight !== 0;
+
+                if (this.debugMode) {
+                    console.log(`🔍 LoRA "${lora?.path}": path=${hasPath}, weight=${lora?.weight}, valid=${hasValidWeight}`);
+                }
 
                 if (this.debugMode && lora && hasPath && !hasValidWeight) {
-                    console.log(`🚫 Filtering out LoRA "${lora.path}" with weight ${lora.weight}`);
+                    console.log(`🚫 Filtering out LoRA "${lora.path}" with weight ${lora.weight} (should be !== 0)`);
                 }
 
                 return hasPath && hasValidWeight;
@@ -3663,12 +3671,28 @@ class FalAI {
                     const input = container.querySelector(`[name="${fieldName}[${index}].${propName}"]`);
                     if (input) {
                         input.value = propValue;
+                        
+                        // Update slider display if this is a range input
+                        if (input.type === 'range') {
+                            const valueDisplay = input.parentElement.querySelector('.slider-value');
+                            const valueInput = input.parentElement.querySelector('.slider-value-input');
+                            if (valueDisplay) valueDisplay.textContent = propValue;
+                            if (valueInput) valueInput.value = propValue;
+                        }
                     }
                 }
             } else {
                 const input = container.querySelector(`[name="${fieldName}[${index}]"]`);
                 if (input) {
                     input.value = itemValue;
+                    
+                    // Update slider display if this is a range input
+                    if (input.type === 'range') {
+                        const valueDisplay = input.parentElement.querySelector('.slider-value');
+                        const valueInput = input.parentElement.querySelector('.slider-value-input');
+                        if (valueDisplay) valueDisplay.textContent = itemValue;
+                        if (valueInput) valueInput.value = itemValue;
+                    }
                 }
             }
         });
