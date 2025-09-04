@@ -3940,9 +3940,21 @@ class FalAI {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
-            // Calculate canvas size with proper aspect ratio preservation
-            const maxWidth = 700;
-            const maxHeight = 500;
+            // Calculate available space for canvas
+            const container = canvasContainer;
+            const containerRect = container.getBoundingClientRect();
+            
+            // Get available dimensions considering mobile interface
+            let maxWidth, maxHeight;
+            if (this.isMobileDevice()) {
+                // On mobile, use more of the available space
+                maxWidth = Math.min(window.innerWidth - 40, 600); // 20px padding each side
+                maxHeight = Math.min(window.innerHeight * 0.6, 400); // 60% of screen height max
+            } else {
+                maxWidth = 700;
+                maxHeight = 500;
+            }
+            
             let canvasWidth = img.width;
             let canvasHeight = img.height;
 
@@ -3954,6 +3966,13 @@ class FalAI {
             // Apply the scale factor
             canvasWidth = Math.round(canvasWidth * scale);
             canvasHeight = Math.round(canvasHeight * scale);
+
+            console.log('📏 Canvas sizing:', {
+                original: { width: img.width, height: img.height },
+                maxSize: { width: maxWidth, height: maxHeight },
+                final: { width: canvasWidth, height: canvasHeight },
+                scale: scale
+            });
 
             // Initialize Fabric.js canvas with exact calculated dimensions
             fabricCanvas = new fabric.Canvas(canvasElement, {
@@ -4027,24 +4046,33 @@ class FalAI {
                 // Override default pointer calculation for better accuracy
                 const originalGetPointer = fabricCanvas.getPointer;
                 fabricCanvas.getPointer = function(e, ignoreZoom) {
-                    const pointer = originalGetPointer.call(this, e, ignoreZoom);
-
-                    // For touch events, recalculate more precisely
-                    if (e.touches || e.changedTouches) {
+                    // For touch events, use custom calculation that respects zoom
+                    if ((e.touches || e.changedTouches) && !ignoreZoom) {
                         const touch = e.touches?.[0] || e.changedTouches?.[0];
                         if (touch) {
                             const rect = this.upperCanvasEl.getBoundingClientRect();
-                            const scaleX = this.width / rect.width;
-                            const scaleY = this.height / rect.height;
-
-                            pointer.x = (touch.clientX - rect.left) * scaleX;
-                            pointer.y = (touch.clientY - rect.top) * scaleY;
-
-                            console.log('📱 Touch corrected to:', pointer.x, pointer.y);
+                            
+                            // Get raw touch coordinates relative to canvas
+                            const rawX = touch.clientX - rect.left;
+                            const rawY = touch.clientY - rect.top;
+                            
+                            // Apply zoom and viewport transform
+                            const vpt = this.viewportTransform;
+                            const zoom = this.getZoom();
+                            
+                            // Convert screen coordinates to canvas coordinates
+                            const pointer = {
+                                x: (rawX - vpt[4]) / zoom,
+                                y: (rawY - vpt[5]) / zoom
+                            };
+                            
+                            console.log('📱 Touch corrected (zoom-aware):', pointer.x, pointer.y, 'zoom:', zoom);
+                            return pointer;
                         }
                     }
-
-                    return pointer;
+                    
+                    // Use original for non-touch events
+                    return originalGetPointer.call(this, e, ignoreZoom);
                 };
             }
 
@@ -4304,6 +4332,11 @@ class FalAI {
 
                             fabricCanvas.zoomToPoint(new fabric.Point(pointer.x, pointer.y), Math.max(0.1, Math.min(5, scale)));
 
+                            // Force canvas offset recalculation after zoom
+                            setTimeout(() => {
+                                fabricCanvas.calcOffset();
+                            }, 50);
+
                             // Show zoom level feedback on mobile
                             if (this.isMobileDevice()) {
                                 showZoomFeedback(scale);
@@ -4383,6 +4416,11 @@ class FalAI {
 
             fabricCanvas.zoomToPoint(new fabric.Point(point.x, point.y), newZoom);
             zoomLevel = newZoom;
+            
+            // Force offset recalculation after zoom (especially important on mobile)
+            setTimeout(() => {
+                fabricCanvas.calcOffset();
+            }, 50);
         }
 
         function pan(deltaX, deltaY) {
@@ -4394,30 +4432,70 @@ class FalAI {
         }
 
         function resetZoom() {
-            fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+            // Reset should show image in real size (1:1 pixel ratio)
             fabricCanvas.setZoom(1);
-            zoomLevel = 1;
+            
+            // Center the image in the container
+            const containerWidth = canvasContainer.clientWidth;
+            const containerHeight = canvasContainer.clientHeight;
+            const imageWidth = fabricCanvas.originalWidth;
+            const imageHeight = fabricCanvas.originalHeight;
+            
+            const vpt = fabricCanvas.viewportTransform;
+            vpt[4] = (containerWidth - imageWidth) / 2;
+            vpt[5] = (containerHeight - imageHeight) / 2;
+            
+            fabricCanvas.setViewportTransform(vpt);
             fabricCanvas.renderAll();
+            zoomLevel = 1;
+            
+            // Force offset recalculation
+            setTimeout(() => {
+                fabricCanvas.calcOffset();
+            }, 50);
+            
+            console.log('🔄 Reset zoom to 1:1, image centered');
         }
 
         function fitToContainer() {
-            const containerWidth = canvasContainer.clientWidth - 40;
+            // Fit should fit image to container width while maintaining aspect ratio
+            const containerWidth = canvasContainer.clientWidth - 40; // padding
             const containerHeight = canvasContainer.clientHeight - 40;
+            
+            const imageWidth = fabricCanvas.originalWidth;
+            const imageHeight = fabricCanvas.originalHeight;
 
-            const scaleX = containerWidth / fabricCanvas.originalWidth;
-            const scaleY = containerHeight / fabricCanvas.originalHeight;
-            const scale = Math.min(scaleX, scaleY, 1);
+            // Calculate scale to fit width, but check if height fits too
+            let scale = containerWidth / imageWidth;
+            
+            // If scaled height exceeds container height, scale by height instead
+            if (imageHeight * scale > containerHeight) {
+                scale = containerHeight / imageHeight;
+            }
+            
+            // Don't scale up beyond original size
+            scale = Math.min(scale, 1);
 
             fabricCanvas.setZoom(scale);
 
-            // Center the canvas
+            // Center the image
+            const scaledWidth = imageWidth * scale;
+            const scaledHeight = imageHeight * scale;
+            
             const vpt = fabricCanvas.viewportTransform;
-            vpt[4] = (containerWidth - fabricCanvas.originalWidth * scale) / 2;
-            vpt[5] = (containerHeight - fabricCanvas.originalHeight * scale) / 2;
+            vpt[4] = (containerWidth - scaledWidth) / 2 + 20; // +20 for padding
+            vpt[5] = (containerHeight - scaledHeight) / 2 + 20;
             fabricCanvas.setViewportTransform(vpt);
             fabricCanvas.renderAll();
 
             zoomLevel = scale;
+            
+            // Force offset recalculation
+            setTimeout(() => {
+                fabricCanvas.calcOffset();
+            }, 50);
+            
+            console.log('📐 Fit to container:', { scale, scaledWidth, scaledHeight });
         }
 
         // Close modal handlers

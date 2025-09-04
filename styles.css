@@ -2295,15 +2295,18 @@ body {
 
     .canvas-container {
         flex: 1; /* Take remaining space */
-        max-height: none; /* Remove max-height constraint */
-        min-height: 200px; /* Reduced minimum height */
+        max-height: calc(100vh - 300px); /* Dynamic height based on viewport */
+        min-height: 250px; /* Minimum height for usability */
         padding: 0.3rem; /* Reduced padding */
         touch-action: none; /* Prevent browser touch gestures */
-        overflow: hidden;
+        overflow: visible; /* Allow canvas to be fully visible */
         border: 2px solid rgba(255, 255, 255, 0.2);
         border-radius: 8px;
         background: rgba(0, 0, 0, 0.05);
         margin: 0.5rem 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .canvas-container canvas {
