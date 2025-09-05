@@ -2391,6 +2391,9 @@ class FalAI {
             `;
             document.body.appendChild(modal);
 
+            // Setup advanced touch gestures with Hammer.js
+            this.setupAdvancedGestures(modal);
+
             // Add event listeners
             modal.querySelector('.image-zoom-backdrop').addEventListener('click', () => {
                 this.closeImageModal();
@@ -5041,6 +5044,277 @@ class FalAI {
         } catch (error) {
             console.warn('Failed to load custom endpoints:', error);
         }
+    }
+
+    setupAdvancedGestures(modal) {
+        const zoomContainer = modal.querySelector('.image-zoom-container');
+        const zoomImage = modal.querySelector('#zoom-image');
+        
+        if (!window.Hammer) {
+            console.warn('Hammer.js not loaded, advanced gestures disabled');
+            return;
+        }
+
+        // Initialize Hammer manager
+        const hammer = new Hammer.Manager(zoomContainer);
+        
+        // Add recognizers with proper configuration
+        const pan = new Hammer.Pan({ threshold: 10, pointers: 1 });
+        const pinch = new Hammer.Pinch({ threshold: 0.1 });
+        const swipe = new Hammer.Swipe({ 
+            direction: Hammer.DIRECTION_HORIZONTAL, 
+            velocity: 0.1, // Lower velocity threshold
+            threshold: 30  // Lower distance threshold
+        });
+        const doubletap = new Hammer.Tap({ 
+            event: 'doubletap', 
+            taps: 2, 
+            interval: 300, 
+            threshold: 10 
+        });
+        const singletap = new Hammer.Tap({ 
+            event: 'singletap',
+            taps: 1
+        });
+        const press = new Hammer.Press({ time: 500 });
+
+        hammer.add([pan, pinch, swipe, doubletap, singletap, press]);
+
+        // Set recognizer relationships
+        pinch.recognizeWith(pan);
+        doubletap.recognizeWith(singletap);
+        singletap.requireFailure(doubletap);
+        
+        // Important: Don't make swipe require pan failure - they should work independently
+        pan.recognizeWith(swipe);
+        
+        // Gesture state
+        let currentScale = 1;
+        let currentX = 0;
+        let currentY = 0;
+        let lastPanX = 0;
+        let lastPanY = 0;
+        let isZoomed = false;
+        const minScale = 0.5; // Allow zooming out to see full image
+        const maxScale = 5;
+
+        // Reset transform
+        const resetTransform = () => {
+            currentScale = 1;
+            currentX = 0;
+            currentY = 0;
+            isZoomed = false;
+            zoomImage.style.transform = 'scale(1) translate(0px, 0px)';
+            zoomImage.style.transition = 'transform 0.3s ease';
+        };
+
+        // Apply transform
+        const applyTransform = () => {
+            zoomImage.style.transform = `scale(${currentScale}) translate(${currentX}px, ${currentY}px)`;
+        };
+
+        // Constrain pan to image bounds
+        const constrainPan = () => {
+            if (currentScale <= 1) {
+                currentX = 0;
+                currentY = 0;
+                return;
+            }
+
+            const containerRect = zoomContainer.getBoundingClientRect();
+            const imageRect = zoomImage.getBoundingClientRect();
+            
+            // Calculate actual image dimensions after scaling
+            const scaledWidth = imageRect.width * currentScale;
+            const scaledHeight = imageRect.height * currentScale;
+            
+            // Calculate maximum pan distances
+            const maxX = Math.max(0, (scaledWidth - containerRect.width) / (2 * currentScale));
+            const maxY = Math.max(0, (scaledHeight - containerRect.height) / (2 * currentScale));
+
+            currentX = Math.max(-maxX, Math.min(maxX, currentX));
+            currentY = Math.max(-maxY, Math.min(maxY, currentY));
+        };
+
+        // Pinch to zoom
+        let lastScale = 1;
+        hammer.on('pinchstart', (e) => {
+            lastScale = currentScale;
+            zoomImage.style.transition = 'none';
+        });
+
+        hammer.on('pinchmove', (e) => {
+            const newScale = Math.max(minScale, Math.min(maxScale, lastScale * e.scale));
+            currentScale = newScale;
+            isZoomed = newScale > 1;
+            
+            constrainPan();
+            applyTransform();
+        });
+
+        hammer.on('pinchend', (e) => {
+            // Only reset if very close to scale 1
+            if (currentScale > 0.9 && currentScale < 1.1) {
+                currentScale = 1;
+                currentX = 0;
+                currentY = 0;
+                isZoomed = false;
+                applyTransform();
+            }
+            zoomImage.style.transition = 'transform 0.1s ease';
+            isZoomed = currentScale !== 1;
+        });
+
+        // Pan when zoomed or scaled
+        let isPanning = false;
+        hammer.on('panstart', (e) => {
+            console.log('Pan start, scale:', currentScale);
+            if (currentScale !== 1) {
+                isPanning = true;
+                lastPanX = currentX;
+                lastPanY = currentY;
+                zoomImage.style.transition = 'none';
+                zoomContainer.classList.add('zooming');
+                e.preventDefault();
+                e.srcEvent.stopPropagation();
+            }
+        });
+
+        hammer.on('panmove', (e) => {
+            if (currentScale !== 1 && isPanning) {
+                currentX = lastPanX + e.deltaX / currentScale;
+                currentY = lastPanY + e.deltaY / currentScale;
+                constrainPan();
+                applyTransform();
+                e.preventDefault();
+                e.srcEvent.stopPropagation();
+            }
+        });
+
+        hammer.on('panend', (e) => {
+            if (isPanning) {
+                isPanning = false;
+                zoomImage.style.transition = 'transform 0.1s ease';
+                zoomContainer.classList.remove('zooming');
+            }
+        });
+
+        // Swipe navigation with debounce protection
+        let lastSwipeTime = 0;
+        hammer.on('swipe', (e) => {
+            const now = Date.now();
+            console.log('Swipe detected:', {
+                direction: e.direction,
+                scale: currentScale,
+                deltaX: e.deltaX,
+                deltaY: e.deltaY,
+                velocity: e.velocity,
+                isPanning: isPanning,
+                timeSinceLastSwipe: now - lastSwipeTime
+            });
+            
+            // Debounce: prevent multiple swipes within 300ms
+            if (now - lastSwipeTime < 300) {
+                console.log('⏱️ Swipe debounced - too soon');
+                return;
+            }
+            
+            // Only allow swipe navigation when at normal scale and not panning
+            if (currentScale === 1 && !isPanning) {
+                lastSwipeTime = now;
+                e.preventDefault();
+                e.srcEvent.stopPropagation();
+                
+                if (e.direction === Hammer.DIRECTION_LEFT) {
+                    console.log('🔄 Navigate to next image');
+                    this.navigateZoomModal(1); // Next image
+                } else if (e.direction === Hammer.DIRECTION_RIGHT) {
+                    console.log('🔄 Navigate to previous image');
+                    this.navigateZoomModal(-1); // Previous image
+                }
+            } else {
+                console.log('❌ Swipe blocked - scale:', currentScale, 'panning:', isPanning);
+            }
+        });
+
+        // Double tap to zoom toggle
+        hammer.on('doubletap', (e) => {
+            console.log('Double tap detected, current scale:', currentScale);
+            e.preventDefault();
+            if (currentScale !== 1) {
+                console.log('Resetting zoom');
+                resetTransform();
+            } else {
+                console.log('Zooming in');
+                // Zoom in at tap position
+                const rect = zoomContainer.getBoundingClientRect();
+                const tapX = e.center.x - rect.left - rect.width / 2;
+                const tapY = e.center.y - rect.top - rect.height / 2;
+                
+                currentScale = 2.5;
+                currentX = -tapX / currentScale;
+                currentY = -tapY / currentScale;
+                isZoomed = true;
+                
+                constrainPan();
+                applyTransform();
+            }
+        });
+
+        // Long press for context menu (download/delete)
+        hammer.on('press', (e) => {
+            if (navigator.vibrate) {
+                navigator.vibrate(50); // Haptic feedback
+            }
+            
+            const contextMenu = modal.querySelector('.zoom-controls');
+            contextMenu.style.opacity = contextMenu.style.opacity === '0' ? '1' : '0';
+            
+            setTimeout(() => {
+                contextMenu.style.opacity = '1';
+            }, 2000);
+        });
+
+        // Reset transform when image changes
+        const originalUpdateZoomModal = this.updateZoomModal.bind(this);
+        this.updateZoomModal = function(imageUrl, currentIndex, totalImages) {
+            resetTransform();
+            return originalUpdateZoomModal(imageUrl, currentIndex, totalImages);
+        };
+
+        // Store hammer instance for cleanup
+        modal._hammerInstance = hammer;
+
+        // Fallback touch navigation for swipes (disabled - using Hammer.js only)
+        // let touchStartX = 0;
+        // let touchStartTime = 0;
+        
+        // zoomContainer.addEventListener('touchstart', (e) => {
+        //     if (currentScale === 1 && e.touches.length === 1) {
+        //         touchStartX = e.touches[0].clientX;
+        //         touchStartTime = Date.now();
+        //     }
+        // }, { passive: true });
+
+        // zoomContainer.addEventListener('touchend', (e) => {
+        //     if (currentScale === 1 && e.changedTouches.length === 1) {
+        //         const touchEndX = e.changedTouches[0].clientX;
+        //         const deltaX = touchEndX - touchStartX;
+        //         const deltaTime = Date.now() - touchStartTime;
+                
+        //         // Swipe parameters
+        //         if (Math.abs(deltaX) > 50 && deltaTime < 300) {
+        //             console.log('👆 Fallback swipe detected:', deltaX);
+        //             if (deltaX < 0) {
+        //                 console.log('👆 Fallback: Next image');
+        //                 this.navigateZoomModal(1);
+        //             } else {
+        //                 console.log('👆 Fallback: Previous image');
+        //                 this.navigateZoomModal(-1);
+        //             }
+        //         }
+        //     }
+        // }, { passive: true });
     }
 }
 
