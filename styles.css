@@ -94,7 +94,7 @@ body {
     background: white;
     z-index: 200;
     transition: left 0.3s ease;
-    padding: 4rem 1.5rem 1.5rem;
+    padding: 0 1.5rem 1.5rem;
     overflow-y: auto;
 }
 
@@ -103,13 +103,22 @@ body {
 }
 
 .mobile-menu-header {
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
+    margin: 0;
+    padding: 1rem 2rem;
     border-bottom: 1px solid #e2e8f0;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
-    position: relative;
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    z-index: 201;
+    width: 100%;
+    box-sizing: border-box;
+    height: auto;
+    min-height: 0;
 }
 
 .mobile-menu-header h2 {
@@ -119,20 +128,19 @@ body {
 }
 
 .mobile-menu-close {
-    position: absolute;
-    top: -2rem;
-    right: 0;
     background: none;
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
     color: #64748b;
-    width: 40px;
-    height: 40px;
+    padding: 0;
+    margin: 0;
+    width: auto;
+    height: auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    line-height: 1;
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
@@ -145,6 +153,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    padding-top: 2rem;
 }
 
 .mobile-menu-controls .btn {
@@ -2543,4 +2552,49 @@ label, .field-description, p {
 
 .zoom-animation-out #zoom-image {
     animation: zoomOut 0.3s ease;
+}
+
+/* LoRA Comment Field Styles */
+.lora-comment-field {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.lora-comment-field .field-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+}
+
+.lora-comment-field .form-textarea {
+    font-size: 0.875rem;
+    line-height: 1.4;
+    resize: vertical;
+    min-height: 2.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.lora-comment-field .form-textarea:focus {
+    background: white;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.lora-comment-field .form-textarea::placeholder {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Array item spacing adjustments */
+.array-item {
+    position: relative;
+    padding-bottom: 0.5rem;
+}
+
+.array-item:not(:last-child) {
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
 }

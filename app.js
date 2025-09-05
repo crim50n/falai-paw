@@ -3035,6 +3035,11 @@ class FalAI {
                     });
                 }
             });
+
+            // Add comment field for LoRA items
+            if (arrayName === 'loras') {
+                this.addLoraCommentField(arrayName, itemIndex, itemContainer);
+            }
         } else {
             // Handle simple items
             const fieldName = `${arrayName}[${itemIndex}]`;
@@ -3070,14 +3075,88 @@ class FalAI {
         container.appendChild(itemContainer);
     }
 
+    addLoraCommentField(arrayName, itemIndex, itemContainer) {
+        const commentField = document.createElement('div');
+        commentField.className = 'field-group lora-comment-field';
+        
+        const label = document.createElement('label');
+        label.textContent = 'Comment';
+        label.className = 'field-label';
+        
+        const textarea = document.createElement('textarea');
+        textarea.name = `${arrayName}[${itemIndex}].comment`;
+        textarea.id = `${arrayName}[${itemIndex}].comment`;
+        textarea.className = 'form-textarea';
+        textarea.rows = 2;
+        textarea.placeholder = 'Add a note about this LoRA...';
+        
+        // Load saved comment
+        const savedComment = this.getLoraComment(arrayName, itemIndex);
+        if (savedComment) {
+            textarea.value = savedComment;
+        }
+        
+        // Save comment on change
+        textarea.addEventListener('input', () => {
+            this.saveLoraComment(arrayName, itemIndex, textarea.value);
+            this.saveEndpointSettings();
+        });
+        
+        commentField.appendChild(label);
+        commentField.appendChild(textarea);
+        itemContainer.appendChild(commentField);
+    }
+
+    getLoraComment(arrayName, itemIndex) {
+        const endpointId = this.currentEndpointId;
+        const comments = JSON.parse(localStorage.getItem('falai_lora_comments') || '{}');
+        return comments[endpointId]?.[`${arrayName}[${itemIndex}]`] || '';
+    }
+
+    saveLoraComment(arrayName, itemIndex, comment) {
+        const endpointId = this.currentEndpointId;
+        const comments = JSON.parse(localStorage.getItem('falai_lora_comments') || '{}');
+        
+        if (!comments[endpointId]) {
+            comments[endpointId] = {};
+        }
+        
+        const key = `${arrayName}[${itemIndex}]`;
+        if (comment.trim()) {
+            comments[endpointId][key] = comment.trim();
+        } else {
+            delete comments[endpointId][key];
+            // Clean up empty endpoint entries
+            if (Object.keys(comments[endpointId]).length === 0) {
+                delete comments[endpointId];
+            }
+        }
+        
+        localStorage.setItem('falai_lora_comments', JSON.stringify(comments));
+        this.logDebug(`Saved LoRA comment for ${key}`, 'info');
+    }
+
     updateArrayIndices(arrayName, container) {
         Array.from(container.children).forEach((item, index) => {
             const fields = item.querySelectorAll('input, select, textarea');
             fields.forEach(field => {
                 if (field.name.startsWith(arrayName)) {
+                    const oldName = field.name;
+                    const oldIndex = oldName.match(/\[(\d+)\]/)?.[1];
                     const baseName = field.name.replace(/\[\d+\]/, `[${index}]`);
                     field.name = baseName;
                     field.id = baseName;
+                    
+                    // Handle LoRA comment field updates
+                    if (arrayName === 'loras' && oldName.includes('.comment') && oldIndex !== undefined) {
+                        // Move comment from old index to new index
+                        const oldComment = this.getLoraComment(arrayName, parseInt(oldIndex));
+                        if (oldComment && parseInt(oldIndex) !== index) {
+                            this.saveLoraComment(arrayName, index, oldComment);
+                            // Clear old comment entry
+                            this.saveLoraComment(arrayName, parseInt(oldIndex), '');
+                        }
+                    }
                 }
             });
         });
