@@ -2206,9 +2206,18 @@ class FalAI {
         this.lastResult = result;
 
         if (result.images && result.images.length > 0) {
+            const added = [];
             for (const image of result.images) {
                 const imageElement = this.createImageElement(image, result);
                 container.appendChild(imageElement);
+                // Auto-save silently (dedupe) so gallery always has generations
+                const meta = { endpoint: this.currentEndpoint?.metadata?.endpointId || 'Unknown', parameters: this.lastUsedParams || {} };
+                if (this.gallery.saveImage(image.url, meta, { dedupe: true, silent: true })) {
+                    added.push(image.url);
+                }
+            }
+            if (added.length && this.showNotification) {
+                this.showNotification(`${added.length} image${added.length>1?'s':''} added to gallery`, 'success');
             }
 
             // Update JSON display
@@ -2247,11 +2256,13 @@ class FalAI {
     }
 
     createImageElement(image, metadata = {}) {
-        // Use the new gallery method that supports Fancybox
+    // Use gallery method (PhotoSwipe-compatible anchor)
+        const endpointId = this.currentEndpoint?.metadata?.endpointId;
+        const hasParams = this.lastUsedParams && Object.keys(this.lastUsedParams).length > 0;
+        // Store only minimal metadata needed for gallery (avoid entire result object duplication per image)
         const imageMetadata = {
-            endpoint: this.currentEndpoint?.id || 'Unknown',
-            parameters: this.lastUsedParams || {},
-            ...metadata
+            endpoint: endpointId || 'Unknown',
+            ...(hasParams ? { parameters: this.lastUsedParams } : {})
         };
         
         return this.gallery.createResultImageItem(image.url, imageMetadata);

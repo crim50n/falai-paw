@@ -17,9 +17,8 @@
     <!-- Fabric.js for advanced canvas drawing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
 
-    <!-- Fancybox 5 for gallery -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
+    <!-- PhotoSwipe (MIT) for gallery -->
+    <link rel="stylesheet" href="https://unpkg.com/photoswipe@5/dist/photoswipe.css" />
 
     <!-- Icons -->
     <link rel="icon" href="favicon.png" type="image/png">
@@ -85,24 +84,18 @@
             </div>
             <div class="mobile-gallery-meta">
                 <div class="mobile-gallery-meta-row">
-                    <span id="mobile-gallery-count" class="gallery-count"></span>
-                    <button class="btn secondary small selection-mode-btn" data-scope="mobile">Select</button>
+                    <div class="gallery-inline-actions" data-scope="mobile">
+                        <span class="selection-counter" style="display:none;">0 selected</span>
+                        <button class="btn secondary small selection-mode-btn" data-scope="mobile">Select</button>
+                        <button class="btn secondary small select-all-btn" data-scope="mobile" style="display:none;">Select All</button>
+                        <button class="btn secondary small clear-selection-btn" data-scope="mobile" style="display:none;">Clear</button>
+                        <button class="btn danger small bulk-delete-btn" data-scope="mobile" style="display:none;">Delete</button>
+                    </div>
                 </div>
             </div>
             
-            <!-- Bulk actions toolbar for mobile gallery -->
-        <div class="bulk-actions-toolbar" data-scope="mobile" style="display: none;">
-                <div class="bulk-actions-left">
-            <span class="selection-counter">0 selected</span>
-                    <button id="select-all-btn" class="btn secondary small">Select All</button>
-                    <button id="clear-selection-btn" class="btn secondary small">Clear</button>
-                </div>
-                <div class="bulk-actions-right">
-                    <button id="bulk-delete-btn" class="btn danger small">Delete</button>
-                </div>
-            </div>
             
-            <div id="mobile-gallery-content" class="mobile-gallery-content"></div>
+            <div id="mobile-gallery-content" class="mobile-gallery-content pswp-gallery"></div>
         </div>
 
         <main class="main">
@@ -176,7 +169,7 @@
                                 <button id="json-tab" class="tab-button">JSON</button>
                             </div>
                         </div>
-                        <div id="result-images" class="result-images"></div>
+                        <div id="result-images" class="result-images pswp-gallery"></div>
                         <div id="result-json" class="result-json hidden">
                             <pre><code id="json-output"></code></pre>
                         </div>
@@ -186,24 +179,17 @@
                         <div class="gallery-header">
                             <h3>Saved Images</h3>
                             <div class="gallery-header-actions">
-                                <span id="gallery-count" class="gallery-count"></span>
-                                <button class="btn secondary small selection-mode-btn" data-scope="inline">Select</button>
+                                <div class="gallery-inline-actions" data-scope="inline">
+                                    <span class="selection-counter" style="display:none;">0 selected</span>
+                                    <button class="btn secondary small selection-mode-btn" data-scope="inline">Select</button>
+                                    <button class="btn secondary small select-all-btn" data-scope="inline" style="display:none;">Select All</button>
+                                    <button class="btn secondary small clear-selection-btn" data-scope="inline" style="display:none;">Clear</button>
+                                    <button class="btn danger small bulk-delete-btn" data-scope="inline" style="display:none;">Delete</button>
+                                </div>
                             </div>
                         </div>
                         
-                        <!-- Bulk actions toolbar -->
-            <div class="bulk-actions-toolbar" data-scope="inline" style="display: none;">
-                            <div class="bulk-actions-left">
-                <span class="selection-counter">0 selected</span>
-                                <button id="select-all-btn" class="btn secondary small">Select All</button>
-                                <button id="clear-selection-btn" class="btn secondary small">Clear</button>
-                            </div>
-                            <div class="bulk-actions-right">
-                                <button id="bulk-delete-btn" class="btn danger small">Delete Selected</button>
-                            </div>
-                        </div>
-                        
-                        <div id="inline-gallery-content" class="inline-gallery-content"></div>
+                        <div id="inline-gallery-content" class="inline-gallery-content pswp-gallery"></div>
                     </div>
                 </div>
             </div>
@@ -272,5 +258,6 @@
 
     <script src="js/gallery.js"></script>
     <script src="js/app.js"></script>
+    <script type="module" src="js/photoswipe-init.js"></script>
 </body>
 </html>

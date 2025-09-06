@@ -1,24 +1,21 @@
 /**
- * Gallery Module for FalAI
- * Enhanced with Fancybox 5 for modern gallery experience
- * Handles image display, storage, and navigation
+ * Gallery module: handles saved/generated images, selection, and PhotoSwipe integration.
  */
 
 class FalAIGallery {
     constructor(app) {
         this.app = app;
         this.savedImages = JSON.parse(localStorage.getItem('falai_saved_images') || '[]');
-        this.currentImageIndex = 0;
-        this.fancyboxInstance = null;
+    this.currentImageIndex = 0;
         
         // Selection state
         this.selectionMode = false;
         this.selectedImages = new Set();
         
-        this.initializeEventListeners();
-        this.initializeFancybox();
+    this.initializeEventListeners();
     this.updateMobileStickyHeights();
     window.addEventListener('resize', () => this.updateMobileStickyHeights());
+    window.falGallery = this; // expose for photoswipe-init
     }
 
     initializeEventListeners() {
@@ -48,27 +45,16 @@ class FalAIGallery {
             });
         });
 
-        // Bulk action controls
-        const selectAllBtn = document.getElementById('select-all-btn');
-        if (selectAllBtn) {
-            selectAllBtn.addEventListener('click', () => {
-                this.selectAllImages();
-            });
-        }
-
-        const clearSelectionBtn = document.getElementById('clear-selection-btn');
-        if (clearSelectionBtn) {
-            clearSelectionBtn.addEventListener('click', () => {
-                this.clearSelection();
-            });
-        }
-
-        const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
-        if (bulkDeleteBtn) {
-            bulkDeleteBtn.addEventListener('click', () => {
-                this.bulkDeleteImages();
-            });
-        }
+        // Inline bulk action controls (multiple scopes)
+        document.querySelectorAll('.select-all-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.selectAllImages());
+        });
+        document.querySelectorAll('.clear-selection-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.clearSelection());
+        });
+        document.querySelectorAll('.bulk-delete-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.bulkDeleteImages());
+        });
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -104,205 +90,7 @@ class FalAIGallery {
         });
     }
 
-    initializeFancybox() {
-        // Initialize Fancybox with custom options
-        if (typeof Fancybox !== 'undefined') {
-            // Gallery images
-            Fancybox.bind('[data-fancybox="gallery"]', this.getFancyboxOptions());
-            
-            // Mobile gallery images
-            Fancybox.bind('[data-fancybox="mobile-gallery"]', this.getFancyboxOptions());
-            
-            // Result images
-            Fancybox.bind('[data-fancybox="result-gallery"]', this.getFancyboxOptions());
-        }
-    }
-
-    getFancyboxOptions() {
-        return {
-            // Appearance - disable all animations that cause dimming
-            compact: false,
-            idle: false,
-            animated: false,  // Disable all animations
-            
-            // UI Configuration
-            Toolbar: {
-                display: {
-                    left: ["infobar"],
-                    middle: [],
-                    right: ["iterateZoom", "slideshow", "fullscreen", "thumbs", "close"]
-                }
-            },
-            
-            // Images - prevent loading states
-            Images: {
-                zoom: true,
-                initialSize: "fit",
-                lazy: false  // Disable lazy loading
-            },
-            
-            // Enhanced Carousel settings for smooth navigation
-            Carousel: {
-                infinite: false,
-                friction: 0.12,
-                preload: 2
-            },
-            
-            // Event handlers to force brightness
-            on: {
-                "init": (fancybox) => {
-                    // Remove any dimming immediately on init
-                    if (fancybox.$container) {
-                        fancybox.$container.style.setProperty('--fancybox-content-opacity', '1', 'important');
-                    }
-                },
-                "ready": (fancybox) => {
-                    // Force full opacity on all slides
-                    const slides = fancybox.$container?.querySelectorAll('.fancybox__slide');
-                    if (slides) {
-                        slides.forEach(slide => {
-                            slide.style.opacity = '1';
-                            const content = slide.querySelector('.fancybox__content');
-                            if (content) {
-                                content.style.opacity = '1';
-                                content.style.filter = 'none';
-                            }
-                            const img = slide.querySelector('img');
-                            if (img) {
-                                img.style.opacity = '1';
-                                img.style.filter = 'none';
-                            }
-                        });
-                    }
-                },
-                "reveal": (fancybox, slide) => {
-                    // Ensure immediate full brightness on reveal
-                    if (slide.$content) {
-                        slide.$content.style.setProperty('opacity', '1', 'important');
-                        slide.$content.style.setProperty('filter', 'none', 'important');
-                        
-                        const img = slide.$content.querySelector('img');
-                        if (img) {
-                            img.style.setProperty('opacity', '1', 'important');
-                            img.style.setProperty('filter', 'none', 'important');
-                        }
-                    }
-                },
-                "Carousel.change": (fancybox, carousel, to) => {
-                    this.currentImageIndex = to;
-                }
-            }
-        };
-    }
-
-    addCustomButtons(fancybox) {
-        // Add a small delay to ensure DOM is ready
-        setTimeout(() => {
-            try {
-                // Add download button
-                const downloadBtn = document.createElement('button');
-                downloadBtn.className = 'f-button f-button--download';
-                downloadBtn.innerHTML = '💾';
-                downloadBtn.title = 'Download';
-                downloadBtn.addEventListener('click', () => {
-                    this.downloadCurrentImage(fancybox);
-                });
-                
-                // Add delete button
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'f-button f-button--delete';
-                deleteBtn.innerHTML = '🗑️';
-                deleteBtn.title = 'Delete';
-                deleteBtn.style.color = '#dc3545';
-                deleteBtn.addEventListener('click', () => {
-                    this.deleteCurrentImage(fancybox);
-                });
-                
-                // Find toolbar using multiple selectors
-                let toolbar = null;
-                const possibleSelectors = [
-                    '.f-toolbar__right',
-                    '.fancybox__toolbar',
-                    '.f-toolbar',
-                    '[data-fancybox-toolbar]'
-                ];
-                
-                for (const selector of possibleSelectors) {
-                    if (fancybox.$container) {
-                        toolbar = fancybox.$container.querySelector(selector);
-                        if (toolbar) break;
-                    }
-                }
-                
-                if (toolbar) {
-                    // Insert before close button
-                    const closeBtn = toolbar.querySelector('[data-fancybox-close]') || 
-                                   toolbar.querySelector('.f-button--close') ||
-                                   toolbar.lastElementChild;
-                    
-                    if (closeBtn && closeBtn.parentNode === toolbar) {
-                        toolbar.insertBefore(deleteBtn, closeBtn);
-                        toolbar.insertBefore(downloadBtn, closeBtn);
-                    } else {
-                        toolbar.appendChild(downloadBtn);
-                        toolbar.appendChild(deleteBtn);
-                    }
-                } else {
-                    console.warn('Could not find Fancybox toolbar to add custom buttons');
-                }
-            } catch (error) {
-                console.error('Error adding custom buttons:', error);
-            }
-        }, 100);
-    }
-
-    downloadCurrentImage(fancybox) {
-        const currentSlide = fancybox.getSlide();
-        if (currentSlide && currentSlide.src) {
-            const link = document.createElement('a');
-            link.href = currentSlide.src;
-            
-            // Extract filename from URL or use timestamp
-            let filename = 'falai-image.png';
-            try {
-                const url = new URL(currentSlide.src);
-                const pathSegments = url.pathname.split('/');
-                const lastSegment = pathSegments[pathSegments.length - 1];
-                if (lastSegment && lastSegment.includes('.')) {
-                    filename = lastSegment;
-                } else {
-                    filename = `falai-image-${Date.now()}.png`;
-                }
-            } catch (e) {
-                filename = `falai-image-${Date.now()}.png`;
-            }
-            
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    }
-
-    deleteCurrentImage(fancybox) {
-        const currentIndex = fancybox.getSlide().index;
-        
-        if (confirm('Are you sure you want to delete this image?')) {
-            // Remove from saved images
-            this.savedImages.splice(currentIndex, 1);
-            this.saveImages();
-            
-            // Close fancybox and refresh gallery
-            fancybox.close();
-            this.showInlineGallery();
-            this.updateMobileGallery();
-            
-            // Show success message
-            if (this.app && this.app.showNotification) {
-                this.app.showNotification('Image deleted successfully', 'success');
-            }
-        }
-    }
+    // (placeholder for future lightbox-related helpers if needed)
 
     // Switch between Results and Gallery views
     switchRightPanelView(view) {
@@ -345,12 +133,10 @@ class FalAIGallery {
     // Display inline gallery with images
     showInlineGallery() {
         const container = document.getElementById('inline-gallery-content');
-        const countElement = document.getElementById('gallery-count');
 
         if (!container) return;
 
         container.innerHTML = '';
-        countElement.textContent = `${this.savedImages.length} images`;
 
         if (this.savedImages.length === 0) {
             container.innerHTML = '<div class="text-center" style="grid-column: 1/-1; padding: 2rem; color: #6b7280;">No saved images yet</div>';
@@ -361,11 +147,10 @@ class FalAIGallery {
             });
         }
         
-        // Reinitialize Fancybox for new elements
-        this.reinitializeFancybox();
+    // PhotoSwipe reads DOM on open; no explicit reinit needed
     }
 
-    // Create gallery item for inline display with Fancybox integration
+    // Create gallery item for inline display (PhotoSwipe)
     createInlineGalleryItem(imageData, index) {
         const div = document.createElement('div');
         div.className = 'gallery-item';
@@ -383,12 +168,15 @@ class FalAIGallery {
             </div>
         `;
         
-        // Create anchor element for Fancybox
-        const link = document.createElement('a');
-        link.href = imageData.url;
-        link.setAttribute('data-fancybox', 'gallery');
-        link.setAttribute('data-caption', `${imageData.endpoint} - ${date}`);
-        link.setAttribute('data-index', index);
+    // Anchor for PhotoSwipe
+    const link = document.createElement('a');
+    link.href = imageData.url;
+    link.className = 'pswp-item';
+    link.dataset.endpoint = imageData.endpoint || '';
+    link.dataset.prompt = imageData.prompt || '';
+    link.dataset.meta = JSON.stringify(imageData.parameters || {});
+    link.dataset.imageId = imageData.timestamp;
+    this._assignNaturalSize(link, imageData.url);
         
         const img = document.createElement('img');
         img.src = imageData.url;
@@ -427,19 +215,18 @@ class FalAIGallery {
         return div;
     }
 
-    // Create result image item with Fancybox support
+    // Create result image item (PhotoSwipe)
     createResultImageItem(imageUrl, metadata = {}) {
         const div = document.createElement('div');
         div.className = 'result-image';
 
-        // Create anchor for Fancybox
         const link = document.createElement('a');
         link.href = imageUrl;
-        link.setAttribute('data-fancybox', 'result-gallery');
-        
-        if (metadata.endpoint) {
-            link.setAttribute('data-caption', `Generated with ${metadata.endpoint}`);
-        }
+        link.className = 'pswp-item';
+        link.dataset.endpoint = metadata.endpoint || '';
+        link.dataset.prompt = (document.getElementById('prompt')?.value || '').trim();
+        link.dataset.meta = JSON.stringify(metadata.parameters || {});
+    this._assignNaturalSize(link, imageUrl);
 
         const img = document.createElement('img');
         img.src = imageUrl;
@@ -450,17 +237,28 @@ class FalAIGallery {
         const actions = document.createElement('div');
         actions.className = 'result-image-actions';
         
-        const saveBtn = document.createElement('button');
-        saveBtn.className = 'btn secondary small';
-        saveBtn.innerHTML = '💾';
-        saveBtn.title = 'Save to gallery';
-        saveBtn.addEventListener('click', (e) => {
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'btn secondary small result-download-btn';
+    downloadBtn.textContent = 'Download';
+    downloadBtn.title = 'Download image';
+        downloadBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             e.preventDefault();
-            this.saveImage(imageUrl, metadata);
+            const src = imageUrl;
+            let filename = 'image.png';
+            try { const u = new URL(src); const last = u.pathname.split('/').pop(); filename = (last && last.includes('.')) ? last : 'image-' + Date.now() + '.png'; } catch(e2) { filename = 'image-' + Date.now() + '.png'; }
+            const triggerDownload = (url) => { const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); };
+            try {
+                if (src.startsWith('data:')) { triggerDownload(src); return; }
+                const resp = await fetch(src, {mode:'cors'});
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                triggerDownload(url);
+                setTimeout(()=>URL.revokeObjectURL(url), 4000);
+            } catch(err) { triggerDownload(src); }
         });
 
-        actions.appendChild(saveBtn);
+        actions.appendChild(downloadBtn);
         
         link.appendChild(img);
         div.appendChild(link);
@@ -472,12 +270,10 @@ class FalAIGallery {
     // Update mobile gallery content
     updateMobileGallery() {
         const container = document.getElementById('mobile-gallery-content');
-        const countElement = document.getElementById('mobile-gallery-count');
 
         if (!container) return;
 
         container.innerHTML = '';
-        countElement.textContent = `${this.savedImages.length} images`;
 
         if (this.savedImages.length === 0) {
             container.innerHTML = '<div class="text-center" style="grid-column: 1/-1; padding: 2rem; color: #6b7280;">No saved images yet</div>';
@@ -488,9 +284,7 @@ class FalAIGallery {
             });
         }
         
-        // Reinitialize Fancybox for mobile gallery elements
-        this.reinitializeFancybox();
-        // After DOM updates recalc sticky offsets
+    // After DOM updates recalc sticky offsets
         this.updateMobileStickyHeights();
     }
 
@@ -528,10 +322,14 @@ class FalAIGallery {
             </div>
         `;
         
-        const link = document.createElement('a');
-        link.href = imageData.url;
-        link.setAttribute('data-fancybox', 'mobile-gallery');
-        link.setAttribute('data-caption', `${imageData.endpoint} - ${date}`);
+    const link = document.createElement('a');
+    link.href = imageData.url;
+    link.className = 'pswp-item';
+    link.dataset.endpoint = imageData.endpoint || '';
+    link.dataset.prompt = imageData.prompt || '';
+    link.dataset.meta = JSON.stringify(imageData.parameters || {});
+    link.dataset.imageId = imageData.timestamp;
+    this._assignNaturalSize(link, imageData.url);
         
         const img = document.createElement('img');
         img.src = imageData.url;
@@ -562,43 +360,60 @@ class FalAIGallery {
         return div;
     }
 
-    // Reinitialize Fancybox for new elements
-    reinitializeFancybox() {
-        // Destroy existing instances
-        if (this.fancyboxInstance) {
-            Fancybox.destroy();
-        }
-        
-        // Reinitialize
-        this.initializeFancybox();
-    }
+    // (no lightbox re-init needed for PhotoSwipe)
 
-    // Save image to gallery
-    saveImage(imageUrl, metadata = {}) {
+    // Save image to gallery (auto use, dedupe, silent optional)
+    saveImage(imageUrl, metadata = {}, options = {}) {
+        const { dedupe = true, silent = false } = options;
+        if (dedupe && this.savedImages.some(img => img.url === imageUrl)) {
+            return false; // already stored
+        }
+        const promptValue = (document.getElementById('prompt')?.value || '').trim();
         const imageData = {
             url: imageUrl,
             timestamp: Date.now(),
             endpoint: metadata.endpoint || 'Unknown',
             parameters: metadata.parameters || {},
+            prompt: promptValue,
             ...metadata
         };
-
         this.savedImages.unshift(imageData);
         this.saveImages();
-        
-        // Update galleries
         this.showInlineGallery();
         this.updateMobileGallery();
-
-        // Show success notification
-        if (this.app && this.app.showNotification) {
-            this.app.showNotification('Image saved to gallery', 'success');
+        if (!silent && this.app && this.app.showNotification) {
+            this.app.showNotification('Image added to gallery', 'success');
         }
+        return true;
     }
 
     // Save images to localStorage
     saveImages() {
-        localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
+        try {
+            localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
+        } catch (e) {
+            console.warn('Failed to save gallery (likely quota exceeded)', e);
+            // Try freeing space by removing oldest images until it fits or list empty
+            let removed = 0;
+            while (this.savedImages.length > 0) {
+                this.savedImages.pop(); // remove oldest (we unshift new ones)
+                try {
+                    localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
+                    if (this.app && this.app.showNotification) {
+                        this.app.showNotification(`Storage full. Removed ${removed + 1}+ old images to save new ones`, 'warning');
+                    }
+                    return;
+                } catch (err) {
+                    removed++;
+                    continue;
+                }
+            }
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Storage full. Failed to save image.', 'error');
+            } else {
+                alert('Storage full. Failed to save image.');
+            }
+        }
     }
 
     // Clean up old images (called by app cleanup utility)
@@ -722,12 +537,26 @@ class FalAIGallery {
     // Update selection UI (count, buttons, etc.)
     updateSelectionUI() {
         const selectionCount = this.selectedImages.size;
-        const bulkToolbars = document.querySelectorAll('.bulk-actions-toolbar');
-        bulkToolbars.forEach(tb => {
-            tb.style.display = selectionCount > 0 ? 'flex' : 'none';
+        // Show/hide inline action buttons
+        document.querySelectorAll('.gallery-inline-actions').forEach(container => {
+            const counter = container.querySelector('.selection-counter');
+            const selectAllBtn = container.querySelector('.select-all-btn');
+            const clearBtn = container.querySelector('.clear-selection-btn');
+            const deleteBtn = container.querySelector('.bulk-delete-btn');
+            // Toggle visibility depending on mode
+            if (this.selectionMode) {
+                if (counter) counter.style.display = 'inline-block';
+                if (selectAllBtn) selectAllBtn.style.display = 'inline-block';
+                if (clearBtn) clearBtn.style.display = 'inline-block';
+                if (deleteBtn) deleteBtn.style.display = selectionCount > 0 ? 'inline-block' : 'none';
+            } else {
+                if (counter) counter.style.display = 'none';
+                if (selectAllBtn) selectAllBtn.style.display = 'none';
+                if (clearBtn) clearBtn.style.display = 'none';
+                if (deleteBtn) deleteBtn.style.display = 'none';
+            }
+            if (counter) counter.textContent = `${selectionCount} selected`;
         });
-        const counters = document.querySelectorAll('.selection-counter');
-        counters.forEach(c => c.textContent = `${selectionCount} selected`);
     }
 
     // Select all images
@@ -796,6 +625,21 @@ class FalAIGallery {
                 this.app.showNotification(`${selectedCount} image${selectedCount > 1 ? 's' : ''} deleted successfully`, 'success');
             }
         }
+    }
+
+    // Helper: set intrinsic image size for PhotoSwipe to avoid stretch
+    _assignNaturalSize(anchorEl, url) {
+        const img = new Image();
+        img.onload = () => {
+            // Only set if dimensions look valid and not already set
+            if (!anchorEl.getAttribute('data-pswp-width')) {
+                anchorEl.setAttribute('data-pswp-width', img.naturalWidth);
+                anchorEl.setAttribute('data-pswp-height', img.naturalHeight);
+            }
+        };
+        // Use decoding async for faster paint if supported
+        try { img.decoding = 'async'; } catch(e) {}
+        img.src = url;
     }
 }
 

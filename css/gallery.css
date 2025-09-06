@@ -126,31 +126,21 @@
     background: rgba(59, 130, 246, 0.5);
 }
 
-/* Bulk Actions Toolbar */
-.bulk-actions-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-/* Sticky bulk toolbar for inline (desktop) gallery */
-.inline-gallery > .bulk-actions-toolbar {
-    position: sticky;
-    top: 76px; /* height of header + spacing inside component */
-    z-index: 9;
-}
-
-.bulk-actions-left,
-.bulk-actions-right {
+/* Inline selection actions container (counter + buttons) */
+.gallery-inline-actions {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    flex: 1;
+}
+.gallery-inline-actions .selection-counter { order: 0; }
+.gallery-inline-actions .select-all-btn { order: 1; }
+.gallery-inline-actions .clear-selection-btn { order: 2; }
+.gallery-inline-actions .bulk-delete-btn { order: 3; }
+/* Move the toggle (shows as Cancel in selection mode) to far right always */
+.gallery-inline-actions .selection-mode-btn { 
+    order: 10; 
+    margin-left: auto;
 }
 
 .selection-counter {
@@ -429,225 +419,6 @@
     flex-shrink: 0;
 }
 
-/* Fancybox Custom Styles */
-.fancybox__container {
-    --fancybox-bg: rgba(24, 24, 27, 0.95);
-    --fancybox-accent-color: #3b82f6;
-    --fancybox-content-opacity: 1 !important;
-}
-
-/* Force all content to be fully visible immediately */
-.fancybox__container * {
-    opacity: 1 !important;
-}
-
-/* Prevent any loading dimming effects */
-.fancybox__slide,
-.fancybox__slide.is-loading,
-.fancybox__slide.has-loading {
-    opacity: 1 !important;
-}
-
-.fancybox__content,
-.fancybox__content.is-loading {
-    opacity: 1 !important;
-    filter: none !important;
-    transform: none !important;
-}
-
-/* Disable all image loading states that cause dimming */
-.fancybox__slide img {
-    opacity: 1 !important;
-    filter: none !important;
-    visibility: visible !important;
-}
-
-.fancybox__slide img[data-lazy-src] {
-    opacity: 1 !important;
-}
-
-/* Override any CSS animations that might dim content */
-.fancybox__slide--current .fancybox__content {
-    animation: none !important;
-    opacity: 1 !important;
-}
-
-/* Smooth slide transitions - disable scaling effects */
-.fancybox__slide {
-    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-}
-
-.fancybox__slide .fancybox__content {
-    transition: none !important;
-    transform: none !important;
-}
-
-/* Disable zoom-in/out animations on open/close */
-.fancybox__backdrop,
-.fancybox__container {
-    transition: opacity 0.25s ease-in-out !important;
-}
-
-/* Carousel smooth sliding */
-.fancybox__carousel {
-    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-}
-
-/* Remove scale animations completely and ensure full brightness */
-.fancybox__slide--current .fancybox__content,
-.fancybox__slide--next .fancybox__content,
-.fancybox__slide--previous .fancybox__content {
-    transform: scale(1) !important;
-    opacity: 1 !important;
-    filter: none !important;
-    transition: opacity 0.2s ease !important;
-}
-
-/* Ensure images are always fully visible */
-.fancybox__slide img,
-.fancybox__content img {
-    opacity: 1 !important;
-    filter: none !important;
-}
-
-/* Fix any loading state dimming */
-.fancybox__slide--current {
-    opacity: 1 !important;
-}
-
-.fancybox__slide.has-loading .fancybox__content {
-    opacity: 1 !important;
-}
-
-/* Custom smooth animations */
-.fancybox-zoomInUp {
-    animation: fancybox-zoomInUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.fancybox-zoomOutDown {
-    animation: fancybox-zoomOutDown 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-@keyframes fancybox-zoomInUp {
-    from {
-        opacity: 0;
-        transform: scale(0.98) translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-@keyframes fancybox-zoomOutDown {
-    from {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-    to {
-        opacity: 0;
-        transform: scale(0.98) translateY(10px);
-    }
-}
-
-/* Custom buttons styling */
-.f-button--download,
-.f-button--delete {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-    transition: all 0.2s ease;
-}
-
-.f-button--download:hover,
-.f-button--delete:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
-    transform: scale(1.05);
-}
-
-.f-button--delete:hover {
-    background: rgba(220, 38, 38, 0.8);
-    border-color: rgba(220, 38, 38, 1);
-}
-
-/* Enhanced toolbar */
-.fancybox__toolbar {
-    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
-    backdrop-filter: blur(20px);
-}
-
-/* Better image captions */
-.fancybox__caption {
-    background: linear-gradient(transparent, rgba(0,0,0,0.8));
-    backdrop-filter: blur(20px);
-    color: #f1f5f9;
-    font-size: 0.875rem;
-    padding: 2rem 1rem 1rem;
-    text-align: center;
-}
-
-/* Navigation arrows styling */
-.fancybox__nav .f-button {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    backdrop-filter: blur(10px) !important;
-    transition: all 0.2s ease !important;
-}
-
-.fancybox__nav .f-button:hover {
-    background: rgba(255, 255, 255, 0.2) !important;
-    border-color: rgba(255, 255, 255, 0.4) !important;
-    transform: scale(1.1) !important;
-}
-
-/* Fancybox Mobile Optimizations */
-@media (max-width: 768px) {
-    .fancybox__toolbar {
-        padding: 0.5rem;
-    }
-    
-    .f-button {
-        width: 44px;
-        height: 44px;
-        font-size: 1.1rem;
-    }
-    
-    .fancybox__caption {
-        font-size: 0.8rem;
-        padding: 1.5rem 1rem 1rem;
-    }
-    
-    /* Better touch targets */
-    .fancybox__nav .f-button {
-        width: 60px;
-        height: 60px;
-        font-size: 1.5rem;
-    }
-    
-    /* Gesture hints for mobile */
-    .fancybox__container::after {
-        content: "Pinch to zoom, swipe to navigate";
-        position: absolute;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 12px;
-        opacity: 0;
-        animation: fadeInOut 3s ease;
-        pointer-events: none;
-        z-index: 9999;
-    }
-    
-    @keyframes fadeInOut {
-        0%, 100% { opacity: 0; }
-        20%, 80% { opacity: 1; }
-    }
-}
 
 /* Enhanced Gallery Responsive Design */
 @media (max-width: 768px) {
@@ -691,4 +462,84 @@
         padding: 2rem 1rem 1rem;
         font-size: 0.75rem;
     }
+}
+
+/* PhotoSwipe custom overlay */
+.pswp-meta-overlay {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.75));
+    color: #f1f5f9;
+    padding: 1rem 1rem 1.25rem;
+    font-size: 0.75rem;
+    max-height: 40%;
+    overflow: auto;
+    box-sizing: border-box;
+}
+.pswp-meta-overlay .meta-json {
+    margin-top: 0.5rem;
+    font-family: monospace;
+    font-size: 0.65rem;
+    white-space: pre;
+    background: rgba(255,255,255,0.05);
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+/* Nicer PhotoSwipe top bar buttons */
+/* PhotoSwipe buttons aligned to existing .btn / .btn.secondary style */
+.pswp__button--download, .pswp__button--useprompt, .pswp__button--delete {
+    background: #ffffff;
+    color: #334155;
+    border: 1px solid #dbe2ea;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    text-transform: none;
+    padding: 0 1.1rem;
+    height: 36px;
+    min-width: 108px;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
+    margin: 0 6px 0 0;
+    letter-spacing: .25px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+.pswp__button--download:hover, .pswp__button--useprompt:hover, .pswp__button--delete:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+.pswp__button--delete { color: #dc2626; border-color: #f1f5f9; }
+.pswp__button--delete:hover { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
+.pswp-btn-label { font-size: 0.7rem; font-weight: 500; font-family: system-ui, sans-serif; }
+
+/* Variant coloring */
+.pswp__button--download {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+}
+.pswp__button--download:hover { background:#2563eb; border-color:#2563eb; }
+.pswp__button--useprompt { background:#ffffff; }
+.pswp__button--useprompt:hover { background:#f1f5f9; }
+.pswp__button--delete { background:#dc2626; color:#fff; border-color:#dc2626; }
+.pswp__button--delete:hover { background:#b91c1c; border-color:#b91c1c; color:#fff; }
+
+/* (Moved enhanced .pswp-btn-label styles above) */
+
+/* Result image overlay download button */
+.result-image-actions .result-download-btn {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(30,41,59,0.85);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #e2e8f0;
+    backdrop-filter: blur(4px);
+}
+.result-image-actions .result-download-btn:hover {
+    background: rgba(51,65,85,0.95);
 }
