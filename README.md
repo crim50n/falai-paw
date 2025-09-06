@@ -29,11 +29,13 @@ FalAI is a comprehensive web-based client designed to interact with various `fal
 
 ```
 /
-├───app.js              # Main application logic (client-side)
+├───js/
+│   ├───app.js          # Main application logic (client-side)
+│   └───sw.js           # Service Worker for PWA functionality
+├───css/
+│   └───styles.css      # All application styles
 ├───index.html          # Main HTML structure
-├───styles.css          # All application styles
 ├───server.py           # Simple Python dev server for serving files and endpoint discovery
-├───sw.js               # Service Worker for PWA functionality
 ├───manifest.json       # PWA configuration file
 ├───endpoints/          # Directory containing OpenAPI schemas for different models
 └───README.md           # This file

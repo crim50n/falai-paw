@@ -162,23 +162,7 @@ class FalAI {
     }
 
     async loadEndpoints() {
-        try {
-            const response = await fetch('/endpoints');
-            if (!response.ok) {
-                // Fallback: manually load known endpoints
-                await this.loadEndpointsManually();
-                return;
-            }
-            const endpointPaths = await response.json();
-
-            for (const path of endpointPaths) {
-                await this.loadEndpoint(path);
-            }
-        } catch (error) {
-            console.warn('Could not auto-discover endpoints, loading manually:', error);
-            await this.loadEndpointsManually();
-        }
-
+        await this.loadEndpointsManually();
         this.renderEndpointDropdown();
     }
 
@@ -4085,7 +4069,7 @@ class FalAI {
         // Register service worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
+                navigator.serviceWorker.register('/js/sw.js')
                     .then((registration) => {
                         console.log('ServiceWorker registration successful: ', registration.scope);
                     })
