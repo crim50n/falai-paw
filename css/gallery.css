@@ -485,84 +485,54 @@
     padding: 0.5rem;
     border-radius: 4px;
 }
-/* Enhanced PhotoSwipe buttons - matching app design system */
-.pswp__button--download, .pswp__button--useprompt, .pswp__button--delete,
-.pswp .pswp__button--download, .pswp .pswp__button--useprompt, .pswp .pswp__button--delete {
-    background: #f8fafc !important;
-    color: #475569 !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 8px !important;
-    font-size: 0.875rem !important;
-    font-weight: 500 !important;
-    text-transform: none !important;
-    padding: 0.625rem 1rem !important;
-    height: auto !important;
-    min-width: 100px !important;
-    width: auto !important;
-    display: inline-flex !important; 
-    align-items: center !important; 
-    justify-content: center !important;
-    cursor: pointer !important;
-    transition: all 0.15s ease !important;
-    margin: 0 0.5rem 0 0 !important;
-    letter-spacing: 0 !important;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
-    opacity: 1 !important;
+/* PhotoSwipe custom buttons styling - unified Fluent Icons */
+.pswp__button--download-button,
+.pswp__button--useprompt-button,
+.pswp__button--delete-button,
+.pswp__button--close,
+.pswp__button--zoom {
+  width: 44px !important;
+  height: 44px !important;
+  background: transparent !important;
+  color: #ffffff !important;
+  border: none !important;
+  margin: 0 2px !important;
+  position: relative !important;
+  transition: all 0.15s ease !important;
 }
 
-.pswp__button--download:hover, .pswp__button--useprompt:hover, .pswp__button--delete:hover,
-.pswp .pswp__button--download:hover, .pswp .pswp__button--useprompt:hover, .pswp .pswp__button--delete:hover {
-    background: #f1f5f9 !important;
-    border-color: #cbd5e1 !important;
-    color: #334155 !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+.pswp__button--download-button:hover,
+.pswp__button--useprompt-button:hover,
+.pswp__button--delete-button:hover,
+.pswp__button--close:hover,
+.pswp__button--zoom:hover {
+  background: transparent !important;
+  color: #ffffff !important;
 }
 
-/* Primary download button - blue */
-.pswp__button--download, .pswp .pswp__button--download {
-    background: #3b82f6 !important;
-    border-color: #3b82f6 !important;
-    color: #ffffff !important;
+/* SVG icon styling - unified for all buttons */
+.pswp__button--download-button svg,
+.pswp__button--useprompt-button svg,
+.pswp__button--delete-button svg,
+.pswp__button--close svg,
+.pswp__button--zoom svg {
+  width: 24px !important;
+  height: 24px !important;
+  transition: all 0.15s ease !important;
+  opacity: 0.8 !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
 }
 
-.pswp__button--download:hover, .pswp .pswp__button--download:hover { 
-    background: #2563eb !important; 
-    border-color: #2563eb !important;
-    color: #ffffff !important;
-}
-
-/* Secondary use prompt button - white/gray */
-.pswp__button--useprompt, .pswp .pswp__button--useprompt { 
-    background: #ffffff !important;
-    border-color: #e2e8f0 !important;
-    color: #475569 !important;
-}
-
-.pswp__button--useprompt:hover, .pswp .pswp__button--useprompt:hover { 
-    background: #f8fafc !important;
-    border-color: #cbd5e1 !important;
-    color: #334155 !important;
-}
-
-/* Danger delete button - red */
-.pswp__button--delete, .pswp .pswp__button--delete { 
-    background: #dc2626 !important; 
-    color: #ffffff !important; 
-    border-color: #dc2626 !important; 
-}
-
-.pswp__button--delete:hover, .pswp .pswp__button--delete:hover { 
-    background: #b91c1c !important; 
-    border-color: #b91c1c !important; 
-    color: #ffffff !important;
-}
-
-.pswp-btn-label { 
-    font-size: 0.875rem !important; 
-    font-weight: 500 !important; 
-    font-family: inherit !important;
+.pswp__button--download-button:hover svg,
+.pswp__button--useprompt-button:hover svg,
+.pswp__button--delete-button:hover svg,
+.pswp__button--close:hover svg,
+.pswp__button--zoom:hover svg {
+  opacity: 1 !important;
+  transform: translate(-50%, -50%) scale(1.1) !important;
 }
 
 /* (Moved enhanced .pswp-btn-label styles above) */

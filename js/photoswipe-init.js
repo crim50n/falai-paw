@@ -20,161 +20,151 @@ function initLightbox() {
     padding: { top: 60, bottom: 60, left: 16, right: 16 }
   });
 
-  lightbox.on('uiRegister', () => {
-    // Create custom button container in bottom area
+  lightbox.on('uiRegister', function() {
+    // Override default close button with Fluent Icon
     lightbox.pswp.ui.registerElement({
-      name: 'custom-buttons',
-      order: 9,
-      appendTo: 'wrapper',
+      name: 'close',
+      order: 20,
+      isButton: true,
+      html: {
+        isCustomSVG: true,
+        inner: '<path d="m4.21 4.387.083-.094a1 1 0 0 1 1.32-.083l.094.083L12 10.585l6.293-6.292a1 1 0 1 1 1.414 1.414L13.415 12l6.292 6.293a1 1 0 0 1 .083 1.32l-.083.094a1 1 0 0 1-1.32.083l-.094-.083L12 13.415l-6.293 6.292a1 1 0 0 1-1.414-1.414L10.585 12 4.293 5.707a1 1 0 0 1-.083-1.32l.083-.094-.083.094Z"/>',
+        outlineID: 'pswp__icn-close'
+      },
       onInit: (el, pswp) => {
-        el.className = 'pswp-custom-buttons';
-        el.style.cssText = `
-          position: absolute !important;
-          bottom: 80px !important;
-          left: 50% !important;
-          transform: translateX(-50%) !important;
-          display: flex !important;
-          gap: 0.4rem !important;
-          z-index: 1000 !important;
-          pointer-events: none !important;
-        `;
-        
-        // Create download button
-        const downloadBtn = document.createElement('button');
-        downloadBtn.innerHTML = '<span class="pswp-btn-label">Download</span>';
-        downloadBtn.style.cssText = `
-          background: #3b82f6 !important;
-          color: #ffffff !important;
-          border: 1px solid #3b82f6 !important;
-          border-radius: 6px !important;
-          font-size: 0.8rem !important;
-          font-weight: 500 !important;
-          padding: 0.4rem 0.8rem !important;
-          height: 32px !important;
-          min-width: 80px !important;
-          width: auto !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          cursor: pointer !important;
-          transition: all 0.15s ease !important;
-          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
-          opacity: 1 !important;
-          pointer-events: auto !important;
-        `;
-        
-        // Create prompt button
-        const promptBtn = document.createElement('button');
-        promptBtn.innerHTML = '<span class="pswp-btn-label">Prompt</span>';
-        promptBtn.style.cssText = `
-          background: #ffffff !important;
-          color: #475569 !important;
-          border: 1px solid #e2e8f0 !important;
-          border-radius: 6px !important;
-          font-size: 0.8rem !important;
-          font-weight: 500 !important;
-          padding: 0.4rem 0.8rem !important;
-          height: 32px !important;
-          min-width: 80px !important;
-          width: auto !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          cursor: pointer !important;
-          transition: all 0.15s ease !important;
-          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
-          opacity: 1 !important;
-          pointer-events: auto !important;
-        `;
-        
-        // Create delete button
-        const deleteBtn = document.createElement('button');
-        deleteBtn.innerHTML = '<span class="pswp-btn-label">Delete</span>';
-        deleteBtn.style.cssText = `
-          background: #dc2626 !important;
-          color: #ffffff !important;
-          border: 1px solid #dc2626 !important;
-          border-radius: 6px !important;
-          font-size: 0.8rem !important;
-          font-weight: 500 !important;
-          padding: 0.4rem 0.8rem !important;
-          height: 32px !important;
-          min-width: 80px !important;
-          width: auto !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          cursor: pointer !important;
-          transition: all 0.15s ease !important;
-          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
-          opacity: 1 !important;
-          pointer-events: auto !important;
-        `;
-        
-        // Download functionality
-        downloadBtn.addEventListener('click', async () => {
-          const s = pswp.currSlide; if (!s) return;
-          const src = s.data.src;
-          let filename = 'image.png';
-          try { const u = new URL(src); const last = u.pathname.split('/').pop(); filename = (last && last.includes('.')) ? last : 'image-' + Date.now() + '.png'; } catch(e) { filename = 'image-' + Date.now() + '.png'; }
+        el.setAttribute('title', 'Close (Esc)');
+        el.setAttribute('data-custom', 'true');
+        el.addEventListener('click', () => { pswp.close(); });
+      }
+    });
 
-          const triggerDownload = (url) => {
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-          };
+    // Override default zoom button with Fluent Icon  
+    lightbox.pswp.ui.registerElement({
+      name: 'zoom',
+      order: 10,
+      isButton: true,
+      html: {
+        isCustomSVG: true,
+        inner: '<path d="M10 2.5a7.5 7.5 0 0 1 5.964 12.048l4.743 4.744a1 1 0 0 1-1.32 1.497l-.094-.083-4.744-4.743A7.5 7.5 0 1 1 10 2.5Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Zm-2.5 5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1H8a.5.5 0 0 1-.5-.5Zm2-2a.5.5 0 0 1 .5-.5.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5.5.5 0 0 1-.5-.5v-4Z"/>',
+        outlineID: 'pswp__icn-zoom'
+      },
+      onInit: (el, pswp) => {
+        el.setAttribute('title', 'Zoom in/out');
+        el.setAttribute('data-custom', 'true');
+        el.addEventListener('click', () => {
+          pswp.currSlide && pswp.currSlide.toggleZoom();
+        });
+      }
+    });
 
-          try {
-              if (src.startsWith('data:')) {
-                triggerDownload(src);
-                return;
+    // Download button
+    lightbox.pswp.ui.registerElement({
+      name: 'download-button',
+      order: 8,
+      isButton: true,
+      tagName: 'a',
+      html: {
+        isCustomSVG: true,
+        inner: '<path d="M18.25 20.5a.75.75 0 1 1 0 1.5l-13 .004a.75.75 0 1 1 0-1.5l13-.004ZM11.648 2.012l.102-.007a.75.75 0 0 1 .743.648l.007.102-.001 13.685 3.722-3.72a.75.75 0 0 1 .976-.073l.085.073a.75.75 0 0 1 .072.976l-.073.084-4.997 4.997a.75.75 0 0 1-.976.073l-.085-.073-5.003-4.996a.75.75 0 0 1 .976-1.134l.084.072 3.719 3.714L11 2.755a.75.75 0 0 1 .648-.743l.102-.007-.102.007Z"/>',
+        outlineID: 'pswp__icn-download'
+      },
+      onInit: (el, pswp) => {
+        el.setAttribute('download', '');
+        el.setAttribute('target', '_blank');
+        el.setAttribute('rel', 'noopener');
+
+        pswp.on('change', () => {
+          const slide = pswp.currSlide;
+          if (slide) {
+            el.href = slide.data.src;
+            // Set proper filename for download
+            try {
+              const url = new URL(slide.data.src);
+              const filename = url.pathname.split('/').pop();
+              if (filename && filename.includes('.')) {
+                el.setAttribute('download', filename);
+              } else {
+                el.setAttribute('download', 'image-' + Date.now() + '.png');
               }
-              const resp = await fetch(src, {mode:'cors'});
-              const blob = await resp.blob();
-              const url = URL.createObjectURL(blob);
-              triggerDownload(url);
-              setTimeout(()=>URL.revokeObjectURL(url), 4000);
-          } catch(err) {
-              triggerDownload(src);
+            } catch (e) {
+              el.setAttribute('download', 'image-' + Date.now() + '.png');
+            }
           }
         });
-        
-        // Prompt functionality
-        promptBtn.addEventListener('click', () => {
-          const s = pswp.currSlide; if (!s) return;
-          const p = s.data.element?.dataset.prompt || '';
-          const inp = document.getElementById('prompt');
-          if (inp) inp.value = p;
+      }
+    });
+
+    // Use prompt button
+    lightbox.pswp.ui.registerElement({
+      name: 'useprompt-button',
+      order: 9,
+      isButton: true,
+      tagName: 'button',
+      html: {
+        isCustomSVG: true,
+        inner: '<path d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10c-1.821 0-3.53-.487-5-1.338L2.999 21.5a1 1 0 0 1-1.28-1.28L2.5 16.218C1.487 14.77 2 13.06 2 12c0-5.523 4.477-10 10-10Zm0 1.5A8.5 8.5 0 0 0 3.5 12c0 1.47.373 2.883 1.073 4.137l.15.27-1.076 3.236 3.236-1.076.27.15A8.5 8.5 0 1 0 12 3.5ZM8.75 13h4.498a.75.75 0 0 1 .102 1.493l-.102.007H8.75a.75.75 0 0 1-.102-1.493L8.75 13h4.498H8.75Zm0-3.5h6.505a.75.75 0 0 1 .101 1.493l-.101.007H8.75a.75.75 0 0 1-.102-1.493L8.75 9.5h6.505H8.75Z"/>',
+        outlineID: 'pswp__icn-prompt'
+      },
+      onInit: (el, pswp) => {
+        el.setAttribute('title', 'Use Prompt');
+        el.addEventListener('click', () => {
+          const slide = pswp.currSlide;
+          if (slide) {
+            const prompt = slide.data.element?.dataset.prompt || '';
+            const promptInput = document.getElementById('prompt');
+            if (promptInput) {
+              promptInput.value = prompt;
+            }
+          }
         });
+      }
+    });
+
+    // Delete button
+    lightbox.pswp.ui.registerElement({
+      name: 'delete-button',
+      order: 10,
+      isButton: true,
+      tagName: 'button',
+      html: {
+        isCustomSVG: true,
+        inner: '<path d="M12 1.75a3.25 3.25 0 0 1 3.245 3.066L15.25 5h5.25a.75.75 0 0 1 .102 1.493L20.5 6.5h-.796l-1.28 13.02a2.75 2.75 0 0 1-2.561 2.474l-.176.006H8.313a2.75 2.75 0 0 1-2.714-2.307l-.023-.174L4.295 6.5H3.5a.75.75 0 0 1-.743-.648L2.75 5.75a.75.75 0 0 1 .648-.743L3.5 5h5.25A3.25 3.25 0 0 1 12 1.75Zm6.197 4.75H5.802l1.267 12.872a1.25 1.25 0 0 0 1.117 1.122l.127.006h7.374c.6 0 1.109-.425 1.225-1.002l.02-.126L18.196 6.5ZM13.75 9.25a.75.75 0 0 1 .743.648L14.5 10v7a.75.75 0 0 1-1.493.102L13 17v-7a.75.75 0 0 1 .75-.75Zm-3.5 0a.75.75 0 0 1 .743.648L11 10v7a.75.75 0 0 1-1.493.102L9.5 17v-7a.75.75 0 0 1 .75-.75Zm1.75-6a1.75 1.75 0 0 0-1.744 1.606L10.25 5h3.5A1.75 1.75 0 0 0 12 3.25Z"/>',
+        outlineID: 'pswp__icn-delete'
+      },
+      onInit: (el, pswp) => {
+        el.setAttribute('title', 'Delete');
         
-        // Delete functionality and visibility
-        const updateDeleteVisibility = () => {
-          const slide = pswp.currSlide; if (!slide) return; const link = slide.data.element; if (!link) return;
-          const inResults = !!link.closest('#result-images');
-          const hasImageId = !!link.dataset.imageId;
-          deleteBtn.style.display = (!inResults && hasImageId) ? 'inline-flex' : 'none';
+        // Hide for non-gallery (result) images; show only if element has data-image-id (saved gallery item)
+        const updateVisibility = () => {
+          const slide = pswp.currSlide;
+          if (slide) {
+            const link = slide.data.element;
+            if (link) {
+              const inResults = !!link.closest('#result-images');
+              const hasImageId = !!link.dataset.imageId;
+              el.style.display = (!inResults && hasImageId) ? '' : 'none';
+            }
+          }
         };
         
-        deleteBtn.addEventListener('click', () => {
-          const s = pswp.currSlide; if (!s) return; const id = s.data.element?.dataset.imageId; if (!id) return;
-          if (confirm('Delete this image?')) {
-            const g = window.falGallery; g.savedImages = g.savedImages.filter(img => String(img.timestamp) !== String(id)); g.saveImages();
-            s.data.element.remove(); g.showInlineGallery(); g.updateMobileGallery(); pswp.close();
+        pswp.on('change', updateVisibility);
+        pswp.on('afterInit', updateVisibility);
+        
+        el.addEventListener('click', () => {
+          const slide = pswp.currSlide;
+          if (slide) {
+            const imageId = slide.data.element?.dataset.imageId;
+            if (imageId && confirm('Delete this image?')) {
+              const gallery = window.falGallery;
+              gallery.savedImages = gallery.savedImages.filter(img => String(img.timestamp) !== String(imageId));
+              gallery.saveImages();
+              slide.data.element.remove();
+              gallery.showInlineGallery();
+              gallery.updateMobileGallery();
+              pswp.close();
+            }
           }
         });
-        
-        pswp.on('change', updateDeleteVisibility);
-        pswp.on('afterInit', updateDeleteVisibility);
-        
-        el.appendChild(downloadBtn);
-        el.appendChild(promptBtn);
-        el.appendChild(deleteBtn);
       }
     });
     // Metadata overlay
@@ -254,6 +244,20 @@ function initLightbox() {
         pswp.on('change', render); pswp.on('afterInit', render);
       }
     });
+  });
+
+  // Remove duplicate default buttons after initialization
+  lightbox.on('afterInit', () => {
+    // Remove default buttons that might still appear
+    const defaultClose = lightbox.pswp.element.querySelector('.pswp__button--close:not(.pswp__button--close[data-custom])');
+    const defaultZoom = lightbox.pswp.element.querySelector('.pswp__button--zoom:not(.pswp__button--zoom[data-custom])');
+    
+    if (defaultClose && defaultClose !== lightbox.pswp.element.querySelector('.pswp__button--close[data-custom]')) {
+      defaultClose.remove();
+    }
+    if (defaultZoom && defaultZoom !== lightbox.pswp.element.querySelector('.pswp__button--zoom[data-custom]')) {
+      defaultZoom.remove();
+    }
   });
 
   // Swipe up to delete gesture
