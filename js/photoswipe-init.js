@@ -60,21 +60,29 @@ function initLightbox() {
                 el.addEventListener('click', () => {
                     const slide = pswp.currSlide;
                     if (slide) {
-                        const imageId = String(slide.data.element?.dataset.imageId || '');
-                        if (imageId) {
-                            const gallery = window.falGallery;
-                            if (!gallery.likedImages) gallery.likedImages = [];
-
-                            const index = gallery.likedImages.indexOf(imageId);
-                            if (index > -1) {
-                                gallery.likedImages.splice(index, 1);
-                            } else {
-                                gallery.likedImages.push(imageId);
+                        const gallery = window.falGallery;
+                        const link = slide.data.element;
+                        let imageId = link?.dataset.imageId;
+                        
+                        // If no imageId (result image), find or save it first
+                        if (!imageId && link) {
+                            const inResults = !!link.closest('#result-images');
+                            if (inResults) {
+                                const metadata = {
+                                    endpoint: link.dataset.endpoint || '',
+                                    prompt: link.dataset.prompt || '',
+                                    seed: link.dataset.seed || '',
+                                    parameters: JSON.parse(link.dataset.meta || '{}')
+                                };
+                                imageId = gallery.findOrSaveResultImage(slide.data.src, metadata);
+                                // Update the link with the new imageId for future reference
+                                link.dataset.imageId = imageId;
                             }
-
-                            gallery.saveLikes();
+                        }
+                        
+                        if (imageId) {
+                            gallery.toggleLike(imageId);
                             updateLikeState();
-                            gallery.updateGalleryLikes();
                         }
                     }
                 });
@@ -253,7 +261,7 @@ function initLightbox() {
             onInit: (el, pswp) => {
                 el.setAttribute('title', 'Delete');
 
-                // Hide for non-gallery (result) images; show only if element has data-image-id (saved gallery item)
+                // Show for both saved gallery items and result images
                 const updateVisibility = () => {
                     const slide = pswp.currSlide;
                     if (slide) {
@@ -261,7 +269,8 @@ function initLightbox() {
                         if (link) {
                             const inResults = !!link.closest('#result-images');
                             const hasImageId = !!link.dataset.imageId;
-                            el.style.display = (!inResults && hasImageId) ? '' : 'none';
+                            // Show for saved gallery items OR result images
+                            el.style.display = (hasImageId || inResults) ? '' : 'none';
                         }
                     }
                 };
@@ -272,14 +281,31 @@ function initLightbox() {
                 el.addEventListener('click', () => {
                     const slide = pswp.currSlide;
                     if (slide) {
-                        const imageId = slide.data.element?.dataset.imageId;
-                        if (imageId && confirm('Delete this image?')) {
+                        const link = slide.data.element;
+                        if (link && confirm('Delete this image?')) {
                             const gallery = window.falGallery;
-                            gallery.savedImages = gallery.savedImages.filter(img => String(img.timestamp) !== String(imageId));
-                            gallery.saveImages();
-                            slide.data.element.remove();
-                            gallery.showInlineGallery();
-                            gallery.updateMobileGallery();
+                            const imageId = link.dataset.imageId;
+                            const inResults = !!link.closest('#result-images');
+                            
+                            if (imageId) {
+                                // Delete from saved gallery
+                                gallery.savedImages = gallery.savedImages.filter(img => String(img.timestamp) !== String(imageId));
+                                gallery.saveImages();
+                                gallery.showInlineGallery();
+                                gallery.updateMobileGallery();
+                            }
+                            
+                            if (inResults) {
+                                // Delete from results display
+                                const resultContainer = link.closest('.result-image');
+                                if (resultContainer) {
+                                    resultContainer.remove();
+                                }
+                            } else {
+                                // Delete gallery item
+                                link.closest('.gallery-item')?.remove();
+                            }
+                            
                             pswp.close();
                         }
                     }
@@ -428,10 +454,32 @@ function initLightbox() {
             if (dy < -120 && dx < 80) {
                 const slide = lightbox.pswp.currSlide;
                 if (slide) {
-                    const id = slide.data.element?.dataset.imageId;
-                    if (id && confirm('Delete this image?')) {
-                        const g = window.falGallery; g.savedImages = g.savedImages.filter(img => String(img.timestamp) !== String(id)); g.saveImages();
-                        slide.data.element.remove(); g.showInlineGallery(); g.updateMobileGallery(); lightbox.pswp.close();
+                    const link = slide.data.element;
+                    if (link && confirm('Delete this image?')) {
+                        const gallery = window.falGallery;
+                        const imageId = link.dataset.imageId;
+                        const inResults = !!link.closest('#result-images');
+                        
+                        if (imageId) {
+                            // Delete from saved gallery
+                            gallery.savedImages = gallery.savedImages.filter(img => String(img.timestamp) !== String(imageId));
+                            gallery.saveImages();
+                            gallery.showInlineGallery();
+                            gallery.updateMobileGallery();
+                        }
+                        
+                        if (inResults) {
+                            // Delete from results display
+                            const resultContainer = link.closest('.result-image');
+                            if (resultContainer) {
+                                resultContainer.remove();
+                            }
+                        } else {
+                            // Delete gallery item
+                            link.closest('.gallery-item')?.remove();
+                        }
+                        
+                        lightbox.pswp.close();
                     }
                 }
             }

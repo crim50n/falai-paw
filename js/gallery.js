@@ -299,29 +299,6 @@ class FalAIGallery {
         const actions = document.createElement('div');
         actions.className = 'result-image-actions';
 
-        const downloadBtn = document.createElement('button');
-        downloadBtn.className = 'btn secondary small result-download-btn';
-        downloadBtn.textContent = 'Download';
-        downloadBtn.title = 'Download image';
-        downloadBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const src = imageUrl;
-            let filename = 'image.png';
-            try { const u = new URL(src); const last = u.pathname.split('/').pop(); filename = (last && last.includes('.')) ? last : 'image-' + Date.now() + '.png'; } catch (e2) { filename = 'image-' + Date.now() + '.png'; }
-            const triggerDownload = (url) => { const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); };
-            try {
-                if (src.startsWith('data:')) { triggerDownload(src); return; }
-                const resp = await fetch(src, { mode: 'cors' });
-                const blob = await resp.blob();
-                const url = URL.createObjectURL(blob);
-                triggerDownload(url);
-                setTimeout(() => URL.revokeObjectURL(url), 4000);
-            } catch (err) { triggerDownload(src); }
-        });
-
-        actions.appendChild(downloadBtn);
-
         link.appendChild(img);
         div.appendChild(link);
         div.appendChild(actions);
@@ -547,6 +524,32 @@ class FalAIGallery {
         this.updateGalleryLikes();
         
         return this.likedImages.includes(imageIdStr);
+    }
+
+    // Find or save result image and return its ID for syncing with PhotoSwipe
+    findOrSaveResultImage(imageUrl, metadata = {}) {
+        // Try to find existing saved image with this URL
+        const existingImage = this.savedImages.find(img => img.url === imageUrl);
+        if (existingImage) {
+            return existingImage.timestamp;
+        }
+
+        // If it's a result image being liked, save it to gallery
+        const imageData = {
+            url: imageUrl,
+            timestamp: Date.now(),
+            endpoint: metadata.endpoint || 'Unknown',
+            parameters: metadata.parameters || {},
+            prompt: metadata.prompt || '',
+            ...metadata
+        };
+        
+        this.savedImages.unshift(imageData);
+        this.saveImages();
+        this.showInlineGallery();
+        this.updateMobileGallery();
+        
+        return imageData.timestamp;
     }
 
     // Update gallery display to show like states
