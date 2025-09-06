@@ -10,6 +10,9 @@ class FalAI {
         this.currentImageIndex = 0;
         this.fullscreenImages = [];
         this.debugMode = localStorage.getItem('falai_debug_mode') === 'true';
+        
+        // Persistent generation state
+        this.isGenerating = false;
 
         this.init();
     }
@@ -53,6 +56,9 @@ class FalAI {
                 console.warn(`⚠️ Storage ${info.usage}% full! Run falaiStorage.info() for details`);
             }
         }
+
+        // Check for incomplete generation on startup
+        this.checkIncompleteGeneration();
 
         // Make storage functions available globally for debugging
         window.falaiStorage = {
@@ -1781,6 +1787,15 @@ class FalAI {
             this.statusUrl = queueResponse.status_url;
             this.resultUrl = queueResponse.response_url;
 
+            // Save generation state for recovery
+            this.saveGenerationState({
+                requestId: this.currentRequestId,
+                statusUrl: this.statusUrl,
+                resultUrl: this.resultUrl,
+                endpointId: this.currentEndpointId,
+                timestamp: Date.now()
+            });
+
             // Start polling
             this.startStatusPolling();
 
@@ -1799,6 +1814,9 @@ class FalAI {
         generateBtn.classList.remove('loading');
         generateText.classList.remove('hidden');
         generateLoading.classList.add('hidden');
+        
+        // Clear saved generation state when generation finishes
+        this.clearGenerationState();
     }
 
     collectFormData() {
@@ -5394,6 +5412,51 @@ class FalAI {
         //         }
         //     }
         // }, { passive: true });
+    }
+
+    // Persistent generation state management
+    saveGenerationState(state) {
+        localStorage.setItem('falai_generation_state', JSON.stringify(state));
+        this.logDebug('Saved generation state', 'info', state);
+    }
+
+    clearGenerationState() {
+        localStorage.removeItem('falai_generation_state');
+        this.logDebug('Cleared generation state', 'info');
+    }
+
+    checkIncompleteGeneration() {
+        const savedState = localStorage.getItem('falai_generation_state');
+        if (!savedState) return;
+
+        try {
+            const state = JSON.parse(savedState);
+            
+            this.logDebug('Found incomplete generation, resuming...', 'info', state);
+            
+            // Restore state
+            this.currentRequestId = state.requestId;
+            this.statusUrl = state.statusUrl;
+            this.resultUrl = state.resultUrl;
+            
+            // Show status and start polling
+            this.showGenerationStatus('Resuming generation...');
+            const generateBtn = document.querySelector('.generate-btn');
+            if (generateBtn) {
+                generateBtn.classList.add('loading');
+                const generateText = generateBtn.querySelector('.generate-text');
+                const generateLoading = generateBtn.querySelector('.generate-loading');
+                if (generateText) generateText.classList.add('hidden');
+                if (generateLoading) generateLoading.classList.remove('hidden');
+            }
+            
+            // Resume polling
+            this.startStatusPolling();
+            
+        } catch (error) {
+            console.error('Error resuming generation:', error);
+            this.clearGenerationState();
+        }
     }
 }
 
