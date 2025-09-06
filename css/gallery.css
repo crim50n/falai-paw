@@ -485,46 +485,85 @@
     padding: 0.5rem;
     border-radius: 4px;
 }
-/* Nicer PhotoSwipe top bar buttons */
-/* PhotoSwipe buttons aligned to existing .btn / .btn.secondary style */
-.pswp__button--download, .pswp__button--useprompt, .pswp__button--delete {
-    background: #ffffff;
-    color: #334155;
-    border: 1px solid #dbe2ea;
-    border-radius: 10px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    text-transform: none;
-    padding: 0 1.1rem;
-    height: 36px;
-    min-width: 108px;
-    display: inline-flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    transition: background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
-    margin: 0 6px 0 0;
-    letter-spacing: .25px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+/* Enhanced PhotoSwipe buttons - matching app design system */
+.pswp__button--download, .pswp__button--useprompt, .pswp__button--delete,
+.pswp .pswp__button--download, .pswp .pswp__button--useprompt, .pswp .pswp__button--delete {
+    background: #f8fafc !important;
+    color: #475569 !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    text-transform: none !important;
+    padding: 0.625rem 1rem !important;
+    height: auto !important;
+    min-width: 100px !important;
+    width: auto !important;
+    display: inline-flex !important; 
+    align-items: center !important; 
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    margin: 0 0.5rem 0 0 !important;
+    letter-spacing: 0 !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
+    opacity: 1 !important;
 }
-.pswp__button--download:hover, .pswp__button--useprompt:hover, .pswp__button--delete:hover {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
-    color: #1e293b;
-}
-.pswp__button--delete { color: #dc2626; border-color: #f1f5f9; }
-.pswp__button--delete:hover { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
-.pswp-btn-label { font-size: 0.7rem; font-weight: 500; font-family: system-ui, sans-serif; }
 
-/* Variant coloring */
-.pswp__button--download {
-    background: #3b82f6;
-    border-color: #3b82f6;
-    color: #fff;
+.pswp__button--download:hover, .pswp__button--useprompt:hover, .pswp__button--delete:hover,
+.pswp .pswp__button--download:hover, .pswp .pswp__button--useprompt:hover, .pswp .pswp__button--delete:hover {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #334155 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
 }
-.pswp__button--download:hover { background:#2563eb; border-color:#2563eb; }
-.pswp__button--useprompt { background:#ffffff; }
-.pswp__button--useprompt:hover { background:#f1f5f9; }
-.pswp__button--delete { background:#dc2626; color:#fff; border-color:#dc2626; }
-.pswp__button--delete:hover { background:#b91c1c; border-color:#b91c1c; color:#fff; }
+
+/* Primary download button - blue */
+.pswp__button--download, .pswp .pswp__button--download {
+    background: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+.pswp__button--download:hover, .pswp .pswp__button--download:hover { 
+    background: #2563eb !important; 
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+}
+
+/* Secondary use prompt button - white/gray */
+.pswp__button--useprompt, .pswp .pswp__button--useprompt { 
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #475569 !important;
+}
+
+.pswp__button--useprompt:hover, .pswp .pswp__button--useprompt:hover { 
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+/* Danger delete button - red */
+.pswp__button--delete, .pswp .pswp__button--delete { 
+    background: #dc2626 !important; 
+    color: #ffffff !important; 
+    border-color: #dc2626 !important; 
+}
+
+.pswp__button--delete:hover, .pswp .pswp__button--delete:hover { 
+    background: #b91c1c !important; 
+    border-color: #b91c1c !important; 
+    color: #ffffff !important;
+}
+
+.pswp-btn-label { 
+    font-size: 0.875rem !important; 
+    font-weight: 500 !important; 
+    font-family: inherit !important;
+}
 
 /* (Moved enhanced .pswp-btn-label styles above) */
 
