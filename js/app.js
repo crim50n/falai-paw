@@ -5,14 +5,14 @@ class FalAI {
         this.currentEndpoint = null;
         this.currentRequestId = null;
         this.statusPolling = null;
-        this.savedImages = JSON.parse(localStorage.getItem('falai_saved_images') || '[]');
         this.endpointSettings = JSON.parse(localStorage.getItem('falai_endpoint_settings') || '{}');
-        this.currentImageIndex = 0;
-        this.fullscreenImages = [];
         this.debugMode = localStorage.getItem('falai_debug_mode') === 'true';
-        
+
         // Persistent generation state
         this.isGenerating = false;
+
+        // Initialize gallery
+        this.gallery = new FalAIGallery(this);
 
         this.init();
     }
@@ -103,48 +103,10 @@ class FalAI {
                 return entries;
             },
             analyzeGallery: () => {
-                console.log('🖼️ Analyzing gallery images...');
-                const images = this.savedImages;
-                console.log(`Total images: ${images.length}`);
-
-                let urlCount = 0;
-                let base64Count = 0;
-                let totalSize = 0;
-
-                images.forEach((img, i) => {
-                    const size = new Blob([img.url]).size;
-                    totalSize += size;
-
-                    if (img.url.startsWith('data:image/')) {
-                        base64Count++;
-                        console.log(`${i + 1}. [BASE64] ${this.formatBytes(size)} - ${img.endpoint} (${new Date(img.timestamp).toLocaleString()})`);
-                    } else {
-                        urlCount++;
-                        console.log(`${i + 1}. [URL] ${this.formatBytes(size)} - ${img.url.substring(0, 50)}...`);
-                    }
-                });
-
-                console.log(`Summary: ${urlCount} URLs, ${base64Count} base64 images`);
-                console.log(`Total size: ${this.formatBytes(totalSize)}`);
-
-                if (base64Count > 0) {
-                    console.log(`💡 Run falaiStorage.cleanGalleryBase64() to remove base64 images from gallery`);
-                }
+                this.gallery.analyzeGallery();
             },
             cleanGalleryBase64: () => {
-                const before = this.savedImages.length;
-                const sizeBefore = new Blob([JSON.stringify(this.savedImages)]).size;
-
-                this.savedImages = this.savedImages.filter(img => !img.url.startsWith('data:image/'));
-
-                const after = this.savedImages.length;
-                const sizeAfter = new Blob([JSON.stringify(this.savedImages)]).size;
-
-                localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
-
-                console.log(`🧹 Cleaned gallery: removed ${before - after} base64 images`);
-                console.log(`💾 Freed ${this.formatBytes(sizeBefore - sizeAfter)} from gallery`);
-                this.logStorageInfo();
+                this.gallery.cleanGalleryBase64();
             }
         };
     }
@@ -431,9 +393,9 @@ class FalAI {
 
             // Determine which fields should be in main interface vs advanced options
             const isMainField = fieldName === 'prompt' ||
-                              (fieldName.includes('image') && fieldName.includes('_url')) ||
-                              fieldName.includes('mask') ||
-                              fieldName.includes('reference');
+                (fieldName.includes('image') && fieldName.includes('_url')) ||
+                fieldName.includes('mask') ||
+                fieldName.includes('reference');
 
             if (isMainField) {
                 // Main fields: prompt and all image/mask fields
@@ -925,14 +887,7 @@ class FalAI {
         });
 
 
-        // Panel tabs
-        document.getElementById('results-panel-tab').addEventListener('click', () => {
-            this.switchRightPanelView('results');
-        });
-
-        document.getElementById('gallery-panel-tab').addEventListener('click', () => {
-            this.switchRightPanelView('gallery');
-        });
+        // Panel tabs are now handled by the gallery class
 
         // Endpoint dropdown
         document.getElementById('endpoint-dropdown').addEventListener('change', (e) => {
@@ -958,26 +913,7 @@ class FalAI {
             console.warn('delete-endpoint-btn element not found');
         }
 
-        // Full-screen viewer controls
-        document.getElementById('fullscreen-close').addEventListener('click', () => {
-            this.closeFullscreenViewer();
-        });
-
-        document.getElementById('fullscreen-prev').addEventListener('click', () => {
-            this.navigateFullscreen(-1);
-        });
-
-        document.getElementById('fullscreen-next').addEventListener('click', () => {
-            this.navigateFullscreen(1);
-        });
-
-        document.getElementById('fullscreen-download').addEventListener('click', () => {
-            this.downloadCurrentFullscreenImage();
-        });
-
-        document.getElementById('fullscreen-delete').addEventListener('click', () => {
-            this.deleteCurrentFullscreenImage();
-        });
+        // Full-screen viewer controls are now handled by the gallery class
 
         // Results tab switching
         document.getElementById('images-tab').addEventListener('click', () => {
@@ -1093,46 +1029,19 @@ class FalAI {
             if (e.target.classList.contains('modal')) {
                 e.target.classList.add('hidden');
             }
-            if (e.target.classList.contains('fullscreen-viewer')) {
-                this.closeFullscreenViewer();
-            }
+            // Fullscreen viewer backdrop click is now handled by gallery class
         });
 
-        // Keyboard navigation for full-screen viewer
+        // Keyboard navigation for full-screen viewer is now handled by gallery class
         document.addEventListener('keydown', (e) => {
-            const viewer = document.getElementById('fullscreen-viewer');
             const mobileMenu = document.getElementById('mobile-menu');
 
-            // Handle Escape key
+            // Handle Escape key for mobile menu
             if (e.key === 'Escape') {
                 // Close mobile menu if it's open
                 if (mobileMenu.classList.contains('active')) {
                     this.closeMobileMenu();
                     return;
-                }
-                // Close fullscreen viewer if it's open
-                if (!viewer.classList.contains('hidden')) {
-                    this.closeFullscreenViewer();
-                    return;
-                }
-            }
-
-            if (!viewer.classList.contains('hidden')) {
-                switch (e.key) {
-                    case 'ArrowLeft':
-                        this.navigateFullscreen(-1);
-                        break;
-                    case 'ArrowRight':
-                        this.navigateFullscreen(1);
-                        break;
-                    case 'd':
-                    case 'D':
-                        this.downloadCurrentFullscreenImage();
-                        break;
-                    case 'Delete':
-                    case 'Backspace':
-                        this.deleteCurrentFullscreenImage();
-                        break;
                 }
             }
         });
@@ -1412,7 +1321,7 @@ class FalAI {
             // Get custom dimensions
             const widthInput = document.querySelector('input[name="image_size_width"]');
             const heightInput = document.querySelector('input[name="image_size_height"]');
-            
+
             if (widthInput && heightInput && widthInput.value && heightInput.value) {
                 return {
                     width: parseInt(widthInput.value),
@@ -1430,14 +1339,14 @@ class FalAI {
                 };
             }
         }
-        
+
         return null;
     }
 
     // Compress image to user's specified dimensions
     async compressImageToUserSize(file) {
         const targetSize = this.getTargetImageSize();
-        
+
         // If no target size specified, apply fallback size limit
         let finalTargetSize = targetSize;
         if (!targetSize) {
@@ -1447,37 +1356,37 @@ class FalAI {
                 img.onload = () => {
                     const originalWidth = img.naturalWidth;
                     const originalHeight = img.naturalHeight;
-                    
+
                     // Apply fallback limit to prevent 413 errors
                     const maxDimension = 1024;
                     if (originalWidth > maxDimension || originalHeight > maxDimension) {
                         const resizeScale = maxDimension / Math.max(originalWidth, originalHeight);
                         const targetWidth = Math.round(originalWidth * resizeScale);
                         const targetHeight = Math.round(originalHeight * resizeScale);
-                        
+
                         console.log(`⚠️ Image too large! Auto-reducing from ${originalWidth}×${originalHeight} to ${targetWidth}×${targetHeight}`);
-                        
+
                         // Create compressed version
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
-                        
+
                         canvas.width = targetWidth;
                         canvas.height = targetHeight;
-                        
+
                         // Fill background with black (important for masks)
                         ctx.fillStyle = 'black';
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
-                        
+
                         // Calculate centered position
                         const scale = Math.min(targetWidth / originalWidth, targetHeight / originalHeight);
                         const scaledWidth = originalWidth * scale;
                         const scaledHeight = originalHeight * scale;
                         const offsetX = (targetWidth - scaledWidth) / 2;
                         const offsetY = (targetHeight - scaledHeight) / 2;
-                        
+
                         // Draw scaled image
                         ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
-                        
+
                         // Export as JPEG
                         const compressedDataURL = canvas.toDataURL('image/jpeg', 0.85);
                         resolve(compressedDataURL);
@@ -1496,50 +1405,50 @@ class FalAI {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const img = new Image();
-            
+
             img.onload = () => {
                 const originalWidth = img.naturalWidth;
                 const originalHeight = img.naturalHeight;
-                
+
                 // Set canvas to exact target dimensions
                 canvas.width = targetSize.width;
                 canvas.height = targetSize.height;
-                
+
                 // Calculate scaling to fit target size while maintaining aspect ratio
                 const scaleX = targetSize.width / originalWidth;
                 const scaleY = targetSize.height / originalHeight;
                 const scale = Math.min(scaleX, scaleY); // Fit within target size
-                
+
                 // Calculate centered position
                 const scaledWidth = originalWidth * scale;
                 const scaledHeight = originalHeight * scale;
                 const offsetX = (targetSize.width - scaledWidth) / 2;
                 const offsetY = (targetSize.height - scaledHeight) / 2;
-                
+
                 // Fill background with black (important for masks)
                 ctx.fillStyle = 'black';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
+
                 // Draw scaled image
                 ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
-                
+
                 // Export as JPEG with good quality
                 const compressedDataURL = canvas.toDataURL('image/jpeg', 0.85);
-                
+
                 if (this.debugMode) {
                     console.log(`🗜️ Compressed image from ${originalWidth}×${originalHeight} to ${targetSize.width}×${targetSize.height}`);
                 }
-                
+
                 resolve(compressedDataURL);
             };
-            
+
             img.onerror = () => {
                 // Fallback to original if compression fails
                 const reader = new FileReader();
                 reader.onload = (e) => resolve(e.target.result);
                 reader.readAsDataURL(file);
             };
-            
+
             img.src = URL.createObjectURL(file);
         });
     }
@@ -1569,7 +1478,7 @@ class FalAI {
             try {
                 const compressedDataURL = await this.compressDataURLToSize(originalDataURL, targetSize);
                 formData[fieldName] = compressedDataURL;
-                
+
                 if (this.debugMode) {
                     const originalSize = new Blob([originalDataURL]).size;
                     const compressedSize = new Blob([compressedDataURL]).size;
@@ -1615,7 +1524,7 @@ class FalAI {
                 const compressedDataURL = canvas.toDataURL('image/jpeg', 0.85);
                 resolve(compressedDataURL);
             };
-            
+
             img.onerror = () => reject(new Error('Failed to load image'));
             img.src = dataURL;
         });
@@ -1667,7 +1576,7 @@ class FalAI {
             return;
         }
 
-        fabricCanvas._getPointer = function(e, ignoreZoom) {
+        fabricCanvas._getPointer = function (e, ignoreZoom) {
             // Use the original method as base
             const pointer = originalGetPointer.call(this, e, ignoreZoom);
 
@@ -1692,7 +1601,7 @@ class FalAI {
 
         // Also fix the getPointer method for public API
         const originalPublicGetPointer = fabricCanvas.getPointer;
-        fabricCanvas.getPointer = function(e, ignoreZoom) {
+        fabricCanvas.getPointer = function (e, ignoreZoom) {
             if (e.touches || e.changedTouches) {
                 return this._getPointer(e, ignoreZoom);
             }
@@ -1700,7 +1609,7 @@ class FalAI {
         };
 
         // Force canvas to recalculate offset on touch start
-        fabricCanvas.on('mouse:down', function() {
+        fabricCanvas.on('mouse:down', function () {
             this.calcOffset();
         });
 
@@ -1734,7 +1643,7 @@ class FalAI {
 
         // Collect form data
         const formData = this.collectFormData();
-        
+
         // Compress all images to target size before sending to API
         await this.compressFormImages(formData);
 
@@ -1798,7 +1707,7 @@ class FalAI {
         generateBtn.classList.remove('loading');
         generateText.classList.remove('hidden');
         generateLoading.classList.add('hidden');
-        
+
         // Clear saved generation state when generation finishes
         this.clearGenerationState();
     }
@@ -1884,7 +1793,7 @@ class FalAI {
                     imageSizeSelect.value = 'custom';
                     // Show custom fields first
                     imageSizeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                    
+
                     // Set original dimensions in the scale control
                     const container = imageSizeSelect.closest('.image-size-container');
                     if (container && container.setOriginalDimensions) {
@@ -1894,7 +1803,7 @@ class FalAI {
                     // Set width and height to match the uploaded image (scale 1:1 initially)
                     widthInput.value = width;
                     heightInput.value = height;
-                    
+
                     // Reset scale to 100%
                     const scaleInput = document.querySelector('input[name="image_size_scale"]');
                     const scaleValue = document.querySelector('.scale-value');
@@ -1968,7 +1877,7 @@ class FalAI {
             if (this.debugMode) {
                 console.log('🔍 LoRA data before filtering:', JSON.stringify(data.loras, null, 2));
             }
-            
+
             data.loras = data.loras.filter(lora => {
                 // Keep LoRA if it has a valid path and scale is not exactly 0
                 const hasPath = lora && lora.path && lora.path.trim() !== '';
@@ -2202,7 +2111,7 @@ class FalAI {
             this.updateJsonDisplay(result);
 
             // Switch to results view and show results
-            this.switchRightPanelView('results');
+            this.gallery.switchRightPanelView('results');
             document.getElementById('no-images-placeholder').classList.add('hidden');
             document.getElementById('results').classList.remove('hidden');
             this.switchResultsTab('images');
@@ -2266,298 +2175,24 @@ class FalAI {
             // Create images array from current results
             const resultImages = this.lastResult ? this.lastResult.images || [] : [];
             const currentIndex = resultImages.findIndex(img => img.url === image.url);
-            this.openImageModalWithNavigation(image.url, resultImages, currentIndex, 'results');
+            this.gallery.openImageModalWithNavigation(image.url, resultImages, currentIndex, 'results');
         });
 
         // Try to save to gallery when image is generated (non-blocking)
-        this.saveToGallery(image.url, metadata, false); // false = no visual feedback
+        this.gallery.saveToGallery(image.url, metadata, false); // false = no visual feedback
 
         return div;
     }
 
-    switchToGalleryView() {
-        this.switchRightPanelView('gallery');
-    }
 
-    switchRightPanelView(view) {
-        const resultsTab = document.getElementById('results-panel-tab');
-        const galleryTab = document.getElementById('gallery-panel-tab');
-        const placeholder = document.getElementById('no-images-placeholder');
-        const results = document.getElementById('results');
-        const inlineGallery = document.getElementById('inline-gallery');
 
-        if (view === 'gallery') {
-            // Switch to gallery view
-            resultsTab.classList.remove('active');
-            galleryTab.classList.add('active');
 
-            placeholder.classList.add('hidden');
-            results.classList.add('hidden');
-            inlineGallery.classList.remove('hidden');
 
-            // Load gallery content
-            this.showInlineGallery();
-        } else {
-            // Switch to results view
-            galleryTab.classList.remove('active');
-            resultsTab.classList.add('active');
 
-            inlineGallery.classList.add('hidden');
 
-            // Show appropriate results content
-            if (results.classList.contains('hidden') && placeholder.classList.contains('hidden')) {
-                placeholder.classList.remove('hidden');
-            } else if (!results.classList.contains('hidden')) {
-                results.classList.remove('hidden');
-            } else {
-                placeholder.classList.remove('hidden');
-            }
-        }
-    }
 
-    showInlineGallery() {
-        const container = document.getElementById('inline-gallery-content');
-        const countElement = document.getElementById('gallery-count');
 
-        if (!container) return;
 
-        container.innerHTML = '';
-        countElement.textContent = `${this.savedImages.length} images`;
-
-        if (this.savedImages.length === 0) {
-            container.innerHTML = '<div class="text-center" style="grid-column: 1/-1; padding: 2rem; color: #6b7280;">No saved images yet</div>';
-        } else {
-            this.savedImages.forEach((image, index) => {
-                const item = this.createInlineGalleryItem(image, index);
-                container.appendChild(item);
-            });
-        }
-    }
-
-    createInlineGalleryItem(imageData, index) {
-        const div = document.createElement('div');
-        div.className = 'gallery-item';
-
-        const date = new Date(imageData.timestamp).toLocaleDateString();
-
-        const img = document.createElement('img');
-        img.src = imageData.url;
-        img.alt = 'Saved image';
-        img.loading = 'lazy';
-
-        const info = document.createElement('div');
-        info.className = 'gallery-item-info';
-        info.innerHTML = `
-            <div>${imageData.endpoint}</div>
-            <div>${date}</div>
-        `;
-
-        div.appendChild(img);
-        div.appendChild(info);
-
-        // Click on entire gallery item opens zoom modal with gallery context
-        div.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.openImageModalWithNavigation(imageData.url, this.savedImages, index, 'gallery');
-        });
-
-        return div;
-    }
-
-    openImageModal(imageUrl) {
-        // Fallback for simple image viewing
-        this.openImageModalWithNavigation(imageUrl, [{ url: imageUrl }], 0, 'single');
-    }
-
-    openImageModalWithNavigation(imageUrl, images, currentIndex, context) {
-        // Create modal if it doesn't exist
-        let modal = document.getElementById('image-zoom-modal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'image-zoom-modal';
-            modal.className = 'image-zoom-modal hidden';
-            modal.innerHTML = `
-                <div class="image-zoom-backdrop"></div>
-                <div class="image-zoom-container">
-                    <img id="zoom-image" src="" alt="Zoomed image">
-                    <div class="zoom-controls">
-                        <button id="zoom-prev" class="zoom-nav-btn" title="Previous image">‹</button>
-                        <div class="zoom-counter"></div>
-                        <button id="zoom-next" class="zoom-nav-btn" title="Next image">›</button>
-                    </div>
-                    <button id="close-zoom" class="close-zoom-btn" title="Close">✕</button>
-                    <button id="zoom-download" class="zoom-action-btn zoom-download-btn" title="Download image">💾</button>
-                    <button id="zoom-delete" class="zoom-action-btn zoom-delete-btn" title="Delete image">🗑️</button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            // Setup advanced touch gestures with Hammer.js
-            this.setupAdvancedGestures(modal);
-
-            // Add event listeners
-            modal.querySelector('.image-zoom-backdrop').addEventListener('click', () => {
-                this.closeImageModal();
-            });
-
-            modal.querySelector('#close-zoom').addEventListener('click', () => {
-                this.closeImageModal();
-            });
-
-            modal.querySelector('#zoom-download').addEventListener('click', () => {
-                this.downloadCurrentZoomImage();
-            });
-
-            modal.querySelector('#zoom-delete').addEventListener('click', () => {
-                this.deleteCurrentZoomImage();
-            });
-
-            modal.querySelector('#zoom-prev').addEventListener('click', () => {
-                this.navigateZoomModal(-1);
-            });
-
-            modal.querySelector('#zoom-next').addEventListener('click', () => {
-                this.navigateZoomModal(1);
-            });
-
-            // Close on ESC key and navigation keys
-            document.addEventListener('keydown', (e) => {
-                if (!modal.classList.contains('hidden')) {
-                    if (e.key === 'Escape') {
-                        this.closeImageModal();
-                    } else if (e.key === 'ArrowLeft') {
-                        this.navigateZoomModal(-1);
-                    } else if (e.key === 'ArrowRight') {
-                        this.navigateZoomModal(1);
-                    } else if (e.key === 'Delete') {
-                        // Delete only works when delete button is visible
-                        const deleteBtn = modal.querySelector('#zoom-delete');
-                        if (deleteBtn && !deleteBtn.classList.contains('hidden')) {
-                            this.deleteCurrentZoomImage();
-                        }
-                    }
-                }
-            });
-        }
-
-        // Store navigation data
-        modal._navigationData = {
-            images,
-            currentIndex,
-            context
-        };
-
-        // Set image and show modal
-        this.updateZoomModal(imageUrl, currentIndex, images.length);
-        modal.classList.remove('hidden');
-
-        document.body.style.overflow = 'hidden';
-    }
-
-    navigateZoomModal(direction) {
-        const modal = document.getElementById('image-zoom-modal');
-        if (!modal || !modal._navigationData) return;
-
-        const { images, currentIndex } = modal._navigationData;
-        const newIndex = currentIndex + direction;
-
-        if (newIndex >= 0 && newIndex < images.length) {
-            modal._navigationData.currentIndex = newIndex;
-            const imageUrl = images[newIndex].url || images[newIndex];
-            this.updateZoomModal(imageUrl, newIndex, images.length);
-        }
-    }
-
-    updateZoomModal(imageUrl, currentIndex, totalImages) {
-        const modal = document.getElementById('image-zoom-modal');
-        if (!modal) return;
-
-        const zoomImage = modal.querySelector('#zoom-image');
-        if (!zoomImage) return;
-
-        zoomImage.src = imageUrl;
-
-        const counter = modal.querySelector('.zoom-counter');
-        counter.textContent = `${currentIndex + 1} / ${totalImages}`;
-
-        // Update navigation button visibility
-        const prevBtn = modal.querySelector('#zoom-prev');
-        const nextBtn = modal.querySelector('#zoom-next');
-
-        prevBtn.style.visibility = currentIndex > 0 ? 'visible' : 'hidden';
-        nextBtn.style.visibility = currentIndex < totalImages - 1 ? 'visible' : 'hidden';
-
-        // Hide navigation entirely if only one image
-        const showNav = totalImages > 1;
-        prevBtn.style.display = showNav ? 'block' : 'none';
-        nextBtn.style.display = showNav ? 'block' : 'none';
-        counter.style.display = showNav ? 'block' : 'none';
-
-        // Show/hide delete button based on context
-        const deleteBtn = modal.querySelector('#zoom-delete');
-        if (deleteBtn && modal._navigationData) {
-            deleteBtn.style.display = modal._navigationData.context === 'gallery' ? 'block' : 'none';
-        }
-    }
-
-    closeImageModal() {
-        const modal = document.getElementById('image-zoom-modal');
-        if (modal) {
-            modal.classList.add('hidden');
-            document.body.style.overflow = '';
-            modal._navigationData = null;
-        }
-    }
-
-    downloadCurrentZoomImage() {
-        const modal = document.getElementById('image-zoom-modal');
-        if (!modal || !modal._navigationData) return;
-
-        const { images, currentIndex, context } = modal._navigationData;
-        let imageUrl;
-        let filename;
-
-        if (context === 'gallery') {
-            imageUrl = this.savedImages[currentIndex]?.url;
-            filename = `gallery-image-${currentIndex + 1}.jpg`;
-        } else {
-            imageUrl = images[currentIndex]?.url || images[currentIndex];
-            filename = `generated-image-${currentIndex + 1}.jpg`;
-        }
-
-        if (imageUrl) {
-            this.downloadImage(imageUrl, filename);
-        }
-    }
-
-    deleteCurrentZoomImage() {
-        const modal = document.getElementById('image-zoom-modal');
-        if (!modal || !modal._navigationData) return;
-
-        const { currentIndex, context } = modal._navigationData;
-
-        // Only allow deletion from gallery context
-        if (context === 'gallery') {
-            if (confirm('Are you sure you want to delete this image?')) {
-                this.deleteImageFromGallery(currentIndex, true); // Skip second confirm
-
-                // Update modal data after deletion
-                if (this.savedImages.length === 0) {
-                    // No images left, close modal
-                    this.closeImageModal();
-                } else {
-                    // Update navigation data and current index
-                    const newIndex = Math.min(currentIndex, this.savedImages.length - 1);
-                    modal._navigationData.images = this.savedImages;
-                    modal._navigationData.currentIndex = newIndex;
-
-                    // Update display
-                    this.updateZoomModal(this.savedImages[newIndex].url, newIndex, this.savedImages.length);
-                }
-            }
-        }
-    }
 
 
     resetFormToDefaults() {
@@ -2760,15 +2395,15 @@ class FalAI {
             const handleScaleChange = (e) => {
                 const scale = parseFloat(e.target.value);
                 scaleValue.textContent = Math.round(scale * 100) + '%';
-                
+
                 if (originalWidth > 0 && originalHeight > 0) {
                     const newWidth = Math.round(originalWidth * scale);
                     const newHeight = Math.round(originalHeight * scale);
-                    
+
                     widthInput.value = newWidth;
                     heightInput.value = newHeight;
                     scaledDimensions.textContent = `${newWidth}×${newHeight}`;
-                    
+
                     // Trigger input events to save settings
                     widthInput.dispatchEvent(new Event('input', { bubbles: true }));
                     heightInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -2778,15 +2413,15 @@ class FalAI {
             // Multiple event handlers for better mobile support
             scaleInput.addEventListener('input', handleScaleChange);
             scaleInput.addEventListener('change', handleScaleChange);
-            
+
             // Additional mobile-specific touch support
             if (this.isMobileDevice()) {
                 let isDragging = false;
-                
+
                 scaleInput.addEventListener('touchstart', () => {
                     isDragging = true;
                 }, { passive: true });
-                
+
                 scaleInput.addEventListener('touchmove', (e) => {
                     if (isDragging) {
                         // Force update on touch move for mobile
@@ -2795,7 +2430,7 @@ class FalAI {
                         }, 10);
                     }
                 }, { passive: true });
-                
+
                 scaleInput.addEventListener('touchend', (e) => {
                     if (isDragging) {
                         handleScaleChange(e);
@@ -2848,7 +2483,7 @@ class FalAI {
                 timestamp: new Date().toISOString(),
                 apiKey: this.apiKey,
                 endpointSettings: this.endpointSettings,
-                savedImages: this.savedImages,
+                savedImages: this.gallery.savedImages,
                 debugMode: this.debugMode,
                 advancedVisible: localStorage.getItem('falai_advanced_visible') === 'true',
                 customEndpoints: customEndpoints
@@ -2914,8 +2549,8 @@ class FalAI {
             }
 
             if (settings.savedImages) {
-                this.savedImages = settings.savedImages;
-                localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
+                this.gallery.savedImages = settings.savedImages;
+                localStorage.setItem('falai_saved_images', JSON.stringify(this.gallery.savedImages));
             }
             if (settings.customEndpoints) {
                 // Import custom endpoints
@@ -2954,7 +2589,7 @@ class FalAI {
             // Refresh gallery if open
             const galleryTab = document.getElementById('gallery-panel-tab');
             if (galleryTab && galleryTab.classList.contains('active')) {
-                this.showInlineGallery();
+                this.gallery.showInlineGallery();
             }
 
             alert('Settings imported successfully!');
@@ -3080,30 +2715,30 @@ class FalAI {
     addLoraCommentField(arrayName, itemIndex, itemContainer) {
         const commentField = document.createElement('div');
         commentField.className = 'field-group lora-comment-field';
-        
+
         const label = document.createElement('label');
         label.textContent = 'Comment';
         label.className = 'field-label';
-        
+
         const textarea = document.createElement('textarea');
         textarea.name = `${arrayName}[${itemIndex}].comment`;
         textarea.id = `${arrayName}[${itemIndex}].comment`;
         textarea.className = 'form-textarea';
         textarea.rows = 2;
         textarea.placeholder = 'Add a note about this LoRA...';
-        
+
         // Load saved comment
         const savedComment = this.getLoraComment(arrayName, itemIndex);
         if (savedComment) {
             textarea.value = savedComment;
         }
-        
+
         // Save comment on change
         textarea.addEventListener('input', () => {
             this.saveLoraComment(arrayName, itemIndex, textarea.value);
             this.saveEndpointSettings();
         });
-        
+
         commentField.appendChild(label);
         commentField.appendChild(textarea);
         itemContainer.appendChild(commentField);
@@ -3118,11 +2753,11 @@ class FalAI {
     saveLoraComment(arrayName, itemIndex, comment) {
         const endpointId = this.currentEndpointId;
         const comments = JSON.parse(localStorage.getItem('falai_lora_comments') || '{}');
-        
+
         if (!comments[endpointId]) {
             comments[endpointId] = {};
         }
-        
+
         const key = `${arrayName}[${itemIndex}]`;
         if (comment.trim()) {
             comments[endpointId][key] = comment.trim();
@@ -3133,7 +2768,7 @@ class FalAI {
                 delete comments[endpointId];
             }
         }
-        
+
         localStorage.setItem('falai_lora_comments', JSON.stringify(comments));
         this.logDebug(`Saved LoRA comment for ${key}`, 'info');
     }
@@ -3148,7 +2783,7 @@ class FalAI {
                     const baseName = field.name.replace(/\[\d+\]/, `[${index}]`);
                     field.name = baseName;
                     field.id = baseName;
-                    
+
                     // Handle LoRA comment field updates
                     if (arrayName === 'loras' && oldName.includes('.comment') && oldIndex !== undefined) {
                         // Move comment from old index to new index
@@ -3184,61 +2819,6 @@ class FalAI {
         }
     }
 
-    saveToGallery(url, metadata, showFeedback = false) {
-        try {
-            // Don't save base64 images to gallery - they're too large and temporary
-            if (url && url.startsWith('data:image/')) {
-                this.logDebug('Skipped saving base64 image to gallery - use download button to save', 'warning');
-
-                // Show warning to user about base64 result
-                if (!showFeedback) { // Only show automatic warning, not for manual saves
-                    this.showBase64Warning();
-                }
-                return;
-            }
-
-            // Check if image already exists to avoid duplicates
-            const exists = this.savedImages.some(img => img.url === url);
-            if (exists && !showFeedback) {
-                return; // Don't save duplicate unless explicitly requested
-            }
-
-            if (!exists) {
-                const imageData = {
-                    url,
-                    metadata,
-                    timestamp: Date.now(),
-                    endpoint: this.currentEndpoint ? this.currentEndpoint.metadata.endpointId : 'unknown'
-                };
-
-                this.savedImages.unshift(imageData);
-
-                // Try to save with storage management
-                this.saveWithStorageCheck('falai_saved_images', this.savedImages);
-
-                // Update inline gallery if currently visible
-                const inlineGallery = document.getElementById('inline-gallery');
-                if (inlineGallery && !inlineGallery.classList.contains('hidden')) {
-                    this.showInlineGallery();
-                }
-
-                this.logDebug(`Image saved to gallery: ${url.substring(0, 50)}... (${url.length} chars)`, 'success');
-
-                if (showFeedback) {
-                    this.logDebug(`Image saved to gallery with user feedback`, 'success');
-                }
-            }
-        } catch (error) {
-            // Don't crash the app if gallery save fails - just log it
-            console.warn('Failed to save to gallery (storage full):', error.message);
-            this.logDebug(`Gallery save failed: ${error.message}`, 'warning');
-
-            if (showFeedback) {
-                // Only show user feedback if they explicitly tried to save
-                alert(`Could not save to gallery: ${error.message}`);
-            }
-        }
-    }
 
     saveWithStorageCheck(key, data) {
         const maxRetries = 3;
@@ -3308,25 +2888,6 @@ class FalAI {
             str.length > 1000; // Only consider large data URLs (small ones might be icons)
     }
 
-    cleanupOldGalleryImages(maxImages = 500) {
-        // Only clean gallery if it's extremely large (500+ images)
-        // Gallery URLs are small, so we keep more
-        if (!this.savedImages || this.savedImages.length <= maxImages) {
-            return 0; // Nothing to clean
-        }
-
-        const originalCount = this.savedImages.length;
-
-        // Sort by timestamp (newest first) and keep only the most recent images
-        this.savedImages.sort((a, b) => b.timestamp - a.timestamp);
-        this.savedImages = this.savedImages.slice(0, maxImages);
-
-        const removedCount = originalCount - this.savedImages.length;
-
-        this.logDebug(`Cleaned up ${removedCount} old gallery entries, kept ${this.savedImages.length} most recent`, 'info');
-
-        return removedCount;
-    }
 
     cleanupOldSettings() {
         // Clean up old endpoint settings for endpoints that no longer exist
@@ -3349,183 +2910,15 @@ class FalAI {
         return cleaned;
     }
 
-    showGallery() {
-        const container = document.getElementById('gallery-content');
-        container.innerHTML = '';
 
-        if (this.savedImages.length === 0) {
-            container.innerHTML = '<p class="text-center">No saved images yet</p>';
-        } else {
-            this.savedImages.forEach((image, index) => {
-                const item = this.createGalleryItem(image, index);
-                container.appendChild(item);
-            });
-        }
 
-        document.getElementById('gallery-modal').classList.remove('hidden');
-    }
 
-    createGalleryItem(imageData, index) {
-        const div = document.createElement('div');
-        div.className = 'gallery-item';
 
-        const date = new Date(imageData.timestamp).toLocaleDateString();
 
-        div.innerHTML = `
-            <img src="${imageData.url}" alt="Saved image" loading="lazy">
-            <div class="gallery-item-overlay">
-                <button class="btn secondary" onclick="falai.downloadImageFromGallery(${index})" title="Download">💾</button>
-                <button class="btn secondary" onclick="falai.deleteImageFromGallery(${index})" title="Delete">🗑️</button>
-            </div>
-            <div class="gallery-item-info">
-                <div>${imageData.endpoint}</div>
-                <div>${date}</div>
-            </div>
-        `;
 
-        // Click on image (not buttons) opens full-screen viewer
-        const img = div.querySelector('img');
-        img.addEventListener('click', (e) => {
-            e.stopPropagation();
-            // Open image zoom modal for quick preview
-            this.openImageModal(imageData.url);
-        });
 
-        return div;
-    }
 
-    openFullscreenViewer(index) {
-        // fullscreenImages should already be set by the caller
-        if (!this.fullscreenImages) {
-            this.fullscreenImages = this.savedImages;
-        }
 
-        this.currentImageIndex = index;
-        this.updateFullscreenViewer();
-        document.getElementById('fullscreen-viewer').classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-
-        // Hide gallery modal if it exists
-        const galleryModal = document.getElementById('gallery-modal');
-        if (galleryModal) {
-            galleryModal.classList.add('hidden');
-        }
-    }
-
-    updateFullscreenViewer() {
-        if (this.fullscreenImages.length === 0) return;
-
-        const viewer = document.getElementById('fullscreen-viewer');
-        const image = document.getElementById('fullscreen-image');
-        const counter = document.getElementById('fullscreen-counter');
-        const metadata = document.getElementById('fullscreen-metadata');
-
-        const currentImage = this.fullscreenImages[this.currentImageIndex];
-
-        image.src = currentImage.url;
-        counter.textContent = `${this.currentImageIndex + 1} / ${this.fullscreenImages.length}`;
-
-        const date = new Date(currentImage.timestamp).toLocaleDateString();
-        metadata.textContent = `${currentImage.endpoint} • ${date}`;
-
-        // Toggle single image class
-        if (this.fullscreenImages.length === 1) {
-            viewer.classList.add('single-image');
-        } else {
-            viewer.classList.remove('single-image');
-        }
-    }
-
-    closeFullscreenViewer() {
-        document.getElementById('fullscreen-viewer').classList.add('hidden');
-        document.body.style.overflow = '';
-
-        // Clear fullscreen images array
-        this.fullscreenImages = [];
-        this.currentImageIndex = 0;
-    }
-
-    navigateFullscreen(direction) {
-        if (this.fullscreenImages.length <= 1) return;
-
-        this.currentImageIndex += direction;
-
-        if (this.currentImageIndex < 0) {
-            this.currentImageIndex = this.fullscreenImages.length - 1;
-        } else if (this.currentImageIndex >= this.fullscreenImages.length) {
-            this.currentImageIndex = 0;
-        }
-
-        this.updateFullscreenViewer();
-    }
-
-    async downloadCurrentFullscreenImage() {
-        if (this.fullscreenImages.length === 0) return;
-
-        const currentImage = this.fullscreenImages[this.currentImageIndex];
-        const filename = `falai-image-${this.currentImageIndex + 1}.jpg`;
-        await this.downloadImage(currentImage.url, filename);
-    }
-
-    async deleteCurrentFullscreenImage() {
-        if (this.fullscreenImages.length === 0) return;
-
-        if (!confirm('Are you sure you want to delete this image?')) {
-            return;
-        }
-
-        // Find the actual index in savedImages
-        const currentImage = this.fullscreenImages[this.currentImageIndex];
-        const savedIndex = this.savedImages.findIndex(img =>
-            img.url === currentImage.url && img.timestamp === currentImage.timestamp
-        );
-
-        if (savedIndex !== -1) {
-            // Remove from saved images
-            this.savedImages.splice(savedIndex, 1);
-            localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
-
-            // Update fullscreen images array
-            this.fullscreenImages.splice(this.currentImageIndex, 1);
-
-            if (this.fullscreenImages.length === 0) {
-                // No more images, close viewer and refresh gallery
-                this.closeFullscreenViewer();
-                this.showGallery();
-            } else {
-                // Adjust current index if needed
-                if (this.currentImageIndex >= this.fullscreenImages.length) {
-                    this.currentImageIndex = this.fullscreenImages.length - 1;
-                }
-                this.updateFullscreenViewer();
-            }
-        }
-    }
-
-    async downloadImageFromGallery(index) {
-        const imageData = this.savedImages[index];
-        const filename = `falai-image-${index + 1}.jpg`;
-        await this.downloadImage(imageData.url, filename);
-    }
-
-    deleteImageFromGallery(index, skipConfirm = false) {
-        if (!skipConfirm && !confirm('Are you sure you want to delete this image?')) {
-            return;
-        }
-
-        this.savedImages.splice(index, 1);
-        localStorage.setItem('falai_saved_images', JSON.stringify(this.savedImages));
-
-        // Refresh current gallery view
-        const inlineGallery = document.getElementById('inline-gallery');
-        if (!inlineGallery.classList.contains('hidden')) {
-            // We're in inline gallery mode
-            this.showInlineGallery();
-        } else {
-            // We're in modal gallery mode (fallback)
-            this.showGallery();
-        }
-    }
 
     async cancelGeneration() {
         if (!this.currentRequestId) return;
@@ -3756,7 +3149,7 @@ class FalAI {
                     const input = container.querySelector(`[name="${fieldName}[${index}].${propName}"]`);
                     if (input) {
                         input.value = propValue;
-                        
+
                         // Update slider display if this is a range input
                         if (input.type === 'range') {
                             const valueDisplay = input.parentElement.querySelector('.slider-value');
@@ -3770,7 +3163,7 @@ class FalAI {
                 const input = container.querySelector(`[name="${fieldName}[${index}]"]`);
                 if (input) {
                     input.value = itemValue;
-                    
+
                     // Update slider display if this is a range input
                     if (input.type === 'range') {
                         const valueDisplay = input.parentElement.querySelector('.slider-value');
@@ -4443,13 +3836,13 @@ class FalAI {
             // Store original dimensions for zoom calculations
             fabricCanvas.originalWidth = canvasWidth;
             fabricCanvas.originalHeight = canvasHeight;
-            
+
             // Make canvas container properly sized and scrollable for zoom
             canvasContainer.style.position = 'relative';
             canvasContainer.style.overflow = 'auto';
             canvasContainer.style.width = '100%';
             canvasContainer.style.height = '100%';
-            
+
             // Set initial canvas size but allow viewport adjustments
             canvasElement.style.width = canvasWidth + 'px';
             canvasElement.style.height = canvasHeight + 'px';
@@ -4496,7 +3889,7 @@ class FalAI {
             fabricCanvas.freeDrawingBrush.color = 'rgba(255, 0, 0, 0.4)'; // Semi-transparent red
 
             // Add event listener for coordinate debugging
-            fabricCanvas.on('mouse:down', function(e) {
+            fabricCanvas.on('mouse:down', function (e) {
                 const pointer = fabricCanvas.getPointer(e.e);
                 console.log('🖱️ Click at canvas coordinates:', pointer.x, pointer.y);
             });
@@ -4507,7 +3900,7 @@ class FalAI {
 
                 // Override default pointer calculation for better accuracy
                 const originalGetPointer = fabricCanvas.getPointer;
-                fabricCanvas.getPointer = function(e, ignoreZoom) {
+                fabricCanvas.getPointer = function (e, ignoreZoom) {
                     // For touch events, use custom calculation that respects zoom
                     if ((e.touches || e.changedTouches) && !ignoreZoom) {
                         const touch = e.touches?.[0] || e.changedTouches?.[0];
@@ -4878,7 +4271,7 @@ class FalAI {
 
             fabricCanvas.zoomToPoint(new fabric.Point(point.x, point.y), newZoom);
             zoomLevel = newZoom;
-            
+
             // Update canvas display size to match new zoom level
             const imageWidth = fabricCanvas.originalWidth;
             const imageHeight = fabricCanvas.originalHeight;
@@ -4907,14 +4300,14 @@ class FalAI {
             const bgImage = fabricCanvas.backgroundImage;
             const originalImageWidth = bgImage.width; // Real image size
             const canvasScale = originalImageWidth / fabricCanvas.width; // How much canvas was scaled down
-            
+
             // Set zoom to compensate for canvas scaling
             const realZoom = canvasScale;
             fabricCanvas.setZoom(realZoom);
-            
+
             // Reset viewport position
             fabricCanvas.absolutePan({ x: 0, y: 0 });
-            
+
             // Update canvas display size to show real image size
             canvasElement.style.width = originalImageWidth + 'px';
             canvasElement.style.height = bgImage.height + 'px';
@@ -4953,7 +4346,7 @@ class FalAI {
             // Set zoom and center viewport
             fabricCanvas.setZoom(fabricZoom);
             fabricCanvas.absolutePan({ x: 0, y: 0 });
-            
+
             // Update canvas display size to match fitted dimensions
             const displayWidth = originalImageWidth * fitScale;
             const displayHeight = originalImageHeight * fitScale;
@@ -5013,7 +4406,7 @@ class FalAI {
         // Create mask in original image size for maximum quality
         let maskWidth = originalWidth;
         let maskHeight = originalHeight;
-        
+
         console.log('📏 Creating mask in original image size for quality');
 
         // Create a temporary canvas with target mask size
@@ -5127,276 +4520,6 @@ class FalAI {
         }
     }
 
-    setupAdvancedGestures(modal) {
-        const zoomContainer = modal.querySelector('.image-zoom-container');
-        const zoomImage = modal.querySelector('#zoom-image');
-        
-        if (!window.Hammer) {
-            console.warn('Hammer.js not loaded, advanced gestures disabled');
-            return;
-        }
-
-        // Initialize Hammer manager
-        const hammer = new Hammer.Manager(zoomContainer);
-        
-        // Add recognizers with proper configuration
-        const pan = new Hammer.Pan({ threshold: 10, pointers: 1 });
-        const pinch = new Hammer.Pinch({ threshold: 0.1 });
-        const swipe = new Hammer.Swipe({ 
-            direction: Hammer.DIRECTION_HORIZONTAL, 
-            velocity: 0.1, // Lower velocity threshold
-            threshold: 30  // Lower distance threshold
-        });
-        const doubletap = new Hammer.Tap({ 
-            event: 'doubletap', 
-            taps: 2, 
-            interval: 300, 
-            threshold: 10 
-        });
-        const singletap = new Hammer.Tap({ 
-            event: 'singletap',
-            taps: 1
-        });
-        const press = new Hammer.Press({ time: 500 });
-
-        hammer.add([pan, pinch, swipe, doubletap, singletap, press]);
-
-        // Set recognizer relationships
-        pinch.recognizeWith(pan);
-        doubletap.recognizeWith(singletap);
-        singletap.requireFailure(doubletap);
-        
-        // Important: Don't make swipe require pan failure - they should work independently
-        pan.recognizeWith(swipe);
-        
-        // Gesture state
-        let currentScale = 1;
-        let currentX = 0;
-        let currentY = 0;
-        let lastPanX = 0;
-        let lastPanY = 0;
-        let isZoomed = false;
-        const minScale = 0.5; // Allow zooming out to see full image
-        const maxScale = 5;
-
-        // Reset transform
-        const resetTransform = () => {
-            currentScale = 1;
-            currentX = 0;
-            currentY = 0;
-            isZoomed = false;
-            zoomImage.style.transform = 'scale(1) translate(0px, 0px)';
-            zoomImage.style.transition = 'transform 0.3s ease';
-        };
-
-        // Apply transform
-        const applyTransform = () => {
-            zoomImage.style.transform = `scale(${currentScale}) translate(${currentX}px, ${currentY}px)`;
-        };
-
-        // Constrain pan to image bounds
-        const constrainPan = () => {
-            if (currentScale <= 1) {
-                currentX = 0;
-                currentY = 0;
-                return;
-            }
-
-            const containerRect = zoomContainer.getBoundingClientRect();
-            const imageRect = zoomImage.getBoundingClientRect();
-            
-            // Calculate actual image dimensions after scaling
-            const scaledWidth = imageRect.width * currentScale;
-            const scaledHeight = imageRect.height * currentScale;
-            
-            // Calculate maximum pan distances
-            const maxX = Math.max(0, (scaledWidth - containerRect.width) / (2 * currentScale));
-            const maxY = Math.max(0, (scaledHeight - containerRect.height) / (2 * currentScale));
-
-            currentX = Math.max(-maxX, Math.min(maxX, currentX));
-            currentY = Math.max(-maxY, Math.min(maxY, currentY));
-        };
-
-        // Pinch to zoom
-        let lastScale = 1;
-        hammer.on('pinchstart', (e) => {
-            lastScale = currentScale;
-            zoomImage.style.transition = 'none';
-        });
-
-        hammer.on('pinchmove', (e) => {
-            const newScale = Math.max(minScale, Math.min(maxScale, lastScale * e.scale));
-            currentScale = newScale;
-            isZoomed = newScale > 1;
-            
-            constrainPan();
-            applyTransform();
-        });
-
-        hammer.on('pinchend', (e) => {
-            // Only reset if very close to scale 1
-            if (currentScale > 0.9 && currentScale < 1.1) {
-                currentScale = 1;
-                currentX = 0;
-                currentY = 0;
-                isZoomed = false;
-                applyTransform();
-            }
-            zoomImage.style.transition = 'transform 0.1s ease';
-            isZoomed = currentScale !== 1;
-        });
-
-        // Pan when zoomed or scaled
-        let isPanning = false;
-        hammer.on('panstart', (e) => {
-            console.log('Pan start, scale:', currentScale);
-            if (currentScale !== 1) {
-                isPanning = true;
-                lastPanX = currentX;
-                lastPanY = currentY;
-                zoomImage.style.transition = 'none';
-                zoomContainer.classList.add('zooming');
-                e.preventDefault();
-                e.srcEvent.stopPropagation();
-            }
-        });
-
-        hammer.on('panmove', (e) => {
-            if (currentScale !== 1 && isPanning) {
-                currentX = lastPanX + e.deltaX / currentScale;
-                currentY = lastPanY + e.deltaY / currentScale;
-                constrainPan();
-                applyTransform();
-                e.preventDefault();
-                e.srcEvent.stopPropagation();
-            }
-        });
-
-        hammer.on('panend', (e) => {
-            if (isPanning) {
-                isPanning = false;
-                zoomImage.style.transition = 'transform 0.1s ease';
-                zoomContainer.classList.remove('zooming');
-            }
-        });
-
-        // Swipe navigation with debounce protection
-        let lastSwipeTime = 0;
-        hammer.on('swipe', (e) => {
-            const now = Date.now();
-            console.log('Swipe detected:', {
-                direction: e.direction,
-                scale: currentScale,
-                deltaX: e.deltaX,
-                deltaY: e.deltaY,
-                velocity: e.velocity,
-                isPanning: isPanning,
-                timeSinceLastSwipe: now - lastSwipeTime
-            });
-            
-            // Debounce: prevent multiple swipes within 300ms
-            if (now - lastSwipeTime < 300) {
-                console.log('⏱️ Swipe debounced - too soon');
-                return;
-            }
-            
-            // Only allow swipe navigation when at normal scale and not panning
-            if (currentScale === 1 && !isPanning) {
-                lastSwipeTime = now;
-                e.preventDefault();
-                e.srcEvent.stopPropagation();
-                
-                if (e.direction === Hammer.DIRECTION_LEFT) {
-                    console.log('🔄 Navigate to next image');
-                    this.navigateZoomModal(1); // Next image
-                } else if (e.direction === Hammer.DIRECTION_RIGHT) {
-                    console.log('🔄 Navigate to previous image');
-                    this.navigateZoomModal(-1); // Previous image
-                }
-            } else {
-                console.log('❌ Swipe blocked - scale:', currentScale, 'panning:', isPanning);
-            }
-        });
-
-        // Double tap to zoom toggle
-        hammer.on('doubletap', (e) => {
-            console.log('Double tap detected, current scale:', currentScale);
-            e.preventDefault();
-            if (currentScale !== 1) {
-                console.log('Resetting zoom');
-                resetTransform();
-            } else {
-                console.log('Zooming in');
-                // Zoom in at tap position
-                const rect = zoomContainer.getBoundingClientRect();
-                const tapX = e.center.x - rect.left - rect.width / 2;
-                const tapY = e.center.y - rect.top - rect.height / 2;
-                
-                currentScale = 2.5;
-                currentX = -tapX / currentScale;
-                currentY = -tapY / currentScale;
-                isZoomed = true;
-                
-                constrainPan();
-                applyTransform();
-            }
-        });
-
-        // Long press for context menu (download/delete)
-        hammer.on('press', (e) => {
-            if (navigator.vibrate) {
-                navigator.vibrate(50); // Haptic feedback
-            }
-            
-            const contextMenu = modal.querySelector('.zoom-controls');
-            contextMenu.style.opacity = contextMenu.style.opacity === '0' ? '1' : '0';
-            
-            setTimeout(() => {
-                contextMenu.style.opacity = '1';
-            }, 2000);
-        });
-
-        // Reset transform when image changes
-        const originalUpdateZoomModal = this.updateZoomModal.bind(this);
-        this.updateZoomModal = function(imageUrl, currentIndex, totalImages) {
-            resetTransform();
-            return originalUpdateZoomModal(imageUrl, currentIndex, totalImages);
-        };
-
-        // Store hammer instance for cleanup
-        modal._hammerInstance = hammer;
-
-        // Fallback touch navigation for swipes (disabled - using Hammer.js only)
-        // let touchStartX = 0;
-        // let touchStartTime = 0;
-        
-        // zoomContainer.addEventListener('touchstart', (e) => {
-        //     if (currentScale === 1 && e.touches.length === 1) {
-        //         touchStartX = e.touches[0].clientX;
-        //         touchStartTime = Date.now();
-        //     }
-        // }, { passive: true });
-
-        // zoomContainer.addEventListener('touchend', (e) => {
-        //     if (currentScale === 1 && e.changedTouches.length === 1) {
-        //         const touchEndX = e.changedTouches[0].clientX;
-        //         const deltaX = touchEndX - touchStartX;
-        //         const deltaTime = Date.now() - touchStartTime;
-                
-        //         // Swipe parameters
-        //         if (Math.abs(deltaX) > 50 && deltaTime < 300) {
-        //             console.log('👆 Fallback swipe detected:', deltaX);
-        //             if (deltaX < 0) {
-        //                 console.log('👆 Fallback: Next image');
-        //                 this.navigateZoomModal(1);
-        //             } else {
-        //                 console.log('👆 Fallback: Previous image');
-        //                 this.navigateZoomModal(-1);
-        //             }
-        //         }
-        //     }
-        // }, { passive: true });
-    }
 
     // Persistent generation state management
     saveGenerationState(state) {
@@ -5415,14 +4538,14 @@ class FalAI {
 
         try {
             const state = JSON.parse(savedState);
-            
+
             this.logDebug('Found incomplete generation, resuming...', 'info', state);
-            
+
             // Restore state
             this.currentRequestId = state.requestId;
             this.statusUrl = state.statusUrl;
             this.resultUrl = state.resultUrl;
-            
+
             // Show status and start polling
             this.showGenerationStatus('Resuming generation...');
             const generateBtn = document.querySelector('.generate-btn');
@@ -5433,10 +4556,10 @@ class FalAI {
                 if (generateText) generateText.classList.add('hidden');
                 if (generateLoading) generateLoading.classList.remove('hidden');
             }
-            
+
             // Resume polling
             this.startStatusPolling();
-            
+
         } catch (error) {
             console.error('Error resuming generation:', error);
             this.clearGenerationState();
