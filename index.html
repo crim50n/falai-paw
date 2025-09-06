@@ -39,10 +39,15 @@
                 <button id="import-settings-btn" class="btn secondary" title="Import Settings">📥</button>
                 <button id="api-key-btn" class="btn secondary">Set API Key</button>
             </div>
+            <!-- Mobile gallery button (visible on mobile only) -->
+            <button id="mobile-gallery-btn" class="mobile-gallery-btn" title="Gallery">🖼️</button>
         </header>
 
         <!-- Mobile Menu Overlay -->
         <div id="mobile-menu-overlay" class="mobile-menu-overlay"></div>
+
+    <!-- Mobile Gallery Overlay -->
+    <div id="mobile-gallery-overlay" class="mobile-gallery-overlay"></div>
         
         <!-- Mobile Menu -->
         <div id="mobile-menu" class="mobile-menu">
@@ -67,6 +72,18 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Mobile Gallery Panel (slides from right) -->
+        <div id="mobile-gallery" class="mobile-gallery">
+            <div class="mobile-gallery-header">
+                <h3>Gallery</h3>
+                <button id="mobile-gallery-close" class="mobile-gallery-close" title="Close">✕</button>
+            </div>
+            <div class="mobile-gallery-meta">
+                <span id="mobile-gallery-count" class="gallery-count"></span>
+            </div>
+            <div id="mobile-gallery-content" class="mobile-gallery-content"></div>
         </div>
 
         <main class="main">

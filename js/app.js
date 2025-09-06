@@ -17,6 +17,43 @@ class FalAI {
         this.init();
     }
 
+    // Extract the input (request body) schema from an endpoint OpenAPI schema
+    getInputSchema(openApiSchema) {
+        if (!openApiSchema) return null;
+        try {
+            // Typical structure: components.schemas.Input / Request / or first schema in requestBody
+            // 1. Try x-fal-metadata reference
+            const paths = openApiSchema.paths || {};
+            // Find first path with post + requestBody
+            for (const p of Object.keys(paths)) {
+                const post = paths[p].post || paths[p].get || paths[p].put;
+                if (post && post.requestBody) {
+                    const content = post.requestBody.content || {};
+                    const appJson = content['application/json'];
+                    if (appJson && appJson.schema) {
+                        // If schema is a $ref
+                        if (appJson.schema.$ref) {
+                            const refName = appJson.schema.$ref.split('/').pop();
+                            return openApiSchema.components && openApiSchema.components.schemas ? openApiSchema.components.schemas[refName] : null;
+                        }
+                        return appJson.schema; // Direct schema object
+                    }
+                }
+            }
+
+            // 2. Fallback: look for first schema with properties
+            if (openApiSchema.components && openApiSchema.components.schemas) {
+                for (const key of Object.keys(openApiSchema.components.schemas)) {
+                    const candidate = openApiSchema.components.schemas[key];
+                    if (candidate && candidate.properties) return candidate;
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to extract input schema', e);
+        }
+        return null;
+    }
+
     logDebug(message, type = 'info', data = null) {
         if (!this.debugMode) return;
 
@@ -1086,6 +1123,34 @@ class FalAI {
             document.getElementById('import-settings-btn').click();
         });
 
+        // Mobile gallery panel logic
+        const mobileGalleryBtn = document.getElementById('mobile-gallery-btn');
+        const mobileGallery = document.getElementById('mobile-gallery');
+        const mobileGalleryOverlay = document.getElementById('mobile-gallery-overlay');
+        const mobileGalleryClose = document.getElementById('mobile-gallery-close');
+
+        if (mobileGalleryBtn && mobileGallery && mobileGalleryOverlay && mobileGalleryClose) {
+            mobileGalleryBtn.addEventListener('click', () => {
+                this.openMobileGallery();
+            });
+            mobileGalleryClose.addEventListener('click', () => {
+                this.closeMobileGallery();
+            });
+            mobileGalleryOverlay.addEventListener('click', () => {
+                this.closeMobileGallery();
+            });
+        }
+
+        // Close mobile gallery with Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const mg = document.getElementById('mobile-gallery');
+                if (mg && mg.classList.contains('active')) {
+                    this.closeMobileGallery();
+                }
+            }
+        });
+
     }
 
     toggleMobileMenu() {
@@ -1128,6 +1193,62 @@ class FalAI {
         mobileMenuOverlay.classList.remove('active');
 
         // Restore body scroll
+        document.body.style.overflow = '';
+    }
+
+    openMobileGallery() {
+        const galleryPanel = document.getElementById('mobile-gallery');
+        const overlay = document.getElementById('mobile-gallery-overlay');
+        const countEl = document.getElementById('mobile-gallery-count');
+        const content = document.getElementById('mobile-gallery-content');
+
+        if (!galleryPanel || !overlay) return;
+
+        // Populate from gallery savedImages
+        if (this.gallery) {
+            const images = this.gallery.savedImages || [];
+            if (countEl) countEl.textContent = images.length + ' images';
+            if (content) {
+                content.innerHTML = '';
+                if (images.length === 0) {
+                    content.innerHTML = '<div style="grid-column:1/-1;padding:1rem;color:#6b7280;text-align:center;">No saved images yet</div>';
+                } else {
+                    images.forEach((imgData, idx) => {
+                        const item = document.createElement('div');
+                        item.className = 'gallery-item';
+                        const img = document.createElement('img');
+                        img.src = imgData.url;
+                        img.alt = 'Saved image';
+                        img.loading = 'lazy';
+                        const info = document.createElement('div');
+                        info.className = 'gallery-item-info';
+                        const date = new Date(imgData.timestamp).toLocaleDateString();
+                        info.innerHTML = `<div>${imgData.endpoint}</div><div>${date}</div>`;
+                        item.appendChild(img);
+                        item.appendChild(info);
+                        item.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Reuse gallery zoom modal navigation
+                            this.gallery.openImageModalWithNavigation(imgData.url, images, idx, 'gallery');
+                        });
+                        content.appendChild(item);
+                    });
+                }
+            }
+        }
+
+        overlay.classList.add('active');
+        galleryPanel.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeMobileGallery() {
+        const galleryPanel = document.getElementById('mobile-gallery');
+        const overlay = document.getElementById('mobile-gallery-overlay');
+        if (!galleryPanel || !overlay) return;
+        overlay.classList.remove('active');
+        galleryPanel.classList.remove('active');
         document.body.style.overflow = '';
     }
 

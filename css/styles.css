@@ -45,6 +45,139 @@ body {
     gap: 1rem;
 }
 
+/* Hide header action buttons globally (kept in DOM for JS functionality) */
+.header .header-controls { display: none !important; }
+
+/* Mobile gallery button (hidden desktop) */
+/* Clean icon button matching hamburger dimensions */
+.mobile-gallery-btn {
+    display: none;
+    background: none;
+    color: #334155;
+    border: none;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 18px; /* icon size */
+    line-height: 1;
+    cursor: pointer;
+    margin-left: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s ease;
+    z-index: 260;
+}
+
+.mobile-gallery-btn:hover {
+    opacity: 0.65;
+}
+
+/* Mobile gallery slide-out */
+.mobile-gallery-overlay {
+    display: none;
+}
+
+.mobile-gallery-overlay.active {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.4);
+    z-index: 240;
+    display: block;
+}
+
+.mobile-gallery {
+    display: none;
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+    z-index: 250;
+    transition: right 0.3s ease;
+    padding: 0 1.25rem 2rem;
+    overflow-y: auto;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+}
+
+.mobile-gallery.active {
+    right: 0;
+}
+
+/* Ensure panels become visible when activated (desktop where base sets display:none) */
+.mobile-menu.active, .mobile-gallery.active {
+    display: block;
+}
+
+.mobile-gallery-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 5;
+}
+
+.mobile-gallery-header h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.mobile-gallery-close {
+    background: none;
+    color: #64748b;
+    border: none;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.mobile-gallery-close:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.mobile-gallery-meta {
+    padding: 0.75rem 0 0.5rem;
+}
+
+.mobile-gallery-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fill,minmax(140px,1fr));
+    gap: 0.75rem;
+    padding: 0.5rem 0 2rem;
+}
+
+.mobile-gallery-content .gallery-item img {
+    height: 120px;
+}
+
+@media (max-width: 768px) {
+    .mobile-gallery-btn {
+        display: inline-flex;
+        order: 2;
+    }
+    .mobile-gallery {
+        display: block;
+    }
+}
+
 .hamburger-menu {
     display: none;
     flex-direction: column;
@@ -55,7 +188,7 @@ body {
     border: none;
     cursor: pointer;
     padding: 0;
-    z-index: 101;
+    z-index: 260;
 }
 
 .hamburger-menu span {
@@ -92,7 +225,7 @@ body {
     width: 100%;
     height: 100%;
     background: white;
-    z-index: 200;
+    z-index: 250; /* above overlay so it's clickable */
     transition: left 0.3s ease;
     padding: 0 1.5rem 1.5rem;
     overflow-y: auto;
@@ -1266,11 +1399,33 @@ body {
     text-align: center;
 }
 
-/* Desktop - ensure advanced options are visible */
+/* Advanced options removed from main window (still populated into side menu when opened) */
+.advanced-options { display: none !important; }
+@media (min-width: 769px) { .header-controls { display: flex; } }
+
+/* Desktop side panel adaptations for hamburger menu & gallery */
 @media (min-width: 769px) {
-    .advanced-options {
-        display: block !important;
+    /* Show icon buttons */
+    .hamburger-menu { display: flex; }
+    .mobile-gallery-btn { display: flex; }
+
+    /* Overlay styling reused */
+    .mobile-menu-overlay.active,
+    .mobile-gallery-overlay.active {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.25);
+        z-index: 240;
+        display: block;
     }
+
+    /* Separate widths: wider menu, original gallery */
+    .mobile-menu { width: 520px; left: -540px; box-shadow: 2px 0 12px rgba(0,0,0,0.08); border-right: 1px solid #e2e8f0; z-index: 250; }
+    .mobile-menu.active { left: 0; }
+
+    .mobile-gallery { width: 500px; right: -520px; box-shadow: -2px 0 12px rgba(0,0,0,0.08); border-left: 1px solid #e2e8f0; }
+    .mobile-gallery.active { right: 0; }
 }
 
 /* Responsive design */
@@ -1311,7 +1466,7 @@ body {
     }
 
     .header-controls {
-        display: none;
+    display: none; /* keep hidden on small screens only */
     }
 
 
