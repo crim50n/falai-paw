@@ -2318,32 +2318,34 @@ class FalAI {
 
     resetFormToDefaults() {
         if (!this.currentEndpoint) return;
-
+        // Scope only to current endpoint form fields container
         const form = document.getElementById('generation-form');
-        const inputs = form.querySelectorAll('input, select, textarea');
+        if (!form) return;
 
-        // Get the input schema for this endpoint
-        const inputSchema = this.getInputSchema(this.currentEndpoint.schema);
+        // Derive input schema using existing logic
+        const inputSchema = this.getInputSchema(this.currentEndpoint.schema) || this.findInputSchema(this.currentEndpoint.schema);
         if (!inputSchema || !inputSchema.properties) return;
 
-        // Clear all array containers first
-        const arrayContainers = form.querySelectorAll('.array-items');
-        arrayContainers.forEach(container => {
+        // Only process direct children inside #form-fields (current endpoint generated UI)
+        const fieldContainer = document.getElementById('form-fields');
+        if (!fieldContainer) return;
+
+        const scopedInputs = fieldContainer.querySelectorAll('input, select, textarea');
+
+        // Clear array containers inside this scope
+        fieldContainer.querySelectorAll('.array-items').forEach(container => {
             container.innerHTML = '';
         });
 
-        // Reset each field to its default value
-        inputs.forEach(input => {
+        // Reset simple fields
+        scopedInputs.forEach(input => {
             const fieldName = input.name;
             if (!fieldName) return;
-
-            // Skip array fields, they'll be handled separately
-            if (fieldName.includes('[') && fieldName.includes(']')) return;
+            if (fieldName.includes('[') && fieldName.includes(']')) return; // arrays later
 
             let fieldSchema = inputSchema.properties[fieldName];
             if (!fieldSchema) return;
 
-            // Handle anyOf schemas (like image_size)
             if (fieldSchema.anyOf && fieldSchema.anyOf.length > 0) {
                 const enumSchema = fieldSchema.anyOf.find(option => option.enum);
                 if (enumSchema) {
@@ -2356,18 +2358,20 @@ class FalAI {
             this.setFieldToDefault(input, fieldSchema);
         });
 
-        // Handle array fields - reset to default arrays
+        // Rebuild array defaults
         Object.entries(inputSchema.properties).forEach(([fieldName, fieldSchema]) => {
             if (fieldSchema.type === 'array') {
-                const container = document.getElementById(`${fieldName}-items`);
-                if (container && fieldSchema.default) {
-                    // Add default array items
+                const container = fieldContainer.querySelector(`#${fieldName}-items`);
+                if (container && fieldSchema.default && Array.isArray(fieldSchema.default)) {
                     fieldSchema.default.forEach(() => {
                         this.addArrayItem(fieldName, fieldSchema, container);
                     });
                 }
             }
         });
+
+        // Persist updated (reset) settings only for this endpoint id
+        this.saveEndpointSettings();
     }
 
     setFieldToDefault(input, schema) {

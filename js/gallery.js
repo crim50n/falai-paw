@@ -16,12 +16,18 @@ class FalAIGallery {
 
     initializeEventListeners() {
         // Right panel tab controls
-        document.getElementById('results-panel-tab').addEventListener('click', () => {
-            this.switchRightPanelView('results');
-        });
-        document.getElementById('gallery-panel-tab').addEventListener('click', () => {
-            this.switchRightPanelView('gallery');
-        });
+            const resultsTabEl = document.getElementById('results-panel-tab');
+            if (resultsTabEl) {
+                resultsTabEl.addEventListener('click', () => {
+                    this.switchRightPanelView('results');
+                });
+            }
+        const galleryTabEl = document.getElementById('gallery-panel-tab');
+        if (galleryTabEl) {
+            galleryTabEl.addEventListener('click', () => {
+                this.switchRightPanelView('gallery');
+            });
+        }
 
         // Full-screen viewer controls
         document.getElementById('fullscreen-close').addEventListener('click', () => {
@@ -74,15 +80,15 @@ class FalAIGallery {
     // Switch between Results and Gallery views
     switchRightPanelView(view) {
         const resultsTab = document.getElementById('results-panel-tab');
-        const galleryTab = document.getElementById('gallery-panel-tab');
+    const galleryTab = document.getElementById('gallery-panel-tab');
         const placeholder = document.getElementById('no-images-placeholder');
         const results = document.getElementById('results');
         const inlineGallery = document.getElementById('inline-gallery');
 
         if (view === 'gallery') {
             // Switch to gallery view
-            resultsTab.classList.remove('active');
-            galleryTab.classList.add('active');
+                if (resultsTab) resultsTab.classList.remove('active');
+            if (galleryTab) galleryTab.classList.add('active');
             placeholder.classList.add('hidden');
             results.classList.add('hidden');
             inlineGallery.classList.remove('hidden');
@@ -91,7 +97,7 @@ class FalAIGallery {
             this.showInlineGallery();
         } else {
             // Switch to results view
-            galleryTab.classList.remove('active');
+            if (galleryTab) galleryTab.classList.remove('active');
             resultsTab.classList.add('active');
             inlineGallery.classList.add('hidden');
 
