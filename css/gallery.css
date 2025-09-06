@@ -503,7 +503,8 @@
 /* PhotoSwipe custom buttons styling - unified Fluent Icons */
 .pswp__button--download-button,
 .pswp__button--view-button,
-.pswp__button--useprompt-button,
+.pswp__button--prompt-button,
+.pswp__button--seed-button,
 .pswp__button--delete-button,
 .pswp__button--like-button,
 .pswp__button--close,
@@ -521,7 +522,8 @@
 
 .pswp__button--download-button:hover,
 .pswp__button--view-button:hover,
-.pswp__button--useprompt-button:hover,
+.pswp__button--prompt-button:hover,
+.pswp__button--seed-button:hover,
 .pswp__button--delete-button:hover,
 .pswp__button--like-button:hover,
 .pswp__button--close:hover,
@@ -533,7 +535,8 @@
 /* SVG icon styling - unified for all buttons */
 .pswp__button--download-button svg,
 .pswp__button--view-button svg,
-.pswp__button--useprompt-button svg,
+.pswp__button--prompt-button svg,
+.pswp__button--seed-button svg,
 .pswp__button--delete-button svg,
 .pswp__button--like-button svg,
 .pswp__button--close svg,
@@ -550,7 +553,8 @@
 
 .pswp__button--download-button:hover svg,
 .pswp__button--view-button:hover svg,
-.pswp__button--useprompt-button:hover svg,
+.pswp__button--prompt-button:hover svg,
+.pswp__button--seed-button:hover svg,
 .pswp__button--delete-button:hover svg,
 .pswp__button--like-button:hover svg,
 .pswp__button--close:hover svg,

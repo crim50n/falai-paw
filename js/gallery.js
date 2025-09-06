@@ -8,17 +8,17 @@ class FalAIGallery {
         this.savedImages = JSON.parse(localStorage.getItem('falai_saved_images') || '[]');
         this.likedImages = JSON.parse(localStorage.getItem('falai_liked_images') || '[]');
         this.currentImageIndex = 0;
-        
+
         // Filter state
         this.showOnlyLiked = false;
-        
+
         // Selection state
         this.selectionMode = false;
         this.selectedImages = new Set();
-        
+
         this.initializeEventListeners();
         this.updateMobileStickyHeights();
-        
+
         // Initialize galleries if they exist
         setTimeout(() => {
             if (document.getElementById('inline-gallery-content')) {
@@ -28,9 +28,9 @@ class FalAIGallery {
                 this.updateMobileGallery();
             }
         }, 100);
-        
+
         window.addEventListener('resize', () => this.updateMobileStickyHeights());
-    window.falGallery = this; // expose for photoswipe-init
+        window.falGallery = this; // expose for photoswipe-init
     }
 
     initializeEventListeners() {
@@ -164,13 +164,13 @@ class FalAIGallery {
                 container.appendChild(item);
             });
         }
-        
+
         // Update like indicators after DOM update
         requestAnimationFrame(() => {
             this.updateGalleryLikes();
         });
-        
-    // PhotoSwipe reads DOM on open; no explicit reinit needed
+
+        // PhotoSwipe reads DOM on open; no explicit reinit needed
     }
 
     // Create gallery item for inline display (PhotoSwipe)
@@ -178,15 +178,15 @@ class FalAIGallery {
         const div = document.createElement('div');
         div.className = 'gallery-item';
         div.setAttribute('data-image-id', imageData.timestamp); // Unique identifier
-        
+
         // Check if liked and add class
         const isLiked = this.likedImages.includes(String(imageData.timestamp));
         if (isLiked) {
             div.classList.add('liked');
         }
-        
+
         const date = new Date(imageData.timestamp).toLocaleDateString();
-        
+
         // Selection checkbox
         const selectionOverlay = document.createElement('div');
         selectionOverlay.className = 'gallery-item-selection';
@@ -196,22 +196,23 @@ class FalAIGallery {
                 <label for="select-${imageData.timestamp}">✓</label>
             </div>
         `;
-        
-    // Anchor for PhotoSwipe
-    const link = document.createElement('a');
-    link.href = imageData.url;
-    link.className = 'pswp-item';
-    link.dataset.endpoint = imageData.endpoint || '';
-    link.dataset.prompt = imageData.prompt || '';
-    link.dataset.meta = JSON.stringify(imageData.parameters || {});
-    link.dataset.imageId = imageData.timestamp;
-    this._assignNaturalSize(link, imageData.url);
-        
+
+        // Anchor for PhotoSwipe
+        const link = document.createElement('a');
+        link.href = imageData.url;
+        link.className = 'pswp-item';
+        link.dataset.endpoint = imageData.endpoint || '';
+        link.dataset.prompt = imageData.prompt || '';
+        link.dataset.seed = imageData.seed || '';
+        link.dataset.meta = JSON.stringify(imageData.parameters || {});
+        link.dataset.imageId = imageData.timestamp;
+        this._assignNaturalSize(link, imageData.url);
+
         const img = document.createElement('img');
         img.src = imageData.url;
         img.alt = 'Saved image';
         img.loading = 'lazy';
-        
+
         const info = document.createElement('div');
         info.className = 'gallery-item-info';
         info.innerHTML = `
@@ -225,7 +226,7 @@ class FalAIGallery {
             e.stopPropagation();
             this.toggleImageSelection(imageData.timestamp, e.target.checked);
         });
-        
+
         // Add click handler for selection mode
         div.addEventListener('click', (e) => {
             if (this.selectionMode) {
@@ -262,8 +263,9 @@ class FalAIGallery {
         link.className = 'pswp-item';
         link.dataset.endpoint = metadata.endpoint || '';
         link.dataset.prompt = (document.getElementById('prompt')?.value || '').trim();
+        link.dataset.seed = metadata.seed || '';
         link.dataset.meta = JSON.stringify(metadata.parameters || {});
-    this._assignNaturalSize(link, imageUrl);
+        this._assignNaturalSize(link, imageUrl);
 
         const img = document.createElement('img');
         img.src = imageUrl;
@@ -273,30 +275,30 @@ class FalAIGallery {
         // Action buttons overlay
         const actions = document.createElement('div');
         actions.className = 'result-image-actions';
-        
-    const downloadBtn = document.createElement('button');
-    downloadBtn.className = 'btn secondary small result-download-btn';
-    downloadBtn.textContent = 'Download';
-    downloadBtn.title = 'Download image';
+
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'btn secondary small result-download-btn';
+        downloadBtn.textContent = 'Download';
+        downloadBtn.title = 'Download image';
         downloadBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             e.preventDefault();
             const src = imageUrl;
             let filename = 'image.png';
-            try { const u = new URL(src); const last = u.pathname.split('/').pop(); filename = (last && last.includes('.')) ? last : 'image-' + Date.now() + '.png'; } catch(e2) { filename = 'image-' + Date.now() + '.png'; }
+            try { const u = new URL(src); const last = u.pathname.split('/').pop(); filename = (last && last.includes('.')) ? last : 'image-' + Date.now() + '.png'; } catch (e2) { filename = 'image-' + Date.now() + '.png'; }
             const triggerDownload = (url) => { const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); };
             try {
                 if (src.startsWith('data:')) { triggerDownload(src); return; }
-                const resp = await fetch(src, {mode:'cors'});
+                const resp = await fetch(src, { mode: 'cors' });
                 const blob = await resp.blob();
                 const url = URL.createObjectURL(blob);
                 triggerDownload(url);
-                setTimeout(()=>URL.revokeObjectURL(url), 4000);
-            } catch(err) { triggerDownload(src); }
+                setTimeout(() => URL.revokeObjectURL(url), 4000);
+            } catch (err) { triggerDownload(src); }
         });
 
         actions.appendChild(downloadBtn);
-        
+
         link.appendChild(img);
         div.appendChild(link);
         div.appendChild(actions);
@@ -320,13 +322,13 @@ class FalAIGallery {
                 container.appendChild(item);
             });
         }
-        
+
         // Update like indicators after DOM update
         requestAnimationFrame(() => {
             this.updateGalleryLikes();
         });
-        
-    // After DOM updates recalc sticky offsets
+
+        // After DOM updates recalc sticky offsets
         this.updateMobileStickyHeights();
     }
 
@@ -351,15 +353,15 @@ class FalAIGallery {
         const div = document.createElement('div');
         div.className = 'gallery-item';
         div.setAttribute('data-image-id', imageData.timestamp); // Unique identifier
-        
+
         // Check if liked and add class
         const isLiked = this.likedImages.includes(String(imageData.timestamp));
         if (isLiked) {
             div.classList.add('liked');
         }
-        
+
         const date = new Date(imageData.timestamp).toLocaleDateString();
-        
+
         // Selection checkbox
         const selectionOverlay = document.createElement('div');
         selectionOverlay.className = 'gallery-item-selection';
@@ -369,16 +371,17 @@ class FalAIGallery {
                 <label for="select-mobile-${imageData.timestamp}">✓</label>
             </div>
         `;
-        
-    const link = document.createElement('a');
-    link.href = imageData.url;
-    link.className = 'pswp-item';
-    link.dataset.endpoint = imageData.endpoint || '';
-    link.dataset.prompt = imageData.prompt || '';
-    link.dataset.meta = JSON.stringify(imageData.parameters || {});
-    link.dataset.imageId = imageData.timestamp;
-    this._assignNaturalSize(link, imageData.url);
-        
+
+        const link = document.createElement('a');
+        link.href = imageData.url;
+        link.className = 'pswp-item';
+        link.dataset.endpoint = imageData.endpoint || '';
+        link.dataset.prompt = imageData.prompt || '';
+        link.dataset.seed = imageData.seed || '';
+        link.dataset.meta = JSON.stringify(imageData.parameters || {});
+        link.dataset.imageId = imageData.timestamp;
+        this._assignNaturalSize(link, imageData.url);
+
         const img = document.createElement('img');
         img.src = imageData.url;
         img.alt = 'Saved image';
@@ -390,7 +393,7 @@ class FalAIGallery {
             e.stopPropagation();
             this.toggleImageSelection(imageData.timestamp, e.target.checked);
         });
-        
+
         // Add click handler for selection mode
         div.addEventListener('click', (e) => {
             if (this.selectionMode) {
@@ -490,7 +493,7 @@ class FalAIGallery {
                 const imageId = String(link.dataset.imageId);
                 const isLiked = this.likedImages.includes(imageId);
                 item.classList.toggle('liked', isLiked);
-                
+
                 // Show red heart only for liked items
                 let likeIndicator = item.querySelector('.like-indicator');
                 if (isLiked && !likeIndicator) {
@@ -509,15 +512,15 @@ class FalAIGallery {
     cleanupOldGalleryImages(daysOld = 30) {
         const cutoffDate = Date.now() - (daysOld * 24 * 60 * 60 * 1000);
         const initialCount = this.savedImages.length;
-        
+
         this.savedImages = this.savedImages.filter(image => image.timestamp > cutoffDate);
-        
+
         if (this.savedImages.length < initialCount) {
             this.saveImages();
             this.showInlineGallery();
             this.updateMobileGallery();
         }
-        
+
         return initialCount - this.savedImages.length;
     }
 
@@ -525,13 +528,13 @@ class FalAIGallery {
     cleanGalleryBase64() {
         const initialCount = this.savedImages.length;
         this.savedImages = this.savedImages.filter(image => !image.url.startsWith('data:'));
-        
+
         if (this.savedImages.length < initialCount) {
             this.saveImages();
             this.showInlineGallery();
             this.updateMobileGallery();
         }
-        
+
         return initialCount - this.savedImages.length;
     }
 
@@ -574,7 +577,7 @@ class FalAIGallery {
             this.saveImages();
             this.showInlineGallery();
             this.updateMobileGallery();
-            
+
             if (this.app && this.app.showNotification) {
                 this.app.showNotification('Gallery cleared', 'success');
             }
@@ -585,19 +588,19 @@ class FalAIGallery {
     toggleSelectionMode() {
         this.selectionMode = !this.selectionMode;
         this.selectedImages.clear();
-        
+
         // Update both inline and mobile gallery containers
         const galleryContainer = document.getElementById('inline-gallery');
         const mobileGalleryContainer = document.getElementById('mobile-gallery');
-        
+
         if (galleryContainer) {
             galleryContainer.classList.toggle('selection-mode', this.selectionMode);
         }
-        
+
         if (mobileGalleryContainer) {
             mobileGalleryContainer.classList.toggle('selection-mode', this.selectionMode);
         }
-        
+
         this.updateSelectionUI();
         this.showInlineGallery(); // Refresh to show/hide checkboxes
         this.updateMobileGallery(); // Refresh mobile gallery too
@@ -610,7 +613,7 @@ class FalAIGallery {
         } else {
             this.selectedImages.delete(imageId);
         }
-        
+
         this.updateSelectionUI();
         this.updateGalleryItemSelection(imageId, selected);
     }
@@ -626,12 +629,12 @@ class FalAIGallery {
     // Update selection UI (count, buttons, etc.)
     updateSelectionUI() {
         const selectionCount = this.selectedImages.size;
-        
+
         // Show/hide selection action rows
         document.querySelectorAll('.selection-actions-row').forEach(row => {
             row.style.display = this.selectionMode ? 'block' : 'none';
         });
-        
+
         // Show/hide inline action buttons
         document.querySelectorAll('.gallery-inline-actions').forEach(container => {
             const counter = container.querySelector('.selection-counter');
@@ -639,13 +642,13 @@ class FalAIGallery {
             const selectNotLikedBtn = container.querySelector('.select-not-liked-btn');
             const clearBtn = container.querySelector('.clear-selection-btn');
             const deleteBtn = container.querySelector('.bulk-delete-btn');
-            
+
             // Update counter and selection mode button
             if (counter) {
                 counter.style.display = this.selectionMode ? 'inline-block' : 'none';
                 counter.textContent = `${selectionCount} selected`;
             }
-            
+
             // Update buttons in selection actions row
             if (container.classList.contains('selection-actions-row')) {
                 if (deleteBtn) deleteBtn.style.display = selectionCount > 0 ? 'inline-block' : 'none';
@@ -659,45 +662,45 @@ class FalAIGallery {
         this.savedImages.forEach(image => {
             this.selectedImages.add(image.timestamp);
         });
-        
+
         // Update all checkboxes
         const checkboxes = document.querySelectorAll('.gallery-item input[type="checkbox"]');
         checkboxes.forEach(checkbox => {
             checkbox.checked = true;
         });
-        
+
         // Update visual state
         const galleryItems = document.querySelectorAll('.gallery-item');
         galleryItems.forEach(item => {
             item.classList.add('selected');
         });
-        
+
         this.updateSelectionUI();
     }
 
     // Clear all selections
     clearSelection() {
         this.selectedImages.clear();
-        
+
         // Update all checkboxes
         const checkboxes = document.querySelectorAll('.gallery-item input[type="checkbox"]');
         checkboxes.forEach(checkbox => {
             checkbox.checked = false;
         });
-        
+
         // Update visual state
         const galleryItems = document.querySelectorAll('.gallery-item');
         galleryItems.forEach(item => {
             item.classList.remove('selected');
         });
-        
+
         this.updateSelectionUI();
     }
 
     // Select only not-liked images (for deletion)
     selectNotLikedImages() {
         this.clearSelection();
-        
+
         // Only select images that are NOT liked
         const galleryItems = document.querySelectorAll('.gallery-item');
         galleryItems.forEach(item => {
@@ -705,7 +708,7 @@ class FalAIGallery {
             if (link) {
                 const imageId = link.dataset.imageId;
                 const isLiked = this.likedImages.includes(imageId);
-                
+
                 if (!isLiked) {
                     const checkbox = item.querySelector('input[type="checkbox"]');
                     if (checkbox) {
@@ -716,7 +719,7 @@ class FalAIGallery {
                 }
             }
         });
-        
+
         this.updateSelectionUI();
     }
 
@@ -724,23 +727,23 @@ class FalAIGallery {
     bulkDeleteImages() {
         const selectedCount = this.selectedImages.size;
         if (selectedCount === 0) return;
-        
+
         const confirmMessage = `Are you sure you want to delete ${selectedCount} selected image${selectedCount > 1 ? 's' : ''}? This action cannot be undone.`;
-        
+
         if (confirm(confirmMessage)) {
             // Remove selected images from savedImages array
-            this.savedImages = this.savedImages.filter(image => 
+            this.savedImages = this.savedImages.filter(image =>
                 !this.selectedImages.has(image.timestamp)
             );
-            
+
             // Clear selection
             this.selectedImages.clear();
-            
+
             // Save and refresh
             this.saveImages();
             this.showInlineGallery();
             this.updateMobileGallery();
-            
+
             if (this.app && this.app.showNotification) {
                 this.app.showNotification(`${selectedCount} image${selectedCount > 1 ? 's' : ''} deleted successfully`, 'success');
             }
@@ -758,7 +761,7 @@ class FalAIGallery {
             }
         };
         // Use decoding async for faster paint if supported
-        try { img.decoding = 'async'; } catch(e) {}
+        try { img.decoding = 'async'; } catch (e) { }
         img.src = url;
     }
 }

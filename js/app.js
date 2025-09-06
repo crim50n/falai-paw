@@ -2211,7 +2211,7 @@ class FalAI {
                 const imageElement = this.createImageElement(image, result);
                 container.appendChild(imageElement);
                 // Auto-save silently (dedupe) so gallery always has generations
-                const meta = { endpoint: this.currentEndpoint?.metadata?.endpointId || 'Unknown', parameters: this.lastUsedParams || {} };
+                const meta = { endpoint: this.currentEndpoint?.metadata?.endpointId || 'Unknown', parameters: this.lastUsedParams || {}, seed: result.seed || '' };
                 if (this.gallery.saveImage(image.url, meta, { dedupe: true, silent: true })) {
                     added.push(image.url);
                 }
@@ -2262,22 +2262,12 @@ class FalAI {
         // Store only minimal metadata needed for gallery (avoid entire result object duplication per image)
         const imageMetadata = {
             endpoint: endpointId || 'Unknown',
-            ...(hasParams ? { parameters: this.lastUsedParams } : {})
+            ...(hasParams ? { parameters: this.lastUsedParams } : {}),
+            seed: metadata.seed || ''
         };
         
         return this.gallery.createResultImageItem(image.url, imageMetadata);
     }
-
-
-
-
-
-
-
-
-
-
-
 
     resetFormToDefaults() {
         if (!this.currentEndpoint) return;
