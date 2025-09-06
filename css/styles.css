@@ -90,22 +90,28 @@ body {
 }
 
 .mobile-gallery {
-    display: none;
     position: fixed;
     top: 0;
-    right: -100%;
-    width: 100%;
+    right: 0;
     height: 100%;
     background: #ffffff;
     z-index: 250;
-    transition: right 0.3s ease;
     padding: 0 1.25rem 2rem;
     overflow-y: auto;
-    box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+    box-shadow: -2px 0 12px rgba(0,0,0,0.12);
+    width: 100%;
+    max-width: 100%;
+    transform: translateX(100%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.4s cubic-bezier(.4,.0,.2,1), opacity 0.35s ease;
+    will-change: transform, opacity;
 }
 
 .mobile-gallery.active {
-    right: 0;
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
 }
 
 /* Ensure panels become visible when activated (desktop where base sets display:none) */
@@ -217,22 +223,40 @@ body {
     display: none;
 }
 
-.mobile-menu {
-    display: none;
+.mobile-menu-overlay.active {
     position: fixed;
     top: 0;
-    left: -100%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.4);
+    z-index: 240;
+    display: block;
+    transition: opacity 0.25s ease;
+}
+
+.mobile-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     background: white;
-    z-index: 250; /* above overlay so it's clickable */
-    transition: left 0.3s ease;
+    z-index: 250;
     padding: 0 1.5rem 1.5rem;
     overflow-y: auto;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.12);
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.4s cubic-bezier(.4,.0,.2,1), opacity 0.35s ease;
+    will-change: transform, opacity;
 }
 
 .mobile-menu.active {
-    left: 0;
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .mobile-menu-header {
@@ -710,11 +734,11 @@ body {
     display: flex;
     align-items: center;
     gap: 1.5rem;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 2rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0 0 1rem;
+    box-shadow: none;
     position: relative;
     max-width: 500px;
     width: 100%;
@@ -1420,12 +1444,9 @@ body {
         display: block;
     }
 
-    /* Separate widths: wider menu, original gallery */
-    .mobile-menu { width: 520px; left: -540px; box-shadow: 2px 0 12px rgba(0,0,0,0.08); border-right: 1px solid #e2e8f0; z-index: 250; }
-    .mobile-menu.active { left: 0; }
-
-    .mobile-gallery { width: 500px; right: -520px; box-shadow: -2px 0 12px rgba(0,0,0,0.08); border-left: 1px solid #e2e8f0; }
-    .mobile-gallery.active { right: 0; }
+    /* Desktop widths with transform-based animation */
+    .mobile-menu { max-width: 520px; width: 520px; border-right: 1px solid #e2e8f0; }
+    .mobile-gallery { max-width: 500px; width: 500px; border-left: 1px solid #e2e8f0; }
 }
 
 /* Responsive design */

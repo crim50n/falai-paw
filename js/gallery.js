@@ -85,7 +85,7 @@ class FalAIGallery {
         const results = document.getElementById('results');
         const inlineGallery = document.getElementById('inline-gallery');
 
-        if (view === 'gallery') {
+    if (view === 'gallery') {
             // Switch to gallery view
                 if (resultsTab) resultsTab.classList.remove('active');
             if (galleryTab) galleryTab.classList.add('active');
@@ -98,7 +98,7 @@ class FalAIGallery {
         } else {
             // Switch to results view
             if (galleryTab) galleryTab.classList.remove('active');
-            resultsTab.classList.add('active');
+            if (resultsTab) resultsTab.classList.add('active');
             inlineGallery.classList.add('hidden');
 
             // Show appropriate results content
