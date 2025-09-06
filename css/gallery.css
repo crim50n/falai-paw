@@ -579,10 +579,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  z-index: 2;
-  pointer-events: none;
+  z-index: 10;
+  pointer-events: auto;
   opacity: 1;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.gallery-item .like-indicator:hover {
+  opacity: 0.8;
+  transform: scale(1.1);
+}
+
+.gallery-item .like-indicator svg {
+  width: 16px;
+  height: 16px;
+  fill: #ff4757;
 }
 
 /* (Moved enhanced .pswp-btn-label styles above) */

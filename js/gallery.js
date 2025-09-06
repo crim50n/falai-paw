@@ -242,13 +242,36 @@ class FalAIGallery {
         div.appendChild(link);
         div.appendChild(info);
 
-        // Add like indicator if liked
-        if (isLiked) {
-            const likeIndicator = document.createElement('div');
-            likeIndicator.className = 'like-indicator';
-            likeIndicator.innerHTML = '❤️';
-            div.appendChild(likeIndicator);
-        }
+        // Always add like indicator area (visible only when liked, but always clickable)
+        const likeIndicator = document.createElement('div');
+        likeIndicator.className = 'like-indicator';
+        likeIndicator.style.display = isLiked ? 'flex' : 'none';
+        likeIndicator.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8.106 18.247C5.298 16.083 2 13.542 2 9.137 2 6.386 4.386 4 7.137 4c1.323 0 2.617.613 3.617 1.553L12 6.998l1.246-1.445C14.246 4.613 15.54 4 16.863 4 19.614 4 22 6.386 22 9.137c0 4.405-3.298 6.946-6.106 9.11L12 21.35l-3.894-3.103Z"/></svg>';
+        
+        // Add click handler for like toggle
+        likeIndicator.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleLike(imageData.timestamp);
+        });
+
+        // Add invisible click area for easier clicking when not liked
+        const clickArea = document.createElement('div');
+        clickArea.style.position = 'absolute';
+        clickArea.style.top = '8px';
+        clickArea.style.left = '8px';
+        clickArea.style.width = '32px';
+        clickArea.style.height = '32px';
+        clickArea.style.zIndex = '9';
+        clickArea.style.cursor = 'pointer';
+        clickArea.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleLike(imageData.timestamp);
+        });
+
+        div.appendChild(clickArea);
+        div.appendChild(likeIndicator);
 
         return div;
     }
@@ -408,13 +431,36 @@ class FalAIGallery {
         div.appendChild(selectionOverlay);
         div.appendChild(link);
 
-        // Add like indicator if liked
-        if (isLiked) {
-            const likeIndicator = document.createElement('div');
-            likeIndicator.className = 'like-indicator';
-            likeIndicator.innerHTML = '❤️';
-            div.appendChild(likeIndicator);
-        }
+        // Always add like indicator area (visible only when liked, but always clickable)
+        const likeIndicator = document.createElement('div');
+        likeIndicator.className = 'like-indicator';
+        likeIndicator.style.display = isLiked ? 'flex' : 'none';
+        likeIndicator.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8.106 18.247C5.298 16.083 2 13.542 2 9.137 2 6.386 4.386 4 7.137 4c1.323 0 2.617.613 3.617 1.553L12 6.998l1.246-1.445C14.246 4.613 15.54 4 16.863 4 19.614 4 22 6.386 22 9.137c0 4.405-3.298 6.946-6.106 9.11L12 21.35l-3.894-3.103Z"/></svg>';
+        
+        // Add click handler for like toggle
+        likeIndicator.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleLike(imageData.timestamp);
+        });
+
+        // Add invisible click area for easier clicking when not liked
+        const clickArea = document.createElement('div');
+        clickArea.style.position = 'absolute';
+        clickArea.style.top = '8px';
+        clickArea.style.left = '8px';
+        clickArea.style.width = '32px';
+        clickArea.style.height = '32px';
+        clickArea.style.zIndex = '9';
+        clickArea.style.cursor = 'pointer';
+        clickArea.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleLike(imageData.timestamp);
+        });
+
+        div.appendChild(clickArea);
+        div.appendChild(likeIndicator);
 
         return div;
     }
@@ -484,6 +530,25 @@ class FalAIGallery {
         }
     }
 
+    // Toggle like state for an image
+    toggleLike(imageId) {
+        const imageIdStr = String(imageId);
+        const index = this.likedImages.indexOf(imageIdStr);
+        
+        if (index > -1) {
+            // Remove from likes
+            this.likedImages.splice(index, 1);
+        } else {
+            // Add to likes
+            this.likedImages.push(imageIdStr);
+        }
+        
+        this.saveLikes();
+        this.updateGalleryLikes();
+        
+        return this.likedImages.includes(imageIdStr);
+    }
+
     // Update gallery display to show like states
     updateGalleryLikes() {
         const galleryItems = document.querySelectorAll('.gallery-item');
@@ -494,15 +559,10 @@ class FalAIGallery {
                 const isLiked = this.likedImages.includes(imageId);
                 item.classList.toggle('liked', isLiked);
 
-                // Show red heart only for liked items
-                let likeIndicator = item.querySelector('.like-indicator');
-                if (isLiked && !likeIndicator) {
-                    likeIndicator = document.createElement('div');
-                    likeIndicator.className = 'like-indicator';
-                    likeIndicator.innerHTML = '❤️';
-                    item.appendChild(likeIndicator);
-                } else if (!isLiked && likeIndicator) {
-                    likeIndicator.remove();
+                // Show/hide like indicator based on like state
+                const likeIndicator = item.querySelector('.like-indicator');
+                if (likeIndicator) {
+                    likeIndicator.style.display = isLiked ? 'flex' : 'none';
                 }
             }
         });
