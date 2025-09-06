@@ -67,7 +67,7 @@ class FalAI {
                 console.log('🧹 Starting cleanup...');
                 const base64 = this.cleanupBase64Images();
                 const settings = this.cleanupOldSettings();
-                const gallery = this.cleanupOldGalleryImages();
+                const gallery = this.gallery.cleanupOldGalleryImages();
                 console.log(`✅ Cleanup complete:`);
                 console.log(`  📷 Base64 images: ${base64.count} removed (${this.formatBytes(base64.sizeFreed)} freed)`);
                 console.log(`  ⚙️  Settings: ${settings} removed`);
@@ -80,7 +80,7 @@ class FalAI {
                 this.logStorageInfo();
             },
             clear: () => {
-                this.savedImages = [];
+                this.gallery.savedImages = [];
                 localStorage.setItem('falai_saved_images', '[]');
                 console.log('Gallery cleared');
                 this.logStorageInfo();
@@ -2841,7 +2841,7 @@ class FalAI {
 
                             if (settingsCleanup === 0) {
                                 // Only clean gallery as last resort and only if very large
-                                this.cleanupOldGalleryImages();
+                                this.gallery.cleanupOldGalleryImages();
                             }
                         }
                     } else {

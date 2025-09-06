@@ -445,8 +445,8 @@ class FalAIGallery {
         div.innerHTML = `
             <img src="${imageData.url}" alt="Saved image" loading="lazy">
             <div class="gallery-item-overlay">
-                <button class="btn secondary" onclick="window.falaiGallery.downloadImageFromGallery(${index})" title="Download">💾</button>
-                <button class="btn secondary" onclick="window.falaiGallery.deleteImageFromGallery(${index})" title="Delete">🗑️</button>
+                <button class="btn secondary" data-action="download" data-index="${index}" title="Download">💾</button>
+                <button class="btn secondary" data-action="delete" data-index="${index}" title="Delete">🗑️</button>
             </div>
             <div class="gallery-item-info">
                 <div>${imageData.endpoint}</div>
@@ -459,7 +459,21 @@ class FalAIGallery {
         img.addEventListener('click', (e) => {
             e.stopPropagation();
             // Open image zoom modal for quick preview
-            this.openImageModal(imageData.url);
+            this.openImageModalWithNavigation(imageData.url, [imageData], 0, 'gallery');
+        });
+
+        // Add event listeners for action buttons
+        const downloadBtn = div.querySelector('[data-action="download"]');
+        const deleteBtn = div.querySelector('[data-action="delete"]');
+        
+        downloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.downloadImageFromGallery(index);
+        });
+        
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.deleteImageFromGallery(index);
         });
 
         return div;
@@ -587,27 +601,27 @@ class FalAIGallery {
         }
 
         // Initialize Hammer manager
-        const hammer = new Hammer.Manager(zoomContainer);
+        const hammer = new window.Hammer.Manager(zoomContainer);
         
         // Add recognizers with proper configuration
-        const pan = new Hammer.Pan({ threshold: 10, pointers: 1 });
-        const pinch = new Hammer.Pinch({ threshold: 0.1 });
-        const swipe = new Hammer.Swipe({ 
-            direction: Hammer.DIRECTION_HORIZONTAL, 
+        const pan = new window.Hammer.Pan({ threshold: 10, pointers: 1 });
+        const pinch = new window.Hammer.Pinch({ threshold: 0.1 });
+        const swipe = new window.Hammer.Swipe({ 
+            direction: window.Hammer.DIRECTION_HORIZONTAL, 
             velocity: 0.1, // Lower velocity threshold
             threshold: 30  // Lower distance threshold
         });
-        const doubletap = new Hammer.Tap({ 
+        const doubletap = new window.Hammer.Tap({ 
             event: 'doubletap', 
             taps: 2, 
             interval: 300, 
             threshold: 10 
         });
-        const singletap = new Hammer.Tap({ 
+        const singletap = new window.Hammer.Tap({ 
             event: 'singletap',
             taps: 1
         });
-        const press = new Hammer.Press({ time: 500 });
+        const press = new window.Hammer.Press({ time: 500 });
 
         hammer.add([pan, pinch, swipe, doubletap, singletap, press]);
 
@@ -621,7 +635,6 @@ class FalAIGallery {
         let currentScale = 1;
         let currentX = 0;
         let currentY = 0;
-        let isZoomed = false;
         const minScale = 1;
         const maxScale = 4;
 
@@ -639,17 +652,15 @@ class FalAIGallery {
         hammer.on('pinchmove', (e) => {
             const newScale = Math.max(minScale, Math.min(maxScale, lastScale * e.scale));
             currentScale = newScale;
-            isZoomed = newScale > 1;
             applyTransform();
         });
 
-        hammer.on('pinchend', (e) => {
+        hammer.on('pinchend', () => {
             // Only reset if very close to scale 1
             if (currentScale > 0.9 && currentScale < 1.1) {
                 currentScale = 1;
                 currentX = 0;
                 currentY = 0;
-                isZoomed = false;
             }
             zoomImage.style.transition = 'transform 0.3s ease';
             applyTransform();
@@ -678,7 +689,7 @@ class FalAIGallery {
             }
         });
 
-        hammer.on('panend', (e) => {
+        hammer.on('panend', () => {
             if (isPanning) {
                 isPanning = false;
                 zoomImage.style.transition = 'transform 0.1s ease';
@@ -702,10 +713,10 @@ class FalAIGallery {
                 e.preventDefault();
                 e.srcEvent.stopPropagation();
                 
-                if (e.direction === Hammer.DIRECTION_LEFT) {
+                if (e.direction === window.Hammer.DIRECTION_LEFT) {
                     console.log('🔄 Navigate to next image');
                     this.navigateZoomModal(1); // Next image
-                } else if (e.direction === Hammer.DIRECTION_RIGHT) {
+                } else if (e.direction === window.Hammer.DIRECTION_RIGHT) {
                     console.log('🔄 Navigate to previous image');
                     this.navigateZoomModal(-1); // Previous image
                 }
@@ -721,18 +732,16 @@ class FalAIGallery {
                 currentScale = 1;
                 currentX = 0;
                 currentY = 0;
-                isZoomed = false;
             } else {
                 // Zoom in to 2x
                 currentScale = 2;
-                isZoomed = true;
             }
             zoomImage.style.transition = 'transform 0.3s ease';
             applyTransform();
         });
 
         // Long press for context menu (download/delete)
-        hammer.on('press', (e) => {
+        hammer.on('press', () => {
             if (navigator.vibrate) {
                 navigator.vibrate(50); // Haptic feedback
             }
@@ -746,7 +755,6 @@ class FalAIGallery {
             currentScale = 1;
             currentX = 0;
             currentY = 0;
-            isZoomed = false;
             zoomImage.style.transform = 'none';
             zoomImage.style.transition = 'transform 0.3s ease';
             
