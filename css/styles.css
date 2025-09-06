@@ -131,6 +131,12 @@ body {
     z-index: 5;
 }
 
+.mobile-gallery-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 .mobile-gallery-header h3 {
     font-size: 1.125rem;
     font-weight: 600;

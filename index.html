@@ -82,11 +82,27 @@
         <div id="mobile-gallery" class="mobile-gallery">
             <div class="mobile-gallery-header">
                 <h3>Gallery</h3>
-                <button id="mobile-gallery-close" class="mobile-gallery-close" title="Close">✕</button>
+                <div class="mobile-gallery-header-actions">
+                    <button id="selection-mode-btn" class="btn secondary small">Select</button>
+                    <button id="mobile-gallery-close" class="mobile-gallery-close" title="Close">✕</button>
+                </div>
             </div>
             <div class="mobile-gallery-meta">
                 <span id="mobile-gallery-count" class="gallery-count"></span>
             </div>
+            
+            <!-- Bulk actions toolbar for mobile gallery -->
+            <div id="bulk-actions-toolbar" class="bulk-actions-toolbar" style="display: none;">
+                <div class="bulk-actions-left">
+                    <span id="selection-counter">0 selected</span>
+                    <button id="select-all-btn" class="btn secondary small">Select All</button>
+                    <button id="clear-selection-btn" class="btn secondary small">Clear</button>
+                </div>
+                <div class="bulk-actions-right">
+                    <button id="bulk-delete-btn" class="btn danger small">Delete</button>
+                </div>
+            </div>
+            
             <div id="mobile-gallery-content" class="mobile-gallery-content"></div>
         </div>
 
@@ -170,8 +186,24 @@
                     <div id="inline-gallery" class="inline-gallery hidden">
                         <div class="gallery-header">
                             <h3>Saved Images</h3>
-                            <span id="gallery-count" class="gallery-count"></span>
+                            <div class="gallery-header-actions">
+                                <span id="gallery-count" class="gallery-count"></span>
+                                <button id="selection-mode-btn" class="btn secondary small">Select</button>
+                            </div>
                         </div>
+                        
+                        <!-- Bulk actions toolbar -->
+                        <div id="bulk-actions-toolbar" class="bulk-actions-toolbar" style="display: none;">
+                            <div class="bulk-actions-left">
+                                <span id="selection-counter">0 selected</span>
+                                <button id="select-all-btn" class="btn secondary small">Select All</button>
+                                <button id="clear-selection-btn" class="btn secondary small">Clear</button>
+                            </div>
+                            <div class="bulk-actions-right">
+                                <button id="bulk-delete-btn" class="btn danger small">Delete Selected</button>
+                            </div>
+                        </div>
+                        
                         <div id="inline-gallery-content" class="inline-gallery-content"></div>
                     </div>
                 </div>

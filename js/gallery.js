@@ -11,6 +11,10 @@ class FalAIGallery {
         this.currentImageIndex = 0;
         this.fancyboxInstance = null;
         
+        // Selection state
+        this.selectionMode = false;
+        this.selectedImages = new Set();
+        
         this.initializeEventListeners();
         this.initializeFancybox();
     }
@@ -29,6 +33,72 @@ class FalAIGallery {
                 this.switchRightPanelView('gallery');
             });
         }
+
+        // Selection mode controls
+        const selectionModeBtn = document.getElementById('selection-mode-btn');
+        if (selectionModeBtn) {
+            selectionModeBtn.addEventListener('click', () => {
+                this.toggleSelectionMode();
+                selectionModeBtn.textContent = this.selectionMode ? 'Cancel' : 'Select';
+                selectionModeBtn.classList.toggle('active', this.selectionMode);
+            });
+        }
+
+        // Bulk action controls
+        const selectAllBtn = document.getElementById('select-all-btn');
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', () => {
+                this.selectAllImages();
+            });
+        }
+
+        const clearSelectionBtn = document.getElementById('clear-selection-btn');
+        if (clearSelectionBtn) {
+            clearSelectionBtn.addEventListener('click', () => {
+                this.clearSelection();
+            });
+        }
+
+        const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.addEventListener('click', () => {
+                this.bulkDeleteImages();
+            });
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Only handle shortcuts when gallery is visible and not in input
+            const galleryVisible = !document.getElementById('inline-gallery')?.classList.contains('hidden');
+            if (!galleryVisible || e.target.matches('input, textarea')) return;
+
+            switch (e.key) {
+                case 'Escape':
+                    if (this.selectionMode) {
+                        this.toggleSelectionMode();
+                        const selectionBtn = document.getElementById('selection-mode-btn');
+                        if (selectionBtn) {
+                            selectionBtn.textContent = 'Select';
+                            selectionBtn.classList.remove('active');
+                        }
+                    }
+                    break;
+                case 'a':
+                case 'A':
+                    if ((e.ctrlKey || e.metaKey) && this.selectionMode) {
+                        e.preventDefault();
+                        this.selectAllImages();
+                    }
+                    break;
+                case 'Delete':
+                case 'Backspace':
+                    if (this.selectionMode && this.selectedImages.size > 0) {
+                        e.preventDefault();
+                        this.bulkDeleteImages();
+                    }
+                    break;
+            }
+        });
     }
 
     initializeFancybox() {
@@ -296,8 +366,19 @@ class FalAIGallery {
     createInlineGalleryItem(imageData, index) {
         const div = document.createElement('div');
         div.className = 'gallery-item';
-
+        div.setAttribute('data-image-id', imageData.timestamp); // Unique identifier
+        
         const date = new Date(imageData.timestamp).toLocaleDateString();
+        
+        // Selection checkbox
+        const selectionOverlay = document.createElement('div');
+        selectionOverlay.className = 'gallery-item-selection';
+        selectionOverlay.innerHTML = `
+            <div class="selection-checkbox">
+                <input type="checkbox" id="select-${imageData.timestamp}">
+                <label for="select-${imageData.timestamp}">✓</label>
+            </div>
+        `;
         
         // Create anchor element for Fancybox
         const link = document.createElement('a');
@@ -318,7 +399,25 @@ class FalAIGallery {
             <div>${date}</div>
         `;
 
+        // Add selection event listeners
+        const checkbox = selectionOverlay.querySelector('input[type="checkbox"]');
+        checkbox.addEventListener('change', (e) => {
+            e.stopPropagation();
+            this.toggleImageSelection(imageData.timestamp, e.target.checked);
+        });
+        
+        // Add click handler for selection mode
+        div.addEventListener('click', (e) => {
+            if (this.selectionMode) {
+                e.preventDefault();
+                e.stopPropagation();
+                checkbox.checked = !checkbox.checked;
+                this.toggleImageSelection(imageData.timestamp, checkbox.checked);
+            }
+        });
+
         link.appendChild(img);
+        div.appendChild(selectionOverlay);
         div.appendChild(link);
         div.appendChild(info);
 
@@ -394,18 +493,49 @@ class FalAIGallery {
     createMobileGalleryItem(imageData, index) {
         const div = document.createElement('div');
         div.className = 'gallery-item';
-
+        div.setAttribute('data-image-id', imageData.timestamp); // Unique identifier
+        
+        const date = new Date(imageData.timestamp).toLocaleDateString();
+        
+        // Selection checkbox
+        const selectionOverlay = document.createElement('div');
+        selectionOverlay.className = 'gallery-item-selection';
+        selectionOverlay.innerHTML = `
+            <div class="selection-checkbox">
+                <input type="checkbox" id="select-mobile-${imageData.timestamp}">
+                <label for="select-mobile-${imageData.timestamp}">✓</label>
+            </div>
+        `;
+        
         const link = document.createElement('a');
         link.href = imageData.url;
         link.setAttribute('data-fancybox', 'mobile-gallery');
-        link.setAttribute('data-caption', `${imageData.endpoint} - ${new Date(imageData.timestamp).toLocaleDateString()}`);
+        link.setAttribute('data-caption', `${imageData.endpoint} - ${date}`);
         
         const img = document.createElement('img');
         img.src = imageData.url;
         img.alt = 'Saved image';
         img.loading = 'lazy';
 
+        // Add selection event listeners
+        const checkbox = selectionOverlay.querySelector('input[type="checkbox"]');
+        checkbox.addEventListener('change', (e) => {
+            e.stopPropagation();
+            this.toggleImageSelection(imageData.timestamp, e.target.checked);
+        });
+        
+        // Add click handler for selection mode
+        div.addEventListener('click', (e) => {
+            if (this.selectionMode) {
+                e.preventDefault();
+                e.stopPropagation();
+                checkbox.checked = !checkbox.checked;
+                this.toggleImageSelection(imageData.timestamp, checkbox.checked);
+            }
+        });
+
         link.appendChild(img);
+        div.appendChild(selectionOverlay);
         div.appendChild(link);
 
         return div;
@@ -515,12 +645,138 @@ class FalAIGallery {
     clearGallery() {
         if (confirm('Are you sure you want to clear all saved images? This action cannot be undone.')) {
             this.savedImages = [];
+            this.selectedImages.clear();
             this.saveImages();
             this.showInlineGallery();
             this.updateMobileGallery();
             
             if (this.app && this.app.showNotification) {
                 this.app.showNotification('Gallery cleared', 'success');
+            }
+        }
+    }
+
+    // Toggle selection mode
+    toggleSelectionMode() {
+        this.selectionMode = !this.selectionMode;
+        this.selectedImages.clear();
+        
+        // Update both inline and mobile gallery containers
+        const galleryContainer = document.getElementById('inline-gallery');
+        const mobileGalleryContainer = document.getElementById('mobile-gallery');
+        
+        if (galleryContainer) {
+            galleryContainer.classList.toggle('selection-mode', this.selectionMode);
+        }
+        
+        if (mobileGalleryContainer) {
+            mobileGalleryContainer.classList.toggle('selection-mode', this.selectionMode);
+        }
+        
+        this.updateSelectionUI();
+        this.showInlineGallery(); // Refresh to show/hide checkboxes
+        this.updateMobileGallery(); // Refresh mobile gallery too
+    }
+
+    // Toggle individual image selection
+    toggleImageSelection(imageId, selected) {
+        if (selected) {
+            this.selectedImages.add(imageId);
+        } else {
+            this.selectedImages.delete(imageId);
+        }
+        
+        this.updateSelectionUI();
+        this.updateGalleryItemSelection(imageId, selected);
+    }
+
+    // Update gallery item visual selection state
+    updateGalleryItemSelection(imageId, selected) {
+        const galleryItem = document.querySelector(`[data-image-id="${imageId}"]`);
+        if (galleryItem) {
+            galleryItem.classList.toggle('selected', selected);
+        }
+    }
+
+    // Update selection UI (count, buttons, etc.)
+    updateSelectionUI() {
+        const selectionCount = this.selectedImages.size;
+        const bulkToolbar = document.getElementById('bulk-actions-toolbar');
+        const selectionCounter = document.getElementById('selection-counter');
+        
+        if (bulkToolbar) {
+            bulkToolbar.style.display = selectionCount > 0 ? 'flex' : 'none';
+        }
+        
+        if (selectionCounter) {
+            selectionCounter.textContent = `${selectionCount} selected`;
+        }
+    }
+
+    // Select all images
+    selectAllImages() {
+        this.selectedImages.clear();
+        this.savedImages.forEach(image => {
+            this.selectedImages.add(image.timestamp);
+        });
+        
+        // Update all checkboxes
+        const checkboxes = document.querySelectorAll('.gallery-item input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        
+        // Update visual state
+        const galleryItems = document.querySelectorAll('.gallery-item');
+        galleryItems.forEach(item => {
+            item.classList.add('selected');
+        });
+        
+        this.updateSelectionUI();
+    }
+
+    // Clear all selections
+    clearSelection() {
+        this.selectedImages.clear();
+        
+        // Update all checkboxes
+        const checkboxes = document.querySelectorAll('.gallery-item input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+        // Update visual state
+        const galleryItems = document.querySelectorAll('.gallery-item');
+        galleryItems.forEach(item => {
+            item.classList.remove('selected');
+        });
+        
+        this.updateSelectionUI();
+    }
+
+    // Bulk delete selected images
+    bulkDeleteImages() {
+        const selectedCount = this.selectedImages.size;
+        if (selectedCount === 0) return;
+        
+        const confirmMessage = `Are you sure you want to delete ${selectedCount} selected image${selectedCount > 1 ? 's' : ''}? This action cannot be undone.`;
+        
+        if (confirm(confirmMessage)) {
+            // Remove selected images from savedImages array
+            this.savedImages = this.savedImages.filter(image => 
+                !this.selectedImages.has(image.timestamp)
+            );
+            
+            // Clear selection
+            this.selectedImages.clear();
+            
+            // Save and refresh
+            this.saveImages();
+            this.showInlineGallery();
+            this.updateMobileGallery();
+            
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification(`${selectedCount} image${selectedCount > 1 ? 's' : ''} deleted successfully`, 'success');
             }
         }
     }
