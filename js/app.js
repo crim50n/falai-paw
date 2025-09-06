@@ -2211,7 +2211,14 @@ class FalAI {
                 const imageElement = this.createImageElement(image, result);
                 container.appendChild(imageElement);
                 // Auto-save silently (dedupe) so gallery always has generations
-                const meta = { endpoint: this.currentEndpoint?.metadata?.endpointId || 'Unknown', parameters: this.lastUsedParams || {}, seed: result.seed || '' };
+                // Use prompt from API result if available, otherwise fall back to form input
+                const promptFromResult = result.prompt || image.prompt || (document.getElementById('prompt')?.value || '').trim();
+                const meta = { 
+                    endpoint: this.currentEndpoint?.metadata?.endpointId || 'Unknown', 
+                    parameters: this.lastUsedParams || {}, 
+                    seed: result.seed || image.seed || '',
+                    prompt: promptFromResult
+                };
                 if (this.gallery.saveImage(image.url, meta, { dedupe: true, silent: true })) {
                     added.push(image.url);
                 }
@@ -2259,11 +2266,14 @@ class FalAI {
     // Use gallery method (PhotoSwipe-compatible anchor)
         const endpointId = this.currentEndpoint?.metadata?.endpointId;
         const hasParams = this.lastUsedParams && Object.keys(this.lastUsedParams).length > 0;
+        // Use prompt from API result if available, otherwise fall back to form input
+        const promptFromResult = metadata.prompt || image.prompt || (document.getElementById('prompt')?.value || '').trim();
         // Store only minimal metadata needed for gallery (avoid entire result object duplication per image)
         const imageMetadata = {
             endpoint: endpointId || 'Unknown',
             ...(hasParams ? { parameters: this.lastUsedParams } : {}),
-            seed: metadata.seed || ''
+            seed: metadata.seed || image.seed || '',
+            prompt: promptFromResult
         };
         
         return this.gallery.createResultImageItem(image.url, imageMetadata);

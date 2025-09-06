@@ -285,7 +285,7 @@ class FalAIGallery {
         link.href = imageUrl;
         link.className = 'pswp-item';
         link.dataset.endpoint = metadata.endpoint || '';
-        link.dataset.prompt = (document.getElementById('prompt')?.value || '').trim();
+        link.dataset.prompt = metadata.prompt || (document.getElementById('prompt')?.value || '').trim();
         link.dataset.seed = metadata.seed || '';
         link.dataset.meta = JSON.stringify(metadata.parameters || {});
         this._assignNaturalSize(link, imageUrl);
@@ -450,7 +450,8 @@ class FalAIGallery {
         if (dedupe && this.savedImages.some(img => img.url === imageUrl)) {
             return false; // already stored
         }
-        const promptValue = (document.getElementById('prompt')?.value || '').trim();
+        // Use prompt from metadata if provided, otherwise fall back to form input
+        const promptValue = metadata.prompt || (document.getElementById('prompt')?.value || '').trim();
         const imageData = {
             url: imageUrl,
             timestamp: Date.now(),

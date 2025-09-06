@@ -363,10 +363,28 @@ function initLightbox() {
                     // Get image info
                     let imageInfo = '';
                     try {
-                        const img = slide.content?.element;
-                        if (img && img.tagName === 'IMG') {
-                            const naturalWidth = img.naturalWidth;
-                            const naturalHeight = img.naturalHeight;
+                        // Use PhotoSwipe's width/height data first
+                        let naturalWidth = slide.data.width || slide.data.w;
+                        let naturalHeight = slide.data.height || slide.data.h;
+                        
+                        // If PhotoSwipe doesn't have dimensions, try data attributes from link element
+                        if (!naturalWidth || !naturalHeight) {
+                            const pswpWidth = parseInt(link.getAttribute('data-pswp-width'));
+                            const pswpHeight = parseInt(link.getAttribute('data-pswp-height'));
+                            if (pswpWidth && pswpHeight) {
+                                naturalWidth = pswpWidth;
+                                naturalHeight = pswpHeight;
+                            }
+                        }
+                        
+                        // Final fallback to img element natural dimensions
+                        if (!naturalWidth || !naturalHeight) {
+                            const img = slide.content?.element;
+                            if (img && img.tagName === 'IMG' && img.complete) {
+                                naturalWidth = img.naturalWidth || naturalWidth;
+                                naturalHeight = img.naturalHeight || naturalHeight;
+                            }
+                        }
 
                             // Get file type from URL
                             const src = slide.data.src || '';
@@ -410,8 +428,15 @@ function initLightbox() {
                                 // Size unavailable
                             }
 
+                        // Only show dimensions if we have valid values
+                        if (naturalWidth && naturalHeight && naturalWidth > 0 && naturalHeight > 0) {
                             imageInfo = `<div><strong>Size:</strong> ${naturalWidth} × ${naturalHeight}px</div>`;
                             imageInfo += `<div><strong>Type:</strong> ${fileType}`;
+                            if (fileSize) imageInfo += ` (${fileSize})`;
+                            imageInfo += `</div>`;
+                        } else {
+                            // Fallback when dimensions are not available
+                            imageInfo = `<div><strong>Type:</strong> ${fileType}`;
                             if (fileSize) imageInfo += ` (${fileSize})`;
                             imageInfo += `</div>`;
                         }
