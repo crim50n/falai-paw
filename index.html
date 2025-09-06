@@ -19,6 +19,10 @@
     
     <!-- Hammer.js for advanced touch gestures -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    
+    <!-- Fancybox 5 for gallery -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
 
     <!-- Icons -->
     <link rel="icon" href="favicon.png" type="image/png">
@@ -202,23 +206,6 @@
             </div>
         </div>
 
-        <!-- Full-screen Image Viewer -->
-        <div id="fullscreen-viewer" class="fullscreen-viewer hidden">
-            <div class="fullscreen-controls">
-                <button id="fullscreen-prev" class="btn secondary">‹</button>
-                <button id="fullscreen-download" class="btn secondary">💾</button>
-                <button id="fullscreen-delete" class="btn secondary">🗑️</button>
-                <button id="fullscreen-close" class="btn secondary">✕</button>
-                <button id="fullscreen-next" class="btn secondary">›</button>
-            </div>
-            <div class="fullscreen-image-container">
-                <img id="fullscreen-image" src="" alt="">
-            </div>
-            <div class="fullscreen-info">
-                <div id="fullscreen-counter"></div>
-                <div id="fullscreen-metadata"></div>
-            </div>
-        </div>
 
         <!-- Custom Endpoint Modal -->
         <div id="custom-endpoint-modal" class="modal hidden">

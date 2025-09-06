@@ -1214,24 +1214,7 @@ class FalAI {
                     content.innerHTML = '<div style="grid-column:1/-1;padding:1rem;color:#6b7280;text-align:center;">No saved images yet</div>';
                 } else {
                     images.forEach((imgData, idx) => {
-                        const item = document.createElement('div');
-                        item.className = 'gallery-item';
-                        const img = document.createElement('img');
-                        img.src = imgData.url;
-                        img.alt = 'Saved image';
-                        img.loading = 'lazy';
-                        const info = document.createElement('div');
-                        info.className = 'gallery-item-info';
-                        const date = new Date(imgData.timestamp).toLocaleDateString();
-                        info.innerHTML = `<div>${imgData.endpoint}</div><div>${date}</div>`;
-                        item.appendChild(img);
-                        item.appendChild(info);
-                        item.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            // Reuse gallery zoom modal navigation
-                            this.gallery.openImageModalWithNavigation(imgData.url, images, idx, 'gallery');
-                        });
+                        const item = this.gallery.createMobileGalleryItem(imgData, idx);
                         content.appendChild(item);
                     });
                 }
@@ -2263,46 +2246,15 @@ class FalAI {
         jsonOutput.textContent = JSON.stringify(result, null, 2);
     }
 
-    createImageElement(image, metadata) {
-        const div = document.createElement('div');
-        div.className = 'result-image';
-
-        const img = document.createElement('img');
-        img.src = image.url;
-        img.alt = 'Generated image';
-        img.loading = 'lazy';
-
-        const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'result-image-actions';
-
-        const downloadBtn = document.createElement('button');
-        downloadBtn.className = 'btn secondary';
-        downloadBtn.innerHTML = '💾';
-        downloadBtn.title = 'Download';
-        downloadBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.downloadImage(image.url, image.file_name || 'image.jpg');
-        });
-
-        actionsDiv.appendChild(downloadBtn);
-
-        div.appendChild(img);
-        div.appendChild(actionsDiv);
-
-        // Add click handler for image zoom with results context
-        img.addEventListener('click', (e) => {
-            e.stopPropagation();
-            // Create images array from current results
-            const resultImages = this.lastResult ? this.lastResult.images || [] : [];
-            const currentIndex = resultImages.findIndex(img => img.url === image.url);
-            this.gallery.openImageModalWithNavigation(image.url, resultImages, currentIndex, 'results');
-        });
-
-        // Try to save to gallery when image is generated (non-blocking)
-        this.gallery.saveToGallery(image.url, metadata, false); // false = no visual feedback
-
-        return div;
+    createImageElement(image, metadata = {}) {
+        // Use the new gallery method that supports Fancybox
+        const imageMetadata = {
+            endpoint: this.currentEndpoint?.id || 'Unknown',
+            parameters: this.lastUsedParams || {},
+            ...metadata
+        };
+        
+        return this.gallery.createResultImageItem(image.url, imageMetadata);
     }
 
 

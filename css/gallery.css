@@ -44,58 +44,104 @@
     flex-direction: column;
 }
 
-/* Inline gallery */
+/* Enhanced Inline Gallery */
 .inline-gallery {
     height: 100%;
     display: flex;
     flex-direction: column;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #e2e8f0;
 }
 
 .gallery-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.gallery-header h3 {
+    color: #1e293b;
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin: 0;
 }
 
 .gallery-count {
-    background: #f3f4f6;
-    color: #374151;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    padding: 0.375rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
 .inline-gallery-content {
     flex: 1;
     overflow-y: auto;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.25rem;
     align-content: start;
+    padding: 0.5rem;
+    
+    /* Custom scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(59, 130, 246, 0.3) transparent;
 }
 
-/* Gallery items */
+.inline-gallery-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.inline-gallery-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.inline-gallery-content::-webkit-scrollbar-thumb {
+    background: rgba(59, 130, 246, 0.3);
+    border-radius: 3px;
+}
+
+.inline-gallery-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(59, 130, 246, 0.5);
+}
+
+/* Enhanced Gallery Items */
 .gallery-item {
     position: relative;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .gallery-item:hover {
-    transform: scale(1.05);
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    border-color: rgba(59, 130, 246, 0.2);
 }
 
 .gallery-item img {
     width: 100%;
-    height: 150px;
+    height: 160px;
     object-fit: cover;
     position: relative;
     z-index: 1;
     cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.gallery-item:hover img {
+    transform: scale(1.05);
 }
 
 .gallery-item-info {
@@ -103,44 +149,60 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
     color: white;
-    padding: 1rem;
+    padding: 2rem 1rem 1rem;
     font-size: 0.8rem;
     pointer-events: none;
+    backdrop-filter: blur(8px);
 }
 
-/* Legacy gallery (modal view) */
+.gallery-item-info div:first-child {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.gallery-item-info div:last-child {
+    opacity: 0.8;
+    font-size: 0.75rem;
+}
+
+/* Legacy gallery (modal view) - Enhanced */
 .gallery-content {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.25rem;
+    padding: 1rem;
 }
 
-/* Result images display */
+/* Enhanced Result Images Display */
 .result-images {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
     margin-top: 1rem;
     overflow: auto;
     max-height: calc(100vh - 300px);
+    padding: 0.5rem;
 }
 
 .result-image {
     position: relative;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     align-self: center;
     max-width: 100%;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .result-image:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-6px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    border-color: rgba(59, 130, 246, 0.2);
 }
 
 .result-image img {
@@ -152,7 +214,7 @@
 }
 
 .result-image:hover img {
-    transform: scale(1.02);
+    transform: scale(1.01);
 }
 
 .result-image-actions {
@@ -171,27 +233,27 @@
 }
 
 .result-image-actions .btn {
-    padding: 0.375rem;
+    padding: 0.5rem;
     border-radius: 50%;
     min-width: auto;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.875rem;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
-    backdrop-filter: blur(8px);
+    font-size: 0.9rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(12px);
     background: rgba(255, 255, 255, 0.95);
     color: #374151;
-    border: 1px solid rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.8);
     transition: all 0.2s ease;
 }
 
 .result-image-actions .btn:hover {
     background: rgba(255, 255, 255, 1);
-    transform: scale(1.15);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
 }
 
 /* Image preview components */
@@ -209,509 +271,266 @@
     flex-shrink: 0;
 }
 
-/* Full-screen Image Viewer */
-.fullscreen-viewer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.95);
-    display: flex;
-    flex-direction: column;
-    z-index: 2000;
+/* Fancybox Custom Styles */
+.fancybox__container {
+    --fancybox-bg: rgba(24, 24, 27, 0.95);
+    --fancybox-accent-color: #3b82f6;
+    --fancybox-content-opacity: 1 !important;
 }
 
-.fullscreen-controls {
-    position: fixed;
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 0.75rem;
-    z-index: 2001;
+/* Force all content to be fully visible immediately */
+.fancybox__container * {
+    opacity: 1 !important;
 }
 
-.fullscreen-controls .btn {
-    padding: 0.75rem;
-    border-radius: 50%;
-    min-width: auto;
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
+/* Prevent any loading dimming effects */
+.fancybox__slide,
+.fancybox__slide.is-loading,
+.fancybox__slide.has-loading {
+    opacity: 1 !important;
+}
+
+.fancybox__content,
+.fancybox__content.is-loading {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+}
+
+/* Disable all image loading states that cause dimming */
+.fancybox__slide img {
+    opacity: 1 !important;
+    filter: none !important;
+    visibility: visible !important;
+}
+
+.fancybox__slide img[data-lazy-src] {
+    opacity: 1 !important;
+}
+
+/* Override any CSS animations that might dim content */
+.fancybox__slide--current .fancybox__content {
+    animation: none !important;
+    opacity: 1 !important;
+}
+
+/* Smooth slide transitions - disable scaling effects */
+.fancybox__slide {
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+.fancybox__slide .fancybox__content {
+    transition: none !important;
+    transform: none !important;
+}
+
+/* Disable zoom-in/out animations on open/close */
+.fancybox__backdrop,
+.fancybox__container {
+    transition: opacity 0.25s ease-in-out !important;
+}
+
+/* Carousel smooth sliding */
+.fancybox__carousel {
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+/* Remove scale animations completely and ensure full brightness */
+.fancybox__slide--current .fancybox__content,
+.fancybox__slide--next .fancybox__content,
+.fancybox__slide--previous .fancybox__content {
+    transform: scale(1) !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transition: opacity 0.2s ease !important;
+}
+
+/* Ensure images are always fully visible */
+.fancybox__slide img,
+.fancybox__content img {
+    opacity: 1 !important;
+    filter: none !important;
+}
+
+/* Fix any loading state dimming */
+.fancybox__slide--current {
+    opacity: 1 !important;
+}
+
+.fancybox__slide.has-loading .fancybox__content {
+    opacity: 1 !important;
+}
+
+/* Custom smooth animations */
+.fancybox-zoomInUp {
+    animation: fancybox-zoomInUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.fancybox-zoomOutDown {
+    animation: fancybox-zoomOutDown 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes fancybox-zoomInUp {
+    from {
+        opacity: 0;
+        transform: scale(0.98) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes fancybox-zoomOutDown {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.98) translateY(10px);
+    }
+}
+
+/* Custom buttons styling */
+.f-button--download,
+.f-button--delete {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+}
+
+.f-button--download:hover,
+.f-button--delete:hover {
     background: rgba(255, 255, 255, 0.2);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(10px);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
 }
 
-.fullscreen-controls .btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: scale(1.1);
-}
-
-.fullscreen-image-container {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    position: relative;
-}
-
-.fullscreen-image-container img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    border-radius: 8px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-}
-
-.fullscreen-info {
-    position: absolute;
-    bottom: 1rem;
-    left: 1rem;
-    right: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: white;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 1rem;
-    border-radius: 8px;
-    backdrop-filter: blur(10px);
-}
-
-.fullscreen-info div {
-    font-size: 0.9rem;
-}
-
-#fullscreen-counter {
-    font-weight: bold;
-}
-
-/* Navigation buttons */
-#fullscreen-prev,
-#fullscreen-next {
-    position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 60px;
-    height: 60px;
-    font-size: 2rem;
-    z-index: 2002;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    border: 2px solid rgba(255, 255, 255, 0.7);
-    border-radius: 50%;
-    backdrop-filter: blur(3px);
-    transition: all 0.2s ease;
-}
-
-#fullscreen-prev {
-    left: 1rem;
-}
-
-#fullscreen-next {
-    right: 1rem;
-}
-
-#fullscreen-prev:hover,
-#fullscreen-next:hover {
-    background: rgba(0, 0, 0, 0.8);
-    border-color: rgba(255, 255, 255, 1);
-    transform: translateY(-50%) scale(1.1);
-}
-
-/* Hide navigation if only one image */
-.fullscreen-viewer.single-image #fullscreen-prev,
-.fullscreen-viewer.single-image #fullscreen-next {
-    display: none;
-}
-
-/* Image zoom modal */
-.image-zoom-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 3000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.image-zoom-backdrop {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    cursor: pointer;
-}
-
-.image-zoom-container {
-    position: relative;
-    max-width: 90vw;
-    max-height: 90vh;
-    z-index: 3001;
-    overflow: hidden;
-    touch-action: none; /* Prevent default touch behaviors */
-    user-select: none;
-    width: 100vw;
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.image-zoom-container img {
-    max-width: 100vw;
-    max-height: 90vh;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-    border-radius: 8px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    transform-origin: center;
-}
-
-#zoom-image {
-    transition: transform 0.3s ease;
-    max-width: 90vw;
-    max-height: 85vh;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-    touch-action: none;
-    pointer-events: none; /* Image itself doesn't handle events */
-    transform-origin: center;
-    position: relative;
-    z-index: 1;
-}
-
-.image-zoom-container.zooming #zoom-image {
-    transition: none; /* Disable transition during gestures */
-}
-
-.zoom-controls {
-    position: fixed;
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    z-index: 3002;
-    opacity: 1;
-    transition: opacity 0.3s ease;
-    pointer-events: auto;
-}
-
-.zoom-controls.hidden-controls {
-    opacity: 0;
-    pointer-events: none;
-}
-
-/* Navigation buttons in top controls */
-.zoom-nav-btn {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    font-size: 1.5rem;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(10px);
-}
-
-.zoom-nav-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: scale(1.1);
-}
-
-.zoom-nav-btn:active {
-    transform: scale(0.95);
-    transition: transform 0.1s ease;
-}
-
-.zoom-nav-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-}
-
-/* Close button positioned at top-right of image */
-.image-zoom-container .close-zoom-btn {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    font-size: 1.2rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(10px);
-    z-index: 3003;
-}
-
-/* Download button positioned at bottom-left of image */
-.image-zoom-container .zoom-download-btn {
-    position: absolute;
-    bottom: 0.75rem;
-    left: 0.75rem;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    font-size: 1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(10px);
-    z-index: 3003;
-}
-
-/* Delete button positioned at bottom-right of image */
-.image-zoom-container .zoom-delete-btn {
-    position: absolute;
-    bottom: 0.75rem;
-    right: 0.75rem;
+.f-button--delete:hover {
     background: rgba(220, 38, 38, 0.8);
-    color: white;
-    border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    font-size: 1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(10px);
-    z-index: 3003;
+    border-color: rgba(220, 38, 38, 1);
 }
 
-/* Hover effects */
-.close-zoom-btn:hover,
-.zoom-action-btn:hover,
-.zoom-nav-btn:hover {
-    transform: scale(1.1);
+/* Enhanced toolbar */
+.fancybox__toolbar {
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+    backdrop-filter: blur(20px);
 }
 
-.image-zoom-container .close-zoom-btn:hover {
-    background: rgba(0, 0, 0, 0.9);
+/* Better image captions */
+.fancybox__caption {
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    backdrop-filter: blur(20px);
+    color: #f1f5f9;
+    font-size: 0.875rem;
+    padding: 2rem 1rem 1rem;
+    text-align: center;
 }
 
-.image-zoom-container .zoom-download-btn:hover {
-    background: rgba(0, 0, 0, 0.9);
+/* Navigation arrows styling */
+.fancybox__nav .f-button {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    backdrop-filter: blur(10px) !important;
+    transition: all 0.2s ease !important;
 }
 
-.image-zoom-container .zoom-delete-btn:hover {
-    background: rgba(220, 38, 38, 1);
+.fancybox__nav .f-button:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    transform: scale(1.1) !important;
 }
 
-.zoom-counter {
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    backdrop-filter: blur(10px);
-    margin: 0 0.5rem;
+/* Fancybox Mobile Optimizations */
+@media (max-width: 768px) {
+    .fancybox__toolbar {
+        padding: 0.5rem;
+    }
+    
+    .f-button {
+        width: 44px;
+        height: 44px;
+        font-size: 1.1rem;
+    }
+    
+    .fancybox__caption {
+        font-size: 0.8rem;
+        padding: 1.5rem 1rem 1rem;
+    }
+    
+    /* Better touch targets */
+    .fancybox__nav .f-button {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+    }
+    
+    /* Gesture hints for mobile */
+    .fancybox__container::after {
+        content: "Pinch to zoom, swipe to navigate";
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        opacity: 0;
+        animation: fadeInOut 3s ease;
+        pointer-events: none;
+        z-index: 9999;
+    }
+    
+    @keyframes fadeInOut {
+        0%, 100% { opacity: 0; }
+        20%, 80% { opacity: 1; }
+    }
 }
 
-/* Touch feedback for buttons */
-.zoom-nav-btn:active,
-.close-zoom-btn:active,
-.zoom-action-btn:active {
-    transform: scale(0.95);
-    transition: transform 0.1s ease;
-}
-
-/* Advanced Touch Gestures for Image Zoom Modal */
-/* Prevent text selection during gestures */
-.image-zoom-modal * {
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-
-/* Smooth zoom animation improvements */
-@keyframes zoomIn {
-    from { transform: scale(1); }
-    to { transform: scale(2.5); }
-}
-
-@keyframes zoomOut {
-    from { transform: scale(2.5); }
-    to { transform: scale(1); }
-}
-
-.zoom-animation-in #zoom-image {
-    animation: zoomIn 0.3s ease;
-}
-
-.zoom-animation-out #zoom-image {
-    animation: zoomOut 0.3s ease;
-}
-
-/* Gesture indicators */
-.gesture-hint {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 12px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-    z-index: 1000;
-}
-
-.gesture-hint.show {
-    opacity: 1;
-}
-
-/* Mobile responsive styles */
+/* Enhanced Gallery Responsive Design */
 @media (max-width: 768px) {
     .inline-gallery-content {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 0.75rem;
     }
 
     .result-images {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
     }
 
     .gallery-content {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 0.75rem;
     }
-
-    .fullscreen-controls {
-        top: 0.5rem;
-        right: 0.5rem;
-        left: auto;
-        transform: none;
-        flex-direction: column;
-        gap: 0.5rem;
+    
+    /* Better mobile gallery items */
+    .gallery-item {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-
-    .fullscreen-controls .btn {
-        width: 48px;
-        height: 48px;
-        font-size: 1rem;
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(5px);
+    
+    .gallery-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     }
-
-    .fullscreen-info {
-        bottom: 0.5rem;
-        left: 0.5rem;
-        right: 0.5rem;
-        flex-direction: column;
-        gap: 0.5rem;
-        text-align: center;
+    
+    .gallery-item img {
+        width: 100%;
+        height: 140px;
+        object-fit: cover;
     }
-
-    #fullscreen-prev,
-    #fullscreen-next {
-        width: 70px;
-        height: 70px;
-        font-size: 2rem;
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
-        border: 2px solid rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(5px);
-        border-radius: 50%;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-
-    #fullscreen-prev {
-        left: 0.5rem;
-    }
-
-    #fullscreen-next {
-        right: 0.5rem;
-    }
-
-    #fullscreen-prev:hover,
-    #fullscreen-next:hover,
-    #fullscreen-prev:active,
-    #fullscreen-next:active {
-        background: rgba(0, 0, 0, 0.9);
-        transform: translateY(-50%) scale(1.1);
-        border-color: rgba(255, 255, 255, 1);
-    }
-
-    /* Touch feedback for mobile */
-    #fullscreen-prev:active,
-    #fullscreen-next:active {
-        transform: translateY(-50%) scale(0.95);
-        transition: all 0.1s ease;
-    }
-
-    .image-zoom-container {
-        max-width: 95vw;
-        max-height: 85vh;
-    }
-
-    .zoom-controls {
-        top: 0.5rem;
-        left: 50%;
-        transform: translateX(-50%);
-        gap: 0.5rem;
-    }
-
-    .image-zoom-container .close-zoom-btn,
-    .image-zoom-container .zoom-download-btn,
-    .image-zoom-container .zoom-delete-btn {
-        width: 36px;
-        height: 36px;
-        font-size: 0.9rem;
-    }
-
-    .image-zoom-container .close-zoom-btn {
-        top: 0.5rem;
-        right: 0.5rem;
-    }
-
-    .image-zoom-container .zoom-download-btn {
-        bottom: 0.5rem;
-        left: 0.5rem;
-    }
-
-    .image-zoom-container .zoom-delete-btn {
-        bottom: 0.5rem;
-        right: 0.5rem;
+    
+    .gallery-item-info {
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+        padding: 2rem 1rem 1rem;
+        font-size: 0.75rem;
     }
 }
