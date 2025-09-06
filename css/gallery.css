@@ -55,6 +55,14 @@
     border: 1px solid #e2e8f0;
 }
 
+/* Keep the inline gallery header pinned while scrolling image grid */
+.inline-gallery .gallery-header {
+    position: sticky;
+    top: 0; /* container already isolated inside right panel */
+    background: #f8fafc;
+    z-index: 10;
+}
+
 .gallery-header {
     display: flex;
     justify-content: space-between;
@@ -131,6 +139,13 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+/* Sticky bulk toolbar for inline (desktop) gallery */
+.inline-gallery > .bulk-actions-toolbar {
+    position: sticky;
+    top: 76px; /* height of header + spacing inside component */
+    z-index: 9;
+}
+
 .bulk-actions-left,
 .bulk-actions-right {
     display: flex;
@@ -138,7 +153,7 @@
     gap: 0.75rem;
 }
 
-#selection-counter {
+.selection-counter {
     font-weight: 600;
     color: #1e293b;
     background: #e0f2fe;

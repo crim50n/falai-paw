@@ -131,6 +131,15 @@ body {
     z-index: 5;
 }
 
+/* Stretch header to full panel width (like hamburger menu header) */
+.mobile-gallery-header {
+    margin-left: -1.25rem;
+    margin-right: -1.25rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+}
+
 .mobile-gallery-header-actions {
     display: flex;
     align-items: center;
@@ -169,11 +178,44 @@ body {
     padding: 0.75rem 0 0.5rem;
 }
 
+/* Make the mobile gallery meta (image counter) sticky under the gallery header */
+.mobile-gallery-meta {
+    position: sticky;
+    top: calc(var(--mobile-gallery-header-height, 56px));
+    z-index: 6; /* higher than scroll content, below header actions */
+    background: #ffffff;
+    margin-left: -1.25rem;
+    margin-right: -1.25rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.mobile-gallery-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
 .mobile-gallery-content {
     display: grid;
     grid-template-columns: repeat(auto-fill,minmax(140px,1fr));
     gap: 0.75rem;
     padding: 0.5rem 0 2rem;
+}
+
+/* Pin the bulk actions toolbar (selection controls) below the counter when visible */
+.mobile-gallery .bulk-actions-toolbar {
+    position: sticky;
+    top: calc(var(--mobile-gallery-header-height, 56px) + var(--mobile-gallery-meta-height, 40px));
+    z-index: 6;
+    background: #ffffff;
+    margin-left: -1.25rem;
+    margin-right: -1.25rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .mobile-gallery-content .gallery-item img {

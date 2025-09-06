@@ -17,6 +17,8 @@ class FalAIGallery {
         
         this.initializeEventListeners();
         this.initializeFancybox();
+    this.updateMobileStickyHeights();
+    window.addEventListener('resize', () => this.updateMobileStickyHeights());
     }
 
     initializeEventListeners() {
@@ -34,15 +36,17 @@ class FalAIGallery {
             });
         }
 
-        // Selection mode controls
-        const selectionModeBtn = document.getElementById('selection-mode-btn');
-        if (selectionModeBtn) {
-            selectionModeBtn.addEventListener('click', () => {
+        // Selection mode controls (both inline & mobile)
+        const selectionButtons = document.querySelectorAll('.selection-mode-btn');
+        selectionButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
                 this.toggleSelectionMode();
-                selectionModeBtn.textContent = this.selectionMode ? 'Cancel' : 'Select';
-                selectionModeBtn.classList.toggle('active', this.selectionMode);
+                selectionButtons.forEach(b => {
+                    b.textContent = this.selectionMode ? 'Cancel' : 'Select';
+                    b.classList.toggle('active', this.selectionMode);
+                });
             });
-        }
+        });
 
         // Bulk action controls
         const selectAllBtn = document.getElementById('select-all-btn');
@@ -76,11 +80,10 @@ class FalAIGallery {
                 case 'Escape':
                     if (this.selectionMode) {
                         this.toggleSelectionMode();
-                        const selectionBtn = document.getElementById('selection-mode-btn');
-                        if (selectionBtn) {
-                            selectionBtn.textContent = 'Select';
-                            selectionBtn.classList.remove('active');
-                        }
+                        document.querySelectorAll('.selection-mode-btn').forEach(b => {
+                            b.textContent = 'Select';
+                            b.classList.remove('active');
+                        });
                     }
                     break;
                 case 'a':
@@ -487,6 +490,24 @@ class FalAIGallery {
         
         // Reinitialize Fancybox for mobile gallery elements
         this.reinitializeFancybox();
+        // After DOM updates recalc sticky offsets
+        this.updateMobileStickyHeights();
+    }
+
+    // Recalculate and store heights used for sticky positioning (CSS variables)
+    updateMobileStickyHeights() {
+        const galleryEl = document.getElementById('mobile-gallery');
+        if (!galleryEl) return;
+        const header = galleryEl.querySelector('.mobile-gallery-header');
+        const meta = galleryEl.querySelector('.mobile-gallery-meta');
+        if (header) {
+            const h = header.getBoundingClientRect().height;
+            galleryEl.style.setProperty('--mobile-gallery-header-height', h + 'px');
+        }
+        if (meta) {
+            const m = meta.getBoundingClientRect().height;
+            galleryEl.style.setProperty('--mobile-gallery-meta-height', m + 'px');
+        }
     }
 
     // Create mobile gallery item
@@ -701,16 +722,12 @@ class FalAIGallery {
     // Update selection UI (count, buttons, etc.)
     updateSelectionUI() {
         const selectionCount = this.selectedImages.size;
-        const bulkToolbar = document.getElementById('bulk-actions-toolbar');
-        const selectionCounter = document.getElementById('selection-counter');
-        
-        if (bulkToolbar) {
-            bulkToolbar.style.display = selectionCount > 0 ? 'flex' : 'none';
-        }
-        
-        if (selectionCounter) {
-            selectionCounter.textContent = `${selectionCount} selected`;
-        }
+        const bulkToolbars = document.querySelectorAll('.bulk-actions-toolbar');
+        bulkToolbars.forEach(tb => {
+            tb.style.display = selectionCount > 0 ? 'flex' : 'none';
+        });
+        const counters = document.querySelectorAll('.selection-counter');
+        counters.forEach(c => c.textContent = `${selectionCount} selected`);
     }
 
     // Select all images
