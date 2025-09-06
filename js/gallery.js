@@ -6,15 +6,30 @@ class FalAIGallery {
     constructor(app) {
         this.app = app;
         this.savedImages = JSON.parse(localStorage.getItem('falai_saved_images') || '[]');
-    this.currentImageIndex = 0;
+        this.likedImages = JSON.parse(localStorage.getItem('falai_liked_images') || '[]');
+        this.currentImageIndex = 0;
+        
+        // Filter state
+        this.showOnlyLiked = false;
         
         // Selection state
         this.selectionMode = false;
         this.selectedImages = new Set();
         
-    this.initializeEventListeners();
-    this.updateMobileStickyHeights();
-    window.addEventListener('resize', () => this.updateMobileStickyHeights());
+        this.initializeEventListeners();
+        this.updateMobileStickyHeights();
+        
+        // Initialize galleries if they exist
+        setTimeout(() => {
+            if (document.getElementById('inline-gallery-content')) {
+                this.showInlineGallery();
+            }
+            if (document.getElementById('mobile-gallery-content')) {
+                this.updateMobileGallery();
+            }
+        }, 100);
+        
+        window.addEventListener('resize', () => this.updateMobileStickyHeights());
     window.falGallery = this; // expose for photoswipe-init
     }
 
@@ -54,6 +69,9 @@ class FalAIGallery {
         });
         document.querySelectorAll('.bulk-delete-btn').forEach(btn => {
             btn.addEventListener('click', () => this.bulkDeleteImages());
+        });
+        document.querySelectorAll('.select-not-liked-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.selectNotLikedImages());
         });
 
         // Keyboard shortcuts
@@ -147,6 +165,11 @@ class FalAIGallery {
             });
         }
         
+        // Update like indicators after DOM update
+        requestAnimationFrame(() => {
+            this.updateGalleryLikes();
+        });
+        
     // PhotoSwipe reads DOM on open; no explicit reinit needed
     }
 
@@ -155,6 +178,12 @@ class FalAIGallery {
         const div = document.createElement('div');
         div.className = 'gallery-item';
         div.setAttribute('data-image-id', imageData.timestamp); // Unique identifier
+        
+        // Check if liked and add class
+        const isLiked = this.likedImages.includes(String(imageData.timestamp));
+        if (isLiked) {
+            div.classList.add('liked');
+        }
         
         const date = new Date(imageData.timestamp).toLocaleDateString();
         
@@ -211,6 +240,14 @@ class FalAIGallery {
         div.appendChild(selectionOverlay);
         div.appendChild(link);
         div.appendChild(info);
+
+        // Add like indicator if liked
+        if (isLiked) {
+            const likeIndicator = document.createElement('div');
+            likeIndicator.className = 'like-indicator';
+            likeIndicator.innerHTML = '❤️';
+            div.appendChild(likeIndicator);
+        }
 
         return div;
     }
@@ -284,6 +321,11 @@ class FalAIGallery {
             });
         }
         
+        // Update like indicators after DOM update
+        requestAnimationFrame(() => {
+            this.updateGalleryLikes();
+        });
+        
     // After DOM updates recalc sticky offsets
         this.updateMobileStickyHeights();
     }
@@ -309,6 +351,12 @@ class FalAIGallery {
         const div = document.createElement('div');
         div.className = 'gallery-item';
         div.setAttribute('data-image-id', imageData.timestamp); // Unique identifier
+        
+        // Check if liked and add class
+        const isLiked = this.likedImages.includes(String(imageData.timestamp));
+        if (isLiked) {
+            div.classList.add('liked');
+        }
         
         const date = new Date(imageData.timestamp).toLocaleDateString();
         
@@ -356,6 +404,14 @@ class FalAIGallery {
         link.appendChild(img);
         div.appendChild(selectionOverlay);
         div.appendChild(link);
+
+        // Add like indicator if liked
+        if (isLiked) {
+            const likeIndicator = document.createElement('div');
+            likeIndicator.className = 'like-indicator';
+            likeIndicator.innerHTML = '❤️';
+            div.appendChild(likeIndicator);
+        }
 
         return div;
     }
@@ -414,6 +470,39 @@ class FalAIGallery {
                 alert('Storage full. Failed to save image.');
             }
         }
+    }
+
+    // Save likes to localStorage
+    saveLikes() {
+        try {
+            localStorage.setItem('falai_liked_images', JSON.stringify(this.likedImages));
+        } catch (e) {
+            console.warn('Failed to save likes', e);
+        }
+    }
+
+    // Update gallery display to show like states
+    updateGalleryLikes() {
+        const galleryItems = document.querySelectorAll('.gallery-item');
+        galleryItems.forEach(item => {
+            const link = item.querySelector('a[data-image-id]');
+            if (link) {
+                const imageId = String(link.dataset.imageId);
+                const isLiked = this.likedImages.includes(imageId);
+                item.classList.toggle('liked', isLiked);
+                
+                // Show red heart only for liked items
+                let likeIndicator = item.querySelector('.like-indicator');
+                if (isLiked && !likeIndicator) {
+                    likeIndicator = document.createElement('div');
+                    likeIndicator.className = 'like-indicator';
+                    likeIndicator.innerHTML = '❤️';
+                    item.appendChild(likeIndicator);
+                } else if (!isLiked && likeIndicator) {
+                    likeIndicator.remove();
+                }
+            }
+        });
     }
 
     // Clean up old images (called by app cleanup utility)
@@ -537,25 +626,30 @@ class FalAIGallery {
     // Update selection UI (count, buttons, etc.)
     updateSelectionUI() {
         const selectionCount = this.selectedImages.size;
+        
+        // Show/hide selection action rows
+        document.querySelectorAll('.selection-actions-row').forEach(row => {
+            row.style.display = this.selectionMode ? 'block' : 'none';
+        });
+        
         // Show/hide inline action buttons
         document.querySelectorAll('.gallery-inline-actions').forEach(container => {
             const counter = container.querySelector('.selection-counter');
             const selectAllBtn = container.querySelector('.select-all-btn');
+            const selectNotLikedBtn = container.querySelector('.select-not-liked-btn');
             const clearBtn = container.querySelector('.clear-selection-btn');
             const deleteBtn = container.querySelector('.bulk-delete-btn');
-            // Toggle visibility depending on mode
-            if (this.selectionMode) {
-                if (counter) counter.style.display = 'inline-block';
-                if (selectAllBtn) selectAllBtn.style.display = 'inline-block';
-                if (clearBtn) clearBtn.style.display = 'inline-block';
-                if (deleteBtn) deleteBtn.style.display = selectionCount > 0 ? 'inline-block' : 'none';
-            } else {
-                if (counter) counter.style.display = 'none';
-                if (selectAllBtn) selectAllBtn.style.display = 'none';
-                if (clearBtn) clearBtn.style.display = 'none';
-                if (deleteBtn) deleteBtn.style.display = 'none';
+            
+            // Update counter and selection mode button
+            if (counter) {
+                counter.style.display = this.selectionMode ? 'inline-block' : 'none';
+                counter.textContent = `${selectionCount} selected`;
             }
-            if (counter) counter.textContent = `${selectionCount} selected`;
+            
+            // Update buttons in selection actions row
+            if (container.classList.contains('selection-actions-row')) {
+                if (deleteBtn) deleteBtn.style.display = selectionCount > 0 ? 'inline-block' : 'none';
+            }
         });
     }
 
@@ -595,6 +689,32 @@ class FalAIGallery {
         const galleryItems = document.querySelectorAll('.gallery-item');
         galleryItems.forEach(item => {
             item.classList.remove('selected');
+        });
+        
+        this.updateSelectionUI();
+    }
+
+    // Select only not-liked images (for deletion)
+    selectNotLikedImages() {
+        this.clearSelection();
+        
+        // Only select images that are NOT liked
+        const galleryItems = document.querySelectorAll('.gallery-item');
+        galleryItems.forEach(item => {
+            const link = item.querySelector('a[data-image-id]');
+            if (link) {
+                const imageId = link.dataset.imageId;
+                const isLiked = this.likedImages.includes(imageId);
+                
+                if (!isLiked) {
+                    const checkbox = item.querySelector('input[type="checkbox"]');
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        this.selectedImages.add(imageId);
+                        item.classList.add('selected');
+                    }
+                }
+            }
         });
         
         this.updateSelectionUI();

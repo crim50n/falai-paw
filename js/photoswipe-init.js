@@ -70,25 +70,53 @@ function initLightbox() {
       },
       onInit: (el, pswp) => {
         el.setAttribute('download', '');
-        el.setAttribute('target', '_blank');
-        el.setAttribute('rel', 'noopener');
+        el.setAttribute('title', 'Download image');
 
         pswp.on('change', () => {
           const slide = pswp.currSlide;
           if (slide) {
-            el.href = slide.data.src;
+            const src = slide.data.src;
+            
             // Set proper filename for download
+            let filename = 'image.png';
             try {
-              const url = new URL(slide.data.src);
-              const filename = url.pathname.split('/').pop();
-              if (filename && filename.includes('.')) {
-                el.setAttribute('download', filename);
-              } else {
-                el.setAttribute('download', 'image-' + Date.now() + '.png');
-              }
+              const url = new URL(src);
+              const last = url.pathname.split('/').pop();
+              filename = (last && last.includes('.')) ? last : 'image-' + Date.now() + '.png';
             } catch (e) {
-              el.setAttribute('download', 'image-' + Date.now() + '.png');
+              filename = 'image-' + Date.now() + '.png';
             }
+            
+            el.addEventListener('click', async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              const triggerDownload = (url) => {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+              };
+              
+              try {
+                if (src.startsWith('data:')) {
+                  triggerDownload(src);
+                  return;
+                }
+                
+                const response = await fetch(src, { mode: 'cors' });
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                triggerDownload(url);
+                setTimeout(() => URL.revokeObjectURL(url), 4000);
+              } catch (err) {
+                // Fallback: try direct download
+                triggerDownload(src);
+              }
+            });
           }
         });
       }
@@ -114,6 +142,90 @@ function initLightbox() {
             const promptInput = document.getElementById('prompt');
             if (promptInput) {
               promptInput.value = prompt;
+            }
+          }
+        });
+      }
+    });
+
+    // View in new tab button
+    lightbox.pswp.ui.registerElement({
+      name: 'view-button',
+      order: 6,
+      isButton: true,
+      tagName: 'a',
+      html: {
+        isCustomSVG: true,
+        inner: '<path d="M6.25 4.5A1.75 1.75 0 0 0 4.5 6.25v11.5c0 .966.784 1.75 1.75 1.75h11.5a1.75 1.75 0 0 0 1.75-1.75V12a.75.75 0 0 1 1.5 0v5.75A3.25 3.25 0 0 1 17.75 21H6.25A3.25 3.25 0 0 1 3 17.75V6.25A3.25 3.25 0 0 1 6.25 3H12a.75.75 0 0 1 0 1.5H6.25ZM14.5 3a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0V4.56l-6.22 6.22a.75.75 0 1 1-1.06-1.06L18.44 3.5H14.5a.75.75 0 0 1-.75-.75Z"/>',
+        outlineID: 'pswp__icn-view'
+      },
+      onInit: (el, pswp) => {
+        el.setAttribute('title', 'View in new tab');
+        el.setAttribute('target', '_blank');
+        el.setAttribute('rel', 'noopener');
+        
+        pswp.on('change', () => {
+          const slide = pswp.currSlide;
+          if (slide) {
+            el.href = slide.data.src;
+          }
+        });
+      }
+    });
+
+    // Like button
+    lightbox.pswp.ui.registerElement({
+      name: 'like-button',
+      order: 7,
+      isButton: true,
+      tagName: 'button',
+      html: {
+        isCustomSVG: true,
+        inner: '<path d="M8.106 18.247C5.298 16.083 2 13.542 2 9.137 2 6.386 4.386 4 7.137 4c1.323 0 2.617.613 3.617 1.553L12 6.998l1.246-1.445C14.246 4.613 15.54 4 16.863 4 19.614 4 22 6.386 22 9.137c0 4.405-3.298 6.946-6.106 9.11L12 21.35l-3.894-3.103Z"/>',
+        outlineID: 'pswp__icn-like'
+      },
+      onInit: (el, pswp) => {
+        el.setAttribute('title', 'Like');
+        
+        const updateLikeState = () => {
+          const slide = pswp.currSlide;
+          if (slide) {
+            const imageId = String(slide.data.element?.dataset.imageId || '');
+            if (imageId) {
+              const gallery = window.falGallery;
+              const isLiked = gallery.likedImages && gallery.likedImages.includes(imageId);
+              el.classList.toggle('liked', isLiked);
+              el.setAttribute('title', isLiked ? 'Unlike' : 'Like');
+              // Update SVG fill
+              const svg = el.querySelector('svg');
+              if (svg) {
+                svg.style.fill = isLiked ? '#ff4757' : '';
+              }
+            }
+          }
+        };
+        
+        pswp.on('change', updateLikeState);
+        pswp.on('afterInit', updateLikeState);
+        
+        el.addEventListener('click', () => {
+          const slide = pswp.currSlide;
+          if (slide) {
+            const imageId = String(slide.data.element?.dataset.imageId || '');
+            if (imageId) {
+              const gallery = window.falGallery;
+              if (!gallery.likedImages) gallery.likedImages = [];
+              
+              const index = gallery.likedImages.indexOf(imageId);
+              if (index > -1) {
+                gallery.likedImages.splice(index, 1);
+              } else {
+                gallery.likedImages.push(imageId);
+              }
+              
+              gallery.saveLikes();
+              updateLikeState();
+              gallery.updateGalleryLikes();
             }
           }
         });

@@ -74,8 +74,23 @@
 
 .gallery-header-actions {
     display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.gallery-header-actions .gallery-inline-actions {
+    display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
+}
+
+/* Selection actions row styling */
+.selection-actions-row {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
 }
 
 .gallery-header h3 {
@@ -487,8 +502,10 @@
 }
 /* PhotoSwipe custom buttons styling - unified Fluent Icons */
 .pswp__button--download-button,
+.pswp__button--view-button,
 .pswp__button--useprompt-button,
 .pswp__button--delete-button,
+.pswp__button--like-button,
 .pswp__button--close,
 .pswp__button--zoom {
   width: 44px !important;
@@ -499,11 +516,14 @@
   margin: 0 2px !important;
   position: relative !important;
   transition: all 0.15s ease !important;
+  top: 20px !important; /* Move all buttons lower */
 }
 
 .pswp__button--download-button:hover,
+.pswp__button--view-button:hover,
 .pswp__button--useprompt-button:hover,
 .pswp__button--delete-button:hover,
+.pswp__button--like-button:hover,
 .pswp__button--close:hover,
 .pswp__button--zoom:hover {
   background: transparent !important;
@@ -512,8 +532,10 @@
 
 /* SVG icon styling - unified for all buttons */
 .pswp__button--download-button svg,
+.pswp__button--view-button svg,
 .pswp__button--useprompt-button svg,
 .pswp__button--delete-button svg,
+.pswp__button--like-button svg,
 .pswp__button--close svg,
 .pswp__button--zoom svg {
   width: 24px !important;
@@ -527,12 +549,36 @@
 }
 
 .pswp__button--download-button:hover svg,
+.pswp__button--view-button:hover svg,
 .pswp__button--useprompt-button:hover svg,
 .pswp__button--delete-button:hover svg,
+.pswp__button--like-button:hover svg,
 .pswp__button--close:hover svg,
 .pswp__button--zoom:hover svg {
   opacity: 1 !important;
   transform: translate(-50%, -50%) scale(1.1) !important;
+}
+
+/* Like button special styling */
+.pswp__button--like-button.liked svg {
+  fill: #ff4757 !important;
+  opacity: 1 !important;
+}
+
+/* Gallery item like indicator */
+.gallery-item .like-indicator {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 1;
 }
 
 /* (Moved enhanced .pswp-btn-label styles above) */
