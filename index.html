@@ -262,6 +262,32 @@
 
         <!-- Hidden file input for settings import -->
         <input type="file" id="import-file-input" accept=".json" style="display: none;">
+        
+        <!-- Gallery Context Menu -->
+        <div id="gallery-context-menu" class="gallery-context-menu hidden">
+            <div class="context-menu-item" data-action="download">
+                <span class="context-menu-icon">📥</span>
+                <span>Download</span>
+            </div>
+            <div class="context-menu-item" data-action="copy-url">
+                <span class="context-menu-icon">🔗</span>
+                <span>Copy URL</span>
+            </div>
+            <div class="context-menu-item" data-action="toggle-like">
+                <span class="context-menu-icon">❤️</span>
+                <span class="toggle-like-text">Like</span>
+            </div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="view-metadata">
+                <span class="context-menu-icon">ℹ️</span>
+                <span>View Details</span>
+            </div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item context-menu-danger" data-action="delete">
+                <span class="context-menu-icon">🗑️</span>
+                <span>Delete</span>
+            </div>
+        </div>
     </div>
 
     <script src="js/gallery.js"></script>

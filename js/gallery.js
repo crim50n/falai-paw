@@ -16,7 +16,13 @@ class FalAIGallery {
         this.selectionMode = false;
         this.selectedImages = new Set();
 
+        // Context menu state
+        this.currentContextMenuImage = null;
+        this.longPressTimer = null;
+        this.longPressThreshold = 500; // 500ms for long press
+
         this.initializeEventListeners();
+        this.initializeContextMenu();
         this.updateMobileStickyHeights();
 
         // Initialize galleries if they exist
@@ -104,6 +110,244 @@ class FalAIGallery {
                         this.bulkDeleteImages();
                     }
                     break;
+            }
+        });
+    }
+
+    initializeContextMenu() {
+        const contextMenu = document.getElementById('gallery-context-menu');
+        if (!contextMenu) return;
+
+        // Hide context menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!contextMenu.contains(e.target)) {
+                this.hideContextMenu();
+            }
+        });
+
+        // Handle context menu item clicks
+        contextMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const menuItem = e.target.closest('.context-menu-item');
+            if (!menuItem || !this.currentContextMenuImage) return;
+
+            const action = menuItem.dataset.action;
+            const imageData = this.currentContextMenuImage;
+
+            this.handleContextMenuAction(action, imageData);
+            this.hideContextMenu();
+        });
+
+        // Prevent default context menu on the gallery context menu itself
+        contextMenu.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
+        // Hide context menu on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.hideContextMenu();
+            }
+        });
+    }
+
+    showContextMenu(x, y, imageData) {
+        const contextMenu = document.getElementById('gallery-context-menu');
+        if (!contextMenu) return;
+
+        this.currentContextMenuImage = imageData;
+        
+        // Update like button text based on current state
+        const likeText = contextMenu.querySelector('.toggle-like-text');
+        const isLiked = this.likedImages.includes(String(imageData.timestamp));
+        if (likeText) {
+            likeText.textContent = isLiked ? 'Unlike' : 'Like';
+        }
+
+        // Position the menu
+        contextMenu.style.left = x + 'px';
+        contextMenu.style.top = y + 'px';
+        
+        // Show the menu
+        contextMenu.classList.remove('hidden');
+        
+        // Adjust position if menu goes off screen
+        setTimeout(() => {
+            const rect = contextMenu.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            if (rect.right > viewportWidth) {
+                contextMenu.style.left = (viewportWidth - rect.width - 10) + 'px';
+            }
+            
+            if (rect.bottom > viewportHeight) {
+                contextMenu.style.top = (viewportHeight - rect.height - 10) + 'px';
+            }
+        }, 0);
+    }
+
+    hideContextMenu() {
+        const contextMenu = document.getElementById('gallery-context-menu');
+        if (contextMenu) {
+            contextMenu.classList.add('hidden');
+            this.currentContextMenuImage = null;
+        }
+    }
+
+    handleContextMenuAction(action, imageData) {
+        switch (action) {
+            case 'download':
+                this.downloadImage(imageData);
+                break;
+            case 'copy-url':
+                this.copyImageUrl(imageData);
+                break;
+            case 'toggle-like':
+                this.toggleLike(imageData.timestamp);
+                break;
+            case 'view-metadata':
+                this.viewImageMetadata(imageData);
+                break;
+            case 'delete':
+                this.deleteImage(imageData);
+                break;
+        }
+    }
+
+    downloadImage(imageData) {
+        const link = document.createElement('a');
+        link.href = imageData.url;
+        link.download = `falai-${imageData.endpoint}-${imageData.timestamp}.${this.getImageExtension(imageData.url)}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        if (this.app && this.app.showNotification) {
+            this.app.showNotification('Image downloaded', 'success');
+        }
+    }
+
+    copyImageUrl(imageData) {
+        navigator.clipboard.writeText(imageData.url).then(() => {
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Image URL copied to clipboard', 'success');
+            }
+        }).catch(() => {
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Failed to copy URL', 'error');
+            }
+        });
+    }
+
+    viewImageMetadata(imageData) {
+        const metadata = {
+            'Generated': new Date(imageData.timestamp).toLocaleString(),
+            'Endpoint': imageData.endpoint,
+            'Prompt': imageData.prompt || 'N/A',
+            'Seed': imageData.seed || 'N/A',
+            ...imageData.parameters
+        };
+
+        let metadataText = 'Image Details:\n\n';
+        Object.entries(metadata).forEach(([key, value]) => {
+            metadataText += `${key}: ${value}\n`;
+        });
+
+        alert(metadataText);
+    }
+
+    deleteImage(imageData) {
+        if (confirm('Are you sure you want to delete this image? This action cannot be undone.')) {
+            this.savedImages = this.savedImages.filter(img => img.timestamp !== imageData.timestamp);
+            this.saveImages();
+            this.showInlineGallery();
+            this.updateMobileGallery();
+            
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Image deleted', 'success');
+            }
+        }
+    }
+
+    getImageExtension(url) {
+        if (url.startsWith('data:image/')) {
+            const mimeType = url.split(';')[0].split(':')[1];
+            return mimeType.split('/')[1];
+        }
+        return 'png';
+    }
+
+    addContextMenuEvents(element, imageData) {
+        // Right-click context menu for desktop
+        element.addEventListener('contextmenu', (e) => {
+            if (this.selectionMode) return; // Don't show context menu in selection mode
+            e.preventDefault();
+            e.stopPropagation();
+            this.showContextMenu(e.clientX, e.clientY, imageData);
+        });
+
+        // Touch events for mobile long press
+        let touchStartTime = 0;
+        let touchTimer = null;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        const longPressThreshold = 500; // 500ms
+        const moveThreshold = 10; // 10px movement threshold
+
+        element.addEventListener('touchstart', (e) => {
+            if (this.selectionMode) return; // Don't handle touch in selection mode
+            
+            touchStartTime = Date.now();
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            
+            // Clear any existing timer
+            if (touchTimer) {
+                clearTimeout(touchTimer);
+            }
+            
+            // Set up long press timer
+            touchTimer = setTimeout(() => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.showContextMenu(touchStartX, touchStartY, imageData);
+                
+                // Add haptic feedback if available
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+            }, longPressThreshold);
+        }, { passive: false });
+
+        element.addEventListener('touchmove', (e) => {
+            if (!touchTimer) return;
+            
+            const touch = e.touches[0];
+            const moveX = Math.abs(touch.clientX - touchStartX);
+            const moveY = Math.abs(touch.clientY - touchStartY);
+            
+            // Cancel long press if user moved too much
+            if (moveX > moveThreshold || moveY > moveThreshold) {
+                clearTimeout(touchTimer);
+                touchTimer = null;
+            }
+        });
+
+        element.addEventListener('touchend', () => {
+            // Cancel long press timer on touch end
+            if (touchTimer) {
+                clearTimeout(touchTimer);
+                touchTimer = null;
+            }
+        });
+
+        element.addEventListener('touchcancel', () => {
+            // Cancel long press timer on touch cancel
+            if (touchTimer) {
+                clearTimeout(touchTimer);
+                touchTimer = null;
             }
         });
     }
@@ -236,6 +480,9 @@ class FalAIGallery {
                 this.toggleImageSelection(imageData.timestamp, checkbox.checked);
             }
         });
+
+        // Add context menu event handlers
+        this.addContextMenuEvents(div, imageData);
 
         link.appendChild(img);
         div.appendChild(selectionOverlay);
@@ -403,6 +650,9 @@ class FalAIGallery {
                 this.toggleImageSelection(imageData.timestamp, checkbox.checked);
             }
         });
+
+        // Add context menu event handlers
+        this.addContextMenuEvents(div, imageData);
 
         link.appendChild(img);
         div.appendChild(selectionOverlay);

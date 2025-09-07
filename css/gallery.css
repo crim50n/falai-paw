@@ -614,3 +614,87 @@
 .result-image-actions .result-download-btn:hover {
     background: rgba(51,65,85,0.95);
 }
+
+/* Gallery Context Menu Styles */
+.gallery-context-menu {
+    position: fixed;
+    z-index: 9999;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 6px rgba(0, 0, 0, 0.1);
+    min-width: 180px;
+    padding: 6px 0;
+    backdrop-filter: blur(8px);
+    user-select: none;
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.gallery-context-menu:not(.hidden) {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    color: #374151;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.context-menu-item:hover {
+    background: #f3f4f6;
+}
+
+.context-menu-item.context-menu-danger {
+    color: #dc2626;
+}
+
+.context-menu-item.context-menu-danger:hover {
+    background: #fee2e2;
+}
+
+.context-menu-icon {
+    font-size: 16px;
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 4px 0;
+}
+
+/* Prevent text selection on context menu trigger */
+.gallery-item {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Mobile-specific context menu adjustments */
+@media (max-width: 768px) {
+    .gallery-context-menu {
+        min-width: 200px;
+        font-size: 16px;
+    }
+    
+    .context-menu-item {
+        padding: 12px 20px;
+        font-size: 16px;
+    }
+    
+    .context-menu-icon {
+        font-size: 18px;
+        width: 18px;
+    }
+}
