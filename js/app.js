@@ -2282,8 +2282,12 @@ class FalAI {
             document.getElementById('results').classList.remove('hidden');
             this.switchResultsTab('images');
         } else if (result.output) {
-            // Text generation results
+            // Text generation results (fal-ai/any-llm)
             const textElement = this.createTextElement(result.output, result);
+            container.appendChild(textElement);
+        } else if (result.text) {
+            // Text analysis results (fal-ai/bagel/understand)
+            const textElement = this.createTextElement(result.text, result);
             container.appendChild(textElement);
 
             // Update JSON display
