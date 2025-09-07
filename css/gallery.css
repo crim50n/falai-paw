@@ -185,7 +185,7 @@
     position: absolute;
     top: 0.5rem;
     right: 0.5rem;
-    z-index: 5;
+    z-index: 4;
     opacity: 0;
     transition: opacity 0.2s ease;
 }
@@ -386,7 +386,7 @@
     right: 0.75rem;
     display: flex;
     gap: 0.375rem;
-    z-index: 10;
+    z-index: 4;
     opacity: 0;
     transition: opacity 0.3s ease;
 }
@@ -579,7 +579,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  z-index: 4;
   pointer-events: auto;
   opacity: 1;
   cursor: pointer;
