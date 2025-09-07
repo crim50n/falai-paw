@@ -2289,6 +2289,10 @@ class FalAI {
             // Text analysis results (fal-ai/bagel/understand)
             const textElement = this.createTextElement(result.text, result);
             container.appendChild(textElement);
+        } else if (result.outputs && Array.isArray(result.outputs)) {
+            // Batch processing results (fal-ai/moondream-next/batch)
+            const batchElement = this.createBatchTextElement(result.outputs, result);
+            container.appendChild(batchElement);
 
             // Update JSON display
             this.updateJsonDisplay(result);
@@ -2429,6 +2433,77 @@ class FalAI {
         textDiv.appendChild(actionsDiv);
         
         return textDiv;
+    }
+
+    createBatchTextElement(outputs, metadata = {}) {
+        const batchDiv = document.createElement('div');
+        batchDiv.className = 'result-batch-text-item';
+        
+        const batchContent = document.createElement('div');
+        batchContent.className = 'result-batch-text-content';
+        batchContent.style.cssText = `
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            font-family: var(--font-mono);
+            line-height: 1.5;
+        `;
+        
+        const header = document.createElement('div');
+        header.innerHTML = `<strong>Batch Results (${outputs.length} items):</strong>`;
+        header.style.cssText = `
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        `;
+        batchContent.appendChild(header);
+        
+        // Create numbered list of outputs
+        outputs.forEach((output, index) => {
+            const outputItem = document.createElement('div');
+            outputItem.style.cssText = `
+                margin-bottom: 0.75rem;
+                padding: 0.5rem;
+                background: rgba(var(--primary-rgb), 0.1);
+                border-radius: 4px;
+                border-left: 3px solid var(--primary-color);
+            `;
+            outputItem.innerHTML = `<strong>${index + 1}.</strong> ${output}`;
+            batchContent.appendChild(outputItem);
+        });
+        
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'result-actions';
+        
+        const copyAllBtn = document.createElement('button');
+        copyAllBtn.innerHTML = '📋 Copy All';
+        copyAllBtn.className = 'btn secondary small';
+        copyAllBtn.onclick = () => {
+            const allText = outputs.map((output, index) => `${index + 1}. ${output}`).join('\n');
+            navigator.clipboard.writeText(allText).then(() => {
+                if (this.showNotification) {
+                    this.showNotification('All results copied to clipboard', 'success');
+                }
+            });
+        };
+        
+        // Add download file button if captions_file is available
+        if (metadata.captions_file && metadata.captions_file.url) {
+            const downloadFileBtn = document.createElement('button');
+            downloadFileBtn.innerHTML = '📥 Download File';
+            downloadFileBtn.className = 'btn secondary small';
+            downloadFileBtn.onclick = () => this.downloadMedia(metadata.captions_file.url, 'captions.json');
+            actionsDiv.appendChild(downloadFileBtn);
+        }
+        
+        actionsDiv.appendChild(copyAllBtn);
+        batchDiv.appendChild(batchContent);
+        batchDiv.appendChild(actionsDiv);
+        
+        return batchDiv;
     }
 
     downloadMedia(url, type = 'image') {

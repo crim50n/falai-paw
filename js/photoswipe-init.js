@@ -104,10 +104,17 @@ function initLightbox() {
                 el.setAttribute('download', '');
                 el.setAttribute('title', 'Download image');
 
-                pswp.on('change', () => {
+                let currentHandler = null;
+
+                const updateDownloadButton = () => {
                     const slide = pswp.currSlide;
                     if (slide) {
                         const src = slide.data.src;
+
+                        // Remove previous click handler if exists
+                        if (currentHandler) {
+                            el.removeEventListener('click', currentHandler);
+                        }
 
                         // Set proper filename for download
                         let filename = 'image.png';
@@ -119,7 +126,8 @@ function initLightbox() {
                             filename = 'image-' + Date.now() + '.png';
                         }
 
-                        el.addEventListener('click', async (e) => {
+                        // Create new click handler
+                        currentHandler = async (e) => {
                             e.preventDefault();
                             e.stopPropagation();
 
@@ -148,9 +156,15 @@ function initLightbox() {
                                 // Fallback: try direct download
                                 triggerDownload(src);
                             }
-                        });
+                        };
+
+                        // Add new click handler
+                        el.addEventListener('click', currentHandler);
                     }
-                });
+                };
+
+                pswp.on('change', updateDownloadButton);
+                pswp.on('afterInit', updateDownloadButton);
             }
         });
 
