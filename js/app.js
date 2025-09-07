@@ -2566,15 +2566,21 @@ class FalAI {
         try {
             // Collect all settings including custom endpoints
             const customEndpoints = JSON.parse(localStorage.getItem('falai_custom_endpoints') || '{}');
+            const likedImages = JSON.parse(localStorage.getItem('falai_liked_images') || '[]');
+            const loraComments = JSON.parse(localStorage.getItem('falai_lora_comments') || '{}');
+            const lastEndpoint = localStorage.getItem('falai_last_endpoint');
             const settings = {
                 version: '1.0.0',
                 timestamp: new Date().toISOString(),
                 apiKey: this.apiKey,
                 endpointSettings: this.endpointSettings,
                 savedImages: this.gallery.savedImages,
+                likedImages: likedImages,
                 debugMode: this.debugMode,
                 advancedVisible: localStorage.getItem('falai_advanced_visible') === 'true',
-                customEndpoints: customEndpoints
+                customEndpoints: customEndpoints,
+                loraComments: loraComments,
+                lastEndpoint: lastEndpoint
             };
 
             // Create and download file
@@ -2613,7 +2619,9 @@ class FalAI {
 
             // Show confirmation dialog
             const customEndpointsCount = settings.customEndpoints ? Object.keys(settings.customEndpoints).length : 0;
-            const message = `Import settings from ${settings.timestamp || 'unknown date'}?\n\nThis will replace:\n- All endpoint settings\n- API key\n- Saved images (${settings.savedImages?.length || 0} images)\n- Custom endpoints (${customEndpointsCount} endpoints)\n- Other preferences`;
+            const likedImagesCount = settings.likedImages ? settings.likedImages.length : 0;
+            const loraCommentsCount = settings.loraComments ? Object.keys(settings.loraComments).length : 0;
+            const message = `Import settings from ${settings.timestamp || 'unknown date'}?\n\nThis will replace:\n- All endpoint settings\n- API key\n- Saved images (${settings.savedImages?.length || 0} images)\n- Liked images (${likedImagesCount} likes)\n- Custom endpoints (${customEndpointsCount} endpoints)\n- LoRA comments (${loraCommentsCount} models)\n- Last selected endpoint\n- Other preferences`;
 
             if (!confirm(message)) {
                 return;
@@ -2639,6 +2647,19 @@ class FalAI {
             if (settings.savedImages) {
                 this.gallery.savedImages = settings.savedImages;
                 localStorage.setItem('falai_saved_images', JSON.stringify(this.gallery.savedImages));
+            }
+
+            if (settings.likedImages) {
+                this.gallery.likedImages = settings.likedImages;
+                localStorage.setItem('falai_liked_images', JSON.stringify(this.gallery.likedImages));
+            }
+
+            if (settings.loraComments) {
+                localStorage.setItem('falai_lora_comments', JSON.stringify(settings.loraComments));
+            }
+
+            if (settings.lastEndpoint) {
+                localStorage.setItem('falai_last_endpoint', settings.lastEndpoint);
             }
             if (settings.customEndpoints) {
                 // Import custom endpoints
