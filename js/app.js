@@ -58,20 +58,24 @@ class FalAI {
         if (!this.debugMode) return;
 
         const timestamp = new Date().toLocaleTimeString();
-        const debugContent = document.getElementById('debug-content');
+        const typeIcon = {
+            'info': 'ℹ️',
+            'success': '✅',
+            'error': '❌',
+            'warning': '⚠️',
+            'system': '🔧',
+            'request': '📤',
+            'response': '📥',
+            'status': '📊'
+        }[type] || 'ℹ️';
 
-        const entry = document.createElement('div');
-        entry.className = `debug-entry ${type}`;
-
-        entry.innerHTML = `
-            <div class="timestamp">${timestamp}</div>
-            <div class="type">${type.toUpperCase()}</div>
-            <div class="message">${message}</div>
-            ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
-        `;
-
-        debugContent.appendChild(entry);
-        debugContent.scrollTop = debugContent.scrollHeight;
+        if (data) {
+            console.group(`${typeIcon} [${timestamp}] ${message}`);
+            console.log(data);
+            console.groupEnd();
+        } else {
+            console.log(`${typeIcon} [${timestamp}] ${message}`);
+        }
     }
 
     async init() {
@@ -150,12 +154,10 @@ class FalAI {
 
     initDebugMode() {
         const debugCheckbox = document.getElementById('debug-checkbox');
-        const debugPanel = document.getElementById('debug-panel');
 
         // Restore debug mode state
         debugCheckbox.checked = this.debugMode;
         if (this.debugMode) {
-            debugPanel.classList.remove('hidden');
             this.logDebug('Debug mode restored', 'system');
         }
     }
@@ -977,12 +979,10 @@ class FalAI {
             this.debugMode = e.target.checked;
             localStorage.setItem('falai_debug_mode', this.debugMode);
 
-            const debugPanel = document.getElementById('debug-panel');
             if (this.debugMode) {
-                debugPanel.classList.remove('hidden');
                 this.logDebug('Debug mode enabled', 'system');
             } else {
-                debugPanel.classList.add('hidden');
+                console.log('🔧 Debug mode disabled');
             }
         });
 
@@ -2677,12 +2677,9 @@ class FalAI {
                 this.debugMode = settings.debugMode;
                 localStorage.setItem('falai_debug_mode', this.debugMode);
                 document.getElementById('debug-checkbox').checked = this.debugMode;
-
-                const debugPanel = document.getElementById('debug-panel');
+                
                 if (this.debugMode) {
-                    debugPanel.classList.remove('hidden');
-                } else {
-                    debugPanel.classList.add('hidden');
+                    this.logDebug('Debug mode imported and enabled', 'system');
                 }
             }
 
