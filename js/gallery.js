@@ -206,6 +206,9 @@ class FalAIGallery {
             case 'toggle-like':
                 this.toggleLike(imageData.timestamp);
                 break;
+            case 'set-as-input':
+                this.setAsInput(imageData);
+                break;
             case 'view-metadata':
                 this.viewImageMetadata(imageData);
                 break;
@@ -266,6 +269,43 @@ class FalAIGallery {
             
             if (this.app && this.app.showNotification) {
                 this.app.showNotification('Image deleted', 'success');
+            }
+        }
+    }
+
+    setAsInput(imageData) {
+        // Find the first available image upload field and set this image as input
+        const uploadContainers = document.querySelectorAll('.image-upload-container');
+        
+        if (uploadContainers.length === 0) {
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('No image input fields available in current form', 'warning');
+            }
+            return;
+        }
+
+        // Use the first available image field
+        const container = uploadContainers[0];
+        const urlInput = container.querySelector('input[type="text"]');
+        const uploadArea = container.querySelector('.upload-area');
+        const preview = container.querySelector('.image-preview');
+
+        if (urlInput && uploadArea && preview) {
+            urlInput.value = imageData.url;
+            
+            // Show the image preview
+            const img = preview.querySelector('img');
+            if (img) {
+                img.src = imageData.url;
+                uploadArea.classList.add('hidden');
+                preview.classList.remove('hidden');
+            }
+
+            // Trigger input event to save settings
+            urlInput.dispatchEvent(new Event('input'));
+
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Image set as input', 'success');
             }
         }
     }
