@@ -777,7 +777,7 @@ class FalAIGallery {
                     const checkbox = item.querySelector('input[type="checkbox"]');
                     if (checkbox) {
                         checkbox.checked = true;
-                        this.selectedImages.add(imageId);
+                        this.selectedImages.add(Number(imageId));
                         item.classList.add('selected');
                     }
                 }
@@ -807,6 +807,7 @@ class FalAIGallery {
             this.saveImages();
             this.showInlineGallery();
             this.updateMobileGallery();
+            this.updateSelectionUI();
 
             if (this.app && this.app.showNotification) {
                 this.app.showNotification(`${selectedCount} image${selectedCount > 1 ? 's' : ''} deleted successfully`, 'success');
