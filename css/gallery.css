@@ -660,6 +660,14 @@
     background: #fee2e2;
 }
 
+.context-menu-item.context-menu-restore {
+    color: #059669;
+}
+
+.context-menu-item.context-menu-restore:hover {
+    background: #d1fae5;
+}
+
 .context-menu-icon {
     font-size: 16px;
     width: 16px;

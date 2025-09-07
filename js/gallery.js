@@ -164,6 +164,30 @@ class FalAIGallery {
             likeText.textContent = isLiked ? 'Unlike' : 'Like';
         }
 
+        // Show/hide restore metadata option based on available data
+        const restoreOption = contextMenu.querySelector('[data-action="restore-metadata"]');
+        if (restoreOption) {
+            const hasApiResponse = imageData.api_response;
+            const hasMissingData = !imageData.prompt || !imageData.seed;
+            restoreOption.style.display = (hasApiResponse && hasMissingData) ? 'flex' : 'none';
+        }
+
+        // Show/hide use prompt and use seed options based on available data
+        const usePromptOption = contextMenu.querySelector('[data-action="use-prompt"]');
+        const useSeedOption = contextMenu.querySelector('[data-action="use-seed"]');
+        
+        if (usePromptOption) {
+            const restoredData = this.restoreMetadataFromApiResponse(imageData);
+            const hasPrompt = restoredData.prompt || imageData.prompt;
+            usePromptOption.style.display = hasPrompt ? 'flex' : 'none';
+        }
+        
+        if (useSeedOption) {
+            const restoredData = this.restoreMetadataFromApiResponse(imageData);
+            const hasSeed = restoredData.seed || imageData.seed;
+            useSeedOption.style.display = hasSeed ? 'flex' : 'none';
+        }
+
         // Position the menu
         contextMenu.style.left = x + 'px';
         contextMenu.style.top = y + 'px';
@@ -209,8 +233,17 @@ class FalAIGallery {
             case 'set-as-input':
                 this.setAsInput(imageData);
                 break;
+            case 'use-prompt':
+                this.usePrompt(imageData);
+                break;
+            case 'use-seed':
+                this.useSeed(imageData);
+                break;
             case 'view-metadata':
                 this.viewImageMetadata(imageData);
+                break;
+            case 'restore-metadata':
+                this.permanentlyRestoreMetadata(imageData.timestamp);
                 break;
             case 'delete':
                 this.deleteImage(imageData);
@@ -244,13 +277,25 @@ class FalAIGallery {
     }
 
     viewImageMetadata(imageData) {
+        // Try to restore missing metadata from stored API response
+        const restoredData = this.restoreMetadataFromApiResponse(imageData);
+        
         const metadata = {
-            'Generated': new Date(imageData.timestamp).toLocaleString(),
-            'Endpoint': imageData.endpoint,
-            'Prompt': imageData.prompt || 'N/A',
-            'Seed': imageData.seed || 'N/A',
-            ...imageData.parameters
+            'Generated': new Date(restoredData.timestamp).toLocaleString(),
+            'Endpoint': restoredData.endpoint,
+            'Prompt': restoredData.prompt || 'N/A',
+            'Seed': restoredData.seed || 'N/A',
+            'Request ID': restoredData.request_id || 'N/A',
+            ...restoredData.parameters
         };
+
+        // Add API response data if available
+        if (restoredData.api_response) {
+            metadata['Inference Time'] = restoredData.api_response.timings?.inference ? 
+                `${restoredData.api_response.timings.inference.toFixed(2)}s` : 'N/A';
+            metadata['NSFW Detected'] = restoredData.api_response.has_nsfw_concepts ? 
+                restoredData.api_response.has_nsfw_concepts.join(', ') : 'N/A';
+        }
 
         let metadataText = 'Image Details:\n\n';
         Object.entries(metadata).forEach(([key, value]) => {
@@ -258,6 +303,54 @@ class FalAIGallery {
         });
 
         alert(metadataText);
+    }
+
+    restoreMetadataFromApiResponse(imageData) {
+        // Return copy with restored data from API response if available
+        const restored = { ...imageData };
+        
+        if (imageData.api_response) {
+            // Restore missing prompt from API response
+            if (!restored.prompt && imageData.api_response.prompt) {
+                restored.prompt = imageData.api_response.prompt;
+            }
+            
+            // Restore missing seed from API response
+            if (!restored.seed && imageData.api_response.seed) {
+                restored.seed = imageData.api_response.seed;
+            }
+            
+            // Restore missing parameters from API response
+            if (imageData.api_response.form_params) {
+                restored.parameters = {
+                    ...imageData.api_response.form_params,
+                    ...restored.parameters
+                };
+            }
+        }
+        
+        return restored;
+    }
+
+    // Method to permanently restore metadata for an image
+    permanentlyRestoreMetadata(imageId) {
+        const imageIndex = this.savedImages.findIndex(img => img.timestamp === imageId);
+        if (imageIndex === -1) return false;
+
+        const originalImage = this.savedImages[imageIndex];
+        const restoredImage = this.restoreMetadataFromApiResponse(originalImage);
+        
+        // Update the saved image with restored data
+        this.savedImages[imageIndex] = restoredImage;
+        this.saveImages();
+        this.showInlineGallery();
+        this.updateMobileGallery();
+        
+        if (this.app && this.app.showNotification) {
+            this.app.showNotification('Metadata restored from API response', 'success');
+        }
+        
+        return true;
     }
 
     deleteImage(imageData) {
@@ -306,6 +399,62 @@ class FalAIGallery {
 
             if (this.app && this.app.showNotification) {
                 this.app.showNotification('Image set as input', 'success');
+            }
+        }
+    }
+
+    usePrompt(imageData) {
+        // Get prompt from image data, try to restore if missing
+        const restoredData = this.restoreMetadataFromApiResponse(imageData);
+        const prompt = restoredData.prompt || imageData.prompt;
+        
+        if (!prompt) {
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('No prompt available for this image', 'warning');
+            }
+            return;
+        }
+
+        const promptInput = document.getElementById('prompt');
+        if (promptInput) {
+            promptInput.value = prompt;
+            // Trigger input event for any listeners
+            promptInput.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Prompt applied to form', 'success');
+            }
+        } else {
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Prompt field not found', 'error');
+            }
+        }
+    }
+
+    useSeed(imageData) {
+        // Get seed from image data, try to restore if missing
+        const restoredData = this.restoreMetadataFromApiResponse(imageData);
+        const seed = restoredData.seed || imageData.seed;
+        
+        if (!seed) {
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('No seed available for this image', 'warning');
+            }
+            return;
+        }
+
+        const seedInput = document.getElementById('seed');
+        if (seedInput) {
+            seedInput.value = seed;
+            // Trigger input event for any listeners
+            seedInput.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Seed applied to form', 'success');
+            }
+        } else {
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Seed field not found', 'error');
             }
         }
     }

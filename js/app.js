@@ -2217,7 +2217,16 @@ class FalAI {
                     endpoint: this.currentEndpoint?.metadata?.endpointId || 'Unknown', 
                     parameters: this.lastUsedParams || {}, 
                     seed: result.seed || image.seed || '',
-                    prompt: promptFromResult
+                    prompt: promptFromResult,
+                    // Store complete API response data for metadata recovery
+                    request_id: this.currentRequestId,
+                    api_response: {
+                        ...result, // Full result from API
+                        image_data: image, // Individual image data
+                        generation_timestamp: Date.now(),
+                        api_endpoint: this.currentEndpoint?.metadata?.endpointId,
+                        form_params: { ...this.lastUsedParams } // Copy of form parameters
+                    }
                 };
                 if (this.gallery.saveImage(image.url, meta, { dedupe: true, silent: true })) {
                     added.push(image.url);
