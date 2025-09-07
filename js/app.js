@@ -2205,7 +2205,9 @@ class FalAI {
         // Store result for JSON display
         this.lastResult = result;
 
+        // Handle different result types: images, video, or text
         if (result.images && result.images.length > 0) {
+            // Image generation results
             const added = [];
             for (const image of result.images) {
                 const imageElement = this.createImageElement(image, result);
@@ -2244,6 +2246,61 @@ class FalAI {
             document.getElementById('no-images-placeholder').classList.add('hidden');
             document.getElementById('results').classList.remove('hidden');
             this.switchResultsTab('images');
+        } else if (result.video && result.video.url) {
+            // Video generation results
+            const videoElement = this.createVideoElement(result.video, result);
+            container.appendChild(videoElement);
+
+            // Save video to gallery
+            const promptFromResult = result.prompt || (document.getElementById('prompt')?.value || '').trim();
+            const meta = { 
+                endpoint: this.currentEndpoint?.metadata?.endpointId || 'Unknown', 
+                parameters: this.lastUsedParams || {}, 
+                seed: result.seed || '',
+                prompt: promptFromResult,
+                type: 'video',
+                request_id: this.currentRequestId,
+                api_response: {
+                    ...result,
+                    generation_timestamp: Date.now(),
+                    api_endpoint: this.currentEndpoint?.metadata?.endpointId,
+                    form_params: { ...this.lastUsedParams }
+                }
+            };
+            if (this.gallery.saveImage(result.video.url, meta, { dedupe: true, silent: true })) {
+                if (this.showNotification) {
+                    this.showNotification('Video added to gallery', 'success');
+                }
+            }
+
+            // Update JSON display
+            this.updateJsonDisplay(result);
+
+            // Switch to results view and show results
+            this.gallery.switchRightPanelView('results');
+            document.getElementById('no-images-placeholder').classList.add('hidden');
+            document.getElementById('results').classList.remove('hidden');
+            this.switchResultsTab('images');
+        } else if (result.output) {
+            // Text generation results
+            const textElement = this.createTextElement(result.output, result);
+            container.appendChild(textElement);
+
+            // Update JSON display
+            this.updateJsonDisplay(result);
+
+            // Switch to results view and show results
+            this.gallery.switchRightPanelView('results');
+            document.getElementById('no-images-placeholder').classList.add('hidden');
+            document.getElementById('results').classList.remove('hidden');
+            this.switchResultsTab('images');
+        } else {
+            // Unknown result format - just show JSON
+            this.updateJsonDisplay(result);
+            this.gallery.switchRightPanelView('results');
+            document.getElementById('no-images-placeholder').classList.add('hidden');
+            document.getElementById('results').classList.remove('hidden');
+            this.switchResultsTab('json');
         }
     }
 
@@ -2286,6 +2343,97 @@ class FalAI {
         };
         
         return this.gallery.createResultImageItem(image.url, imageMetadata);
+    }
+
+    createVideoElement(video, metadata = {}) {
+        const videoDiv = document.createElement('div');
+        videoDiv.className = 'result-video-item';
+        
+        const videoElement = document.createElement('video');
+        videoElement.src = video.url;
+        videoElement.controls = true;
+        videoElement.className = 'result-video';
+        videoElement.style.maxWidth = '100%';
+        videoElement.style.height = 'auto';
+        
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'result-actions';
+        
+        const downloadBtn = document.createElement('button');
+        downloadBtn.innerHTML = '📥 Download';
+        downloadBtn.className = 'btn secondary small';
+        downloadBtn.onclick = () => this.downloadMedia(video.url, 'video');
+        
+        actionsDiv.appendChild(downloadBtn);
+        videoDiv.appendChild(videoElement);
+        videoDiv.appendChild(actionsDiv);
+        
+        return videoDiv;
+    }
+
+    createTextElement(text, metadata = {}) {
+        const textDiv = document.createElement('div');
+        textDiv.className = 'result-text-item';
+        
+        const textContent = document.createElement('div');
+        textContent.className = 'result-text-content';
+        textContent.style.cssText = `
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            font-family: var(--font-mono);
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        `;
+        
+        // Handle reasoning if available
+        if (metadata.reasoning) {
+            const reasoningSection = document.createElement('div');
+            reasoningSection.innerHTML = `<strong>Reasoning:</strong><br>${metadata.reasoning}`;
+            reasoningSection.style.cssText = `
+                margin-bottom: 1rem;
+                padding-bottom: 1rem;
+                border-bottom: 1px solid var(--border-color);
+                color: var(--text-secondary);
+            `;
+            textContent.appendChild(reasoningSection);
+        }
+        
+        const outputSection = document.createElement('div');
+        outputSection.innerHTML = `<strong>Output:</strong><br>${text}`;
+        textContent.appendChild(outputSection);
+        
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'result-actions';
+        
+        const copyBtn = document.createElement('button');
+        copyBtn.innerHTML = '📋 Copy';
+        copyBtn.className = 'btn secondary small';
+        copyBtn.onclick = () => {
+            navigator.clipboard.writeText(text).then(() => {
+                if (this.showNotification) {
+                    this.showNotification('Text copied to clipboard', 'success');
+                }
+            });
+        };
+        
+        actionsDiv.appendChild(copyBtn);
+        textDiv.appendChild(textContent);
+        textDiv.appendChild(actionsDiv);
+        
+        return textDiv;
+    }
+
+    downloadMedia(url, type = 'image') {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `falai_${type}_${Date.now()}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     resetFormToDefaults() {
