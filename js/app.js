@@ -3195,7 +3195,8 @@ class FalAI {
                             }
                         }
                     } else {
-                        // Last attempt failed, throw error
+                        // Last attempt failed, show user-friendly error
+                        this.showToast('Storage Full', 'Browser storage is full. Please clear some saved images from the gallery.', 'error');
                         throw new Error('Storage quota exceeded even after cleanup. Consider clearing gallery or browser data.');
                     }
                 } else {
