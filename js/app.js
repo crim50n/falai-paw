@@ -916,9 +916,14 @@ class FalAI {
 
         document.getElementById('save-api-key').addEventListener('click', () => {
             const key = document.getElementById('api-key-input').value.trim();
+            if (!key) {
+                this.showToast('Warning', 'API key cannot be empty', 'warning');
+                return;
+            }
             this.apiKey = key;
             localStorage.setItem('falai_api_key', key);
             document.getElementById('api-key-modal').classList.add('hidden');
+            this.showToast('Success', '✨ API key saved successfully!', 'success');
         });
 
         document.getElementById('cancel-api-key').addEventListener('click', () => {
@@ -1736,12 +1741,12 @@ class FalAI {
 
     async generateImage() {
         if (!this.apiKey) {
-            alert('Please set your API key first');
+            this.showError('⚠️ Please set your API key first. Click "Set API Key" in the menu.');
             return;
         }
 
         if (!this.currentEndpoint) {
-            alert('Please select an endpoint first');
+            this.showError('⚠️ Please select an endpoint first.');
             return;
         }
 
@@ -2835,10 +2840,11 @@ class FalAI {
             URL.revokeObjectURL(url);
 
             this.logDebug('Settings exported successfully', 'success');
+            this.showToast('Success', '📦 Settings exported successfully!', 'success');
 
         } catch (error) {
             console.error('Export failed:', error);
-            alert('Failed to export settings: ' + error.message);
+            this.showToast('Error', 'Failed to export settings: ' + error.message, 'error');
             this.logDebug('Settings export failed: ' + error.message, 'error');
         }
     }
@@ -2935,6 +2941,7 @@ class FalAI {
             }
 
             alert('Settings imported successfully!');
+            this.showToast('Success', '📥 Settings imported successfully!', 'success');
             this.logDebug('Settings imported successfully', 'success', {
                 endpointSettings: Object.keys(settings.endpointSettings || {}).length,
                 savedImages: settings.savedImages?.length || 0
@@ -2942,6 +2949,7 @@ class FalAI {
 
         } catch (error) {
             console.error('Import failed:', error);
+            this.showToast('Error', 'Failed to import settings: ' + error.message, 'error');
             alert('Failed to import settings: ' + error.message);
             this.logDebug('Settings import failed: ' + error.message, 'error');
         }
@@ -3343,6 +3351,9 @@ class FalAI {
     showError(message) {
         this.showGenerationStatus(message, 'error');
 
+        // Also show toast notification
+        this.showToast('Error', message, 'error');
+
         // Auto-hide error status after 5 seconds
         setTimeout(() => {
             this.hideGenerationStatus();
@@ -3350,6 +3361,41 @@ class FalAI {
         }, 5000);
 
         this.logDebug('Error shown: ' + message, 'error');
+    }
+
+    showToast(title, message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+
+        const icons = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+
+        toast.innerHTML = `
+            <div class="toast-icon">${icons[type] || icons.info}</div>
+            <div class="toast-content">
+                ${title ? `<div class="toast-title">${title}</div>` : ''}
+                <div class="toast-message">${message}</div>
+            </div>
+        `;
+
+        container.appendChild(toast);
+
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            toast.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
     }
 
     hideResults() {
