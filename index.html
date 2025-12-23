@@ -20,6 +20,14 @@
     <!-- PhotoSwipe (MIT) for gallery -->
     <link rel="stylesheet" href="https://unpkg.com/photoswipe@5/dist/photoswipe.css" />
 
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
     <!-- Icons -->
     <link rel="icon" href="favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="favicon.png">
@@ -34,13 +42,24 @@
             </button>
             <h1>FalAI</h1>
             <div class="header-controls">
-                <button id="add-endpoint-btn" class="btn secondary" title="Add Custom Endpoint">➕</button>
-                <button id="export-settings-btn" class="btn secondary" title="Export Settings">📤</button>
-                <button id="import-settings-btn" class="btn secondary" title="Import Settings">📥</button>
+                <button id="add-endpoint-btn" class="btn secondary" title="Add Custom Endpoint"><i class="ph ph-plus"></i></button>
+                <button id="export-settings-btn" class="btn secondary" title="Export Settings"><i class="ph ph-export"></i></button>
+                <button id="import-settings-btn" class="btn secondary" title="Import Settings"><i class="ph ph-download-simple"></i></button>
+                <button id="reset-settings-btn" class="btn secondary" title="Reset Settings"><i class="ph ph-arrow-counter-clockwise"></i></button>
                 <button id="api-key-btn" class="btn secondary">Set API Key</button>
             </div>
-            <!-- Mobile gallery button (visible on mobile only) -->
-            <button id="mobile-gallery-btn" class="mobile-gallery-btn" title="Gallery">🖼️</button>
+            
+            <div class="header-right-actions" style="display: flex; align-items: center; gap: 0.5rem;">
+                <label class="theme-toggle" title="Toggle Dark Mode">
+                    <input type="checkbox" id="theme-toggle-checkbox">
+                    <span class="theme-toggle-slider">
+                        <span class="theme-toggle-icon"><i class="ph ph-moon"></i></span>
+                        <span class="theme-toggle-icon"><i class="ph ph-sun"></i></span>
+                    </span>
+                </label>
+                <!-- Mobile gallery button (visible on mobile only) -->
+                <button id="mobile-gallery-btn" class="mobile-gallery-btn" title="Gallery"><i class="ph ph-image"></i></button>
+            </div>
         </header>
 
         <!-- Mobile Menu Overlay -->
@@ -52,23 +71,28 @@
         <!-- Mobile Menu -->
         <div id="mobile-menu" class="mobile-menu">
             <div class="mobile-menu-header">
-                <button id="mobile-menu-close" class="mobile-menu-close">✕</button>
+                <button id="mobile-menu-close" class="mobile-menu-close"><i class="ph ph-x"></i></button>
             </div>
             <div class="mobile-menu-controls">
                 <!-- Control buttons section -->
-                <div class="mobile-menu-section">
-                    <h3>Settings</h3>
-                    <button id="mobile-api-key-btn" class="mobile-menu-btn">Set API Key</button>
-                    <button id="mobile-add-endpoint-btn" class="mobile-menu-btn">Add Custom Endpoint</button>
-                    <button id="mobile-export-settings-btn" class="mobile-menu-btn">Export Settings</button>
-                    <button id="mobile-import-settings-btn" class="mobile-menu-btn">Import Settings</button>
+                <div class="mobile-menu-section collapsible collapsed">
+                    <h3 class="section-header">Settings <span class="toggle-icon"><i class="ph ph-caret-down"></i></span></h3>
+                    <div class="section-content">
+                        <button id="mobile-api-key-btn" class="mobile-menu-btn">Set API Key</button>
+                        <button id="mobile-add-endpoint-btn" class="mobile-menu-btn">Add Custom Endpoint</button>
+                        <button id="mobile-export-settings-btn" class="mobile-menu-btn">Export Settings</button>
+                        <button id="mobile-import-settings-btn" class="mobile-menu-btn">Import Settings</button>
+                        <button id="mobile-reset-settings-btn" class="mobile-menu-btn">Reset Settings</button>
+                    </div>
                 </div>
                 
                 <!-- Advanced options section -->
-                <div class="mobile-menu-section">
-                    <h3>Advanced Options</h3>
-                    <div id="mobile-advanced-options">
-                        <!-- Advanced options will be populated here dynamically -->
+                <div class="mobile-menu-section collapsible">
+                    <h3 class="section-header">Advanced Options <span class="toggle-icon"><i class="ph ph-caret-down"></i></span></h3>
+                    <div class="section-content">
+                        <div id="mobile-advanced-options">
+                            <!-- Advanced options will be populated here dynamically -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -79,7 +103,7 @@
             <div class="mobile-gallery-header">
                 <h3>Gallery</h3>
                 <div class="mobile-gallery-header-actions">
-                    <button id="mobile-gallery-close" class="mobile-gallery-close" title="Close">✕</button>
+                    <button id="mobile-gallery-close" class="mobile-gallery-close" title="Close"><i class="ph ph-x"></i></button>
                 </div>
             </div>
             <div class="mobile-gallery-meta">
@@ -92,7 +116,7 @@
                 <div class="mobile-gallery-meta-row selection-actions-row" style="display:none;">
                     <div class="gallery-inline-actions" data-scope="mobile">
                         <button class="btn secondary small select-all-btn" data-scope="mobile">Select All</button>
-                        <button class="btn secondary small select-not-liked-btn" data-scope="mobile">Select Not ❤️</button>
+                        <button class="btn secondary small select-not-liked-btn" data-scope="mobile">Select Unliked</button>
                         <button class="btn secondary small clear-selection-btn" data-scope="mobile">Clear</button>
                         <button class="btn danger small bulk-delete-btn" data-scope="mobile">Delete</button>
                     </div>
@@ -160,7 +184,7 @@
 
                     <div id="no-images-placeholder" class="no-images-placeholder">
                         <div class="placeholder-content">
-                            <span class="placeholder-icon">🖼️</span>
+                            <span class="placeholder-icon"><i class="ph ph-image"></i></span>
                             <h3>Generated images will appear here</h3>
                             <p>Select an endpoint and generate your first image</p>
                         </div>
@@ -190,7 +214,7 @@
                                 </div>
                                 <div class="gallery-inline-actions selection-actions-row" data-scope="inline" style="display:none;">
                                     <button class="btn secondary small select-all-btn" data-scope="inline">Select All</button>
-                                    <button class="btn secondary small select-not-liked-btn" data-scope="inline">Select Not ❤️</button>
+                                    <button class="btn secondary small select-not-liked-btn" data-scope="inline">Select Unliked</button>
                                     <button class="btn secondary small clear-selection-btn" data-scope="inline">Clear</button>
                                     <button class="btn danger small bulk-delete-btn" data-scope="inline">Delete</button>
                                 </div>
@@ -241,7 +265,7 @@
                     <label>OpenAPI Schema File</label>
                     <div class="upload-area" id="schema-upload-area">
                         <div class="upload-content">
-                            <span>📄</span>
+                            <span><i class="ph ph-file-text"></i></span>
                             <span>Drop OpenAPI schema file here or click to browse</span>
                             <small>Supports JSON files with OpenAPI 3.0+ specification</small>
                         </div>
@@ -266,43 +290,43 @@
         <!-- Gallery Context Menu -->
         <div id="gallery-context-menu" class="gallery-context-menu hidden">
             <div class="context-menu-item" data-action="download">
-                <span class="context-menu-icon">📥</span>
+                <span class="context-menu-icon"><i class="ph ph-download-simple"></i></span>
                 <span>Download</span>
             </div>
             <div class="context-menu-item" data-action="copy-url">
-                <span class="context-menu-icon">🔗</span>
+                <span class="context-menu-icon"><i class="ph ph-link"></i></span>
                 <span>Copy URL</span>
             </div>
             <div class="context-menu-item" data-action="toggle-like">
-                <span class="context-menu-icon">❤️</span>
+                <span class="context-menu-icon"><i class="ph ph-heart"></i></span>
                 <span class="toggle-like-text">Like</span>
             </div>
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="set-as-input">
-                <span class="context-menu-icon">📋</span>
+                <span class="context-menu-icon"><i class="ph ph-arrow-square-in"></i></span>
                 <span>Set as Input</span>
             </div>
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="use-prompt">
-                <span class="context-menu-icon">💬</span>
+                <span class="context-menu-icon"><i class="ph ph-chat-text"></i></span>
                 <span>Use Prompt</span>
             </div>
             <div class="context-menu-item" data-action="use-seed">
-                <span class="context-menu-icon">🎲</span>
+                <span class="context-menu-icon"><i class="ph ph-dice-five"></i></span>
                 <span>Use Seed</span>
             </div>
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="view-metadata">
-                <span class="context-menu-icon">ℹ️</span>
+                <span class="context-menu-icon"><i class="ph ph-info"></i></span>
                 <span>View Details</span>
             </div>
             <div class="context-menu-item context-menu-restore" data-action="restore-metadata">
-                <span class="context-menu-icon">🔧</span>
+                <span class="context-menu-icon"><i class="ph ph-wrench"></i></span>
                 <span>Restore Metadata</span>
             </div>
             <div class="context-menu-separator"></div>
             <div class="context-menu-item context-menu-danger" data-action="delete">
-                <span class="context-menu-icon">🗑️</span>
+                <span class="context-menu-icon"><i class="ph ph-trash"></i></span>
                 <span>Delete</span>
             </div>
         </div>

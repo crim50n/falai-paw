@@ -1,12 +1,32 @@
 class FalAI {
     constructor() {
-        this.apiKey = localStorage.getItem('falai_api_key') || '';
+        this.apiKey = localStorage.getItem('falai_api_key') || sessionStorage.getItem('falai_api_key') || '';
         this.endpoints = new Map();
         this.currentEndpoint = null;
         this.currentRequestId = null;
         this.statusPolling = null;
-        this.endpointSettings = JSON.parse(localStorage.getItem('falai_endpoint_settings') || '{}');
-        this.debugMode = localStorage.getItem('falai_debug_mode') === 'true';
+        
+        // Try to load settings from both storages and merge/pick best
+        const localSettings = JSON.parse(localStorage.getItem('falai_endpoint_settings') || '{}');
+        const sessionSettings = JSON.parse(sessionStorage.getItem('falai_endpoint_settings') || '{}');
+        
+        // If session has data but local doesn't (or is smaller/older?), prefer session
+        // Since we don't have timestamps, we'll prefer session if it has more keys or if local is empty
+        const localKeys = Object.keys(localSettings).length;
+        const sessionKeys = Object.keys(sessionSettings).length;
+        
+        if (sessionKeys > 0 && (localKeys === 0 || this.isStorageBlocked())) {
+            this.endpointSettings = sessionSettings;
+            console.log('🔧 Loaded settings from SessionStorage (fallback)');
+        } else {
+            this.endpointSettings = localSettings;
+        }
+        
+        this.debugMode = (localStorage.getItem('falai_debug_mode') || sessionStorage.getItem('falai_debug_mode')) === 'true';
+
+        if (this.debugMode) {
+            console.log('🔧 Initialized with settings:', this.endpointSettings);
+        }
 
         // Persistent generation state
         this.isGenerating = false;
@@ -15,6 +35,16 @@ class FalAI {
         this.gallery = new FalAIGallery(this);
 
         this.init();
+    }
+
+    isStorageBlocked() {
+        try {
+            localStorage.setItem('test_storage', '1');
+            localStorage.removeItem('test_storage');
+            return false;
+        } catch (e) {
+            return true;
+        }
     }
 
     // Extract the input (request body) schema from an endpoint OpenAPI schema
@@ -58,23 +88,23 @@ class FalAI {
         if (!this.debugMode) return;
 
         const timestamp = new Date().toLocaleTimeString();
-        const typeIcon = {
-            'info': 'ℹ️',
-            'success': '✅',
-            'error': '❌',
-            'warning': '⚠️',
-            'system': '🔧',
-            'request': '📤',
-            'response': '📥',
-            'status': '📊'
-        }[type] || 'ℹ️';
+        const typeLabel = {
+            'info': '[INFO]',
+            'success': '[SUCCESS]',
+            'error': '[ERROR]',
+            'warning': '[WARNING]',
+            'system': '[SYSTEM]',
+            'request': '[REQUEST]',
+            'response': '[RESPONSE]',
+            'status': '[STATUS]'
+        }[type] || '[INFO]';
 
         if (data) {
-            console.group(`${typeIcon} [${timestamp}] ${message}`);
+            console.group(`${typeLabel} [${timestamp}] ${message}`);
             console.log(data);
             console.groupEnd();
         } else {
-            console.log(`${typeIcon} [${timestamp}] ${message}`);
+            console.log(`${typeLabel} [${timestamp}] ${message}`);
         }
     }
 
@@ -86,6 +116,7 @@ class FalAI {
         this.restoreUIState();
         this.setupPWA();
         this.initDebugMode();
+        this.initTheme();
 
         // Log storage info on startup if debug mode is enabled
         if (this.debugMode) {
@@ -94,7 +125,7 @@ class FalAI {
             // Always log if storage is critically full (>90%)
             const info = this.getStorageSize();
             if (parseFloat(info.usage) > 90) {
-                console.warn(`⚠️ Storage ${info.usage}% full! Run falaiStorage.info() for details`);
+                console.warn(`[WARNING] Storage ${info.usage}% full! Run falaiStorage.info() for details`);
             }
         }
 
@@ -105,14 +136,14 @@ class FalAI {
         window.falaiStorage = {
             info: () => this.logStorageInfo(),
             cleanup: () => {
-                console.log('🧹 Starting cleanup...');
+                console.log('[CLEANUP] Starting cleanup...');
                 const base64 = this.cleanupBase64Images();
                 const settings = this.cleanupOldSettings();
                 const gallery = this.gallery.cleanupOldGalleryImages();
-                console.log(`✅ Cleanup complete:`);
-                console.log(`  📷 Base64 images: ${base64.count} removed (${this.formatBytes(base64.sizeFreed)} freed)`);
-                console.log(`  ⚙️  Settings: ${settings} removed`);
-                console.log(`  🖼️  Gallery: ${gallery} entries removed`);
+                console.log(`[SUCCESS] Cleanup complete:`);
+                console.log(`  [IMAGES] Base64 images: ${base64.count} removed (${this.formatBytes(base64.sizeFreed)} freed)`);
+                console.log(`  [SETTINGS] Settings: ${settings} removed`);
+                console.log(`  [GALLERY] Gallery: ${gallery} entries removed`);
                 this.logStorageInfo();
             },
             cleanBase64: () => {
@@ -127,7 +158,7 @@ class FalAI {
                 this.logStorageInfo();
             },
             findLargest: () => {
-                console.log('🔍 Finding largest localStorage entries...');
+                console.log('[SEARCH] Finding largest localStorage entries...');
                 const entries = [];
                 for (let key in localStorage) {
                     if (localStorage.hasOwnProperty(key)) {
@@ -160,6 +191,36 @@ class FalAI {
         if (this.debugMode) {
             this.logDebug('Debug mode restored', 'system');
         }
+    }
+
+    initTheme() {
+        const savedTheme = localStorage.getItem('falai_theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            this.updateThemeToggles(true);
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            this.updateThemeToggles(false);
+        }
+    }
+
+    toggleTheme(isDark) {
+        if (isDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('falai_theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('falai_theme', 'light');
+        }
+        this.updateThemeToggles(isDark);
+    }
+
+    updateThemeToggles(isDark) {
+        const desktopToggle = document.getElementById('theme-toggle-checkbox');
+        
+        if (desktopToggle) desktopToggle.checked = isDark;
     }
 
     async loadEndpoints() {
@@ -221,6 +282,10 @@ class FalAI {
             return;
         }
 
+        // CRITICAL: Preserve the currently selected endpoint before clearing
+        // This prevents form from being overwritten during incremental endpoint loading
+        const previouslySelected = dropdown.value || this.currentEndpointId;
+
         dropdown.innerHTML = '<option value="">Choose an endpoint...</option>';
 
         console.log(`Rendering dropdown with ${this.endpoints.size} endpoints`);
@@ -236,25 +301,46 @@ class FalAI {
             const option = document.createElement('option');
             option.value = id;
             const isCustom = id.startsWith('custom-');
-            option.textContent = `${endpoint.metadata.endpointId} (${endpoint.metadata.category})${isCustom ? ' 🔧' : ''}`;
+            option.textContent = `${endpoint.metadata.endpointId} (${endpoint.metadata.category})${isCustom ? ' [Custom]' : ''}`;
             dropdown.appendChild(option);
         }
 
         // Update delete button visibility for current selection
         this.updateDeleteButtonVisibility(dropdown.value);
 
-        // Auto-select last used endpoint if available
-        const lastEndpoint = localStorage.getItem('falai_last_endpoint');
-        if (lastEndpoint && this.endpoints.has(lastEndpoint) && dropdown.value === '') {
-            dropdown.value = lastEndpoint;
-            this.selectEndpoint(lastEndpoint);
-            this.updateDeleteButtonVisibility(lastEndpoint);
+        // Restore previously selected endpoint if it still exists
+        // OR auto-select last used endpoint on initial load only
+        if (previouslySelected && this.endpoints.has(previouslySelected)) {
+            dropdown.value = previouslySelected;
+            // Only call selectEndpoint if form is not already showing this endpoint
+            if (this.currentEndpointId !== previouslySelected) {
+                this.selectEndpoint(previouslySelected);
+            }
+            this.updateDeleteButtonVisibility(previouslySelected);
+        } else if (!this.currentEndpointId) {
+            // Initial load - auto-select last used endpoint
+            const lastEndpoint = localStorage.getItem('falai_last_endpoint');
+            if (lastEndpoint && this.endpoints.has(lastEndpoint)) {
+                dropdown.value = lastEndpoint;
+                this.selectEndpoint(lastEndpoint);
+                this.updateDeleteButtonVisibility(lastEndpoint);
+            }
         }
     }
 
-    selectEndpoint(endpointId) {
+    selectEndpoint(endpointId, forceRegenerate = false) {
         const endpoint = this.endpoints.get(endpointId);
         if (!endpoint) return;
+
+        // Skip if same endpoint and not forcing regenerate
+        if (!forceRegenerate && this.currentEndpointId === endpointId) {
+            return;
+        }
+
+        // Save current endpoint settings before switching
+        if (this.currentEndpoint) {
+            this.performSaveEndpointSettings();
+        }
 
         this.currentEndpoint = endpoint;
         this.currentEndpointId = endpointId;
@@ -407,7 +493,7 @@ class FalAI {
         advancedContainer.className = 'advanced-options';
         advancedContainer.innerHTML = `
             <button type="button" class="advanced-options-toggle">
-                ▼ Advanced Options
+                <i class="ph ph-caret-down"></i> Advanced Options
             </button>
             <div class="advanced-options-content"></div>
         `;
@@ -417,9 +503,9 @@ class FalAI {
 
         toggle.addEventListener('click', () => {
             advancedContent.classList.toggle('visible');
-            toggle.textContent = advancedContent.classList.contains('visible')
-                ? '▲ Advanced Options'
-                : '▼ Advanced Options';
+            toggle.innerHTML = advancedContent.classList.contains('visible')
+                ? '<i class="ph ph-caret-up"></i> Advanced Options'
+                : '<i class="ph ph-caret-down"></i> Advanced Options';
         });
 
         // Only show prompt in main fields, everything else goes to advanced options
@@ -444,6 +530,22 @@ class FalAI {
                 advancedContent.appendChild(field);
             }
         }
+
+        // Ensure advanced options are visible if they contain required fields that are empty
+        // or if the user has previously expanded them
+        const savedAdvancedVisible = localStorage.getItem('falai_advanced_visible') === 'true';
+        if (savedAdvancedVisible) {
+            advancedContent.classList.add('visible');
+            toggle.innerHTML = '<i class="ph ph-caret-up"></i> Advanced Options';
+        }
+
+        toggle.addEventListener('click', () => {
+            const isVisible = advancedContent.classList.toggle('visible');
+            toggle.innerHTML = isVisible
+                ? '<i class="ph ph-caret-up"></i> Advanced Options'
+                : '<i class="ph ph-caret-down"></i> Advanced Options';
+            localStorage.setItem('falai_advanced_visible', isVisible);
+        });
 
         container.appendChild(mainFields);
         container.appendChild(advancedContainer);
@@ -548,7 +650,7 @@ class FalAI {
 
         // Add change listener to save settings
         input.addEventListener('change', () => {
-            this.saveEndpointSettings();
+            if (!this.isRestoring) this.saveEndpointSettings(name);
         });
 
         return field;
@@ -589,7 +691,7 @@ class FalAI {
 
                 exampleButton.addEventListener('click', () => {
                     textarea.value = example;
-                    this.saveEndpointSettings();
+                    if (!this.isRestoring) this.saveEndpointSettings(name);
                 });
 
                 examplesList.appendChild(exampleButton);
@@ -601,7 +703,7 @@ class FalAI {
         }
 
         textarea.addEventListener('input', () => {
-            this.saveEndpointSettings();
+            if (!this.isRestoring) this.saveEndpointSettings(name);
         });
 
         promptContainer.appendChild(textarea);
@@ -699,14 +801,14 @@ class FalAI {
         if (isMaskField) {
             uploadArea.innerHTML = `
                 <div class="upload-content">
-                    <span>🎨 Create mask or upload image</span>
+                    <span><i class="ph ph-paint-brush"></i> Create mask or upload image</span>
                     <small>Draw on reference image or upload mask file</small>
                 </div>
             `;
         } else {
             uploadArea.innerHTML = `
                 <div class="upload-content">
-                    <span>📁 Drop image here or click to upload</span>
+                    <span><i class="ph ph-upload-simple"></i> Drop image here or click to upload</span>
                     <small>Supports: JPG, PNG, WebP, GIF</small>
                 </div>
             `;
@@ -727,7 +829,7 @@ class FalAI {
             const maskEditorButton = document.createElement('button');
             maskEditorButton.type = 'button';
             maskEditorButton.className = 'btn secondary small mask-editor-btn';
-            maskEditorButton.textContent = '🎨 Draw Mask';
+            maskEditorButton.innerHTML = '<i class="ph ph-paint-brush"></i> Draw Mask';
             maskEditorButton.style.marginTop = '8px';
 
             maskEditorButton.addEventListener('click', () => {
@@ -773,7 +875,7 @@ class FalAI {
             urlInput.value = '';
             uploadArea.classList.remove('hidden');
             preview.classList.add('hidden');
-            this.saveEndpointSettings();
+            if (!this.isRestoring) this.saveEndpointSettings(name);
         });
 
         // URL input change
@@ -787,7 +889,7 @@ class FalAI {
                 uploadArea.classList.remove('hidden');
                 preview.classList.add('hidden');
             }
-            this.saveEndpointSettings();
+            if (!this.isRestoring) this.saveEndpointSettings(name);
         });
 
         uploadContainer.appendChild(urlInput);
@@ -841,7 +943,14 @@ class FalAI {
         // Update input when slider changes
         slider.addEventListener('input', () => {
             valueInput.value = slider.value;
-            this.saveEndpointSettings();
+            if (this.debugMode) {
+                console.log(`🎚️ Slider ${name} changed: range=${slider.value}, number=${valueInput.value}`);
+                // Diagnostic: Check what querySelectorAll sees
+                const allInputs = document.querySelectorAll(`input[name="${name}"]`);
+                console.log(`   📍 Found ${allInputs.length} inputs with name="${name}":`, 
+                    Array.from(allInputs).map(i => `${i.type}=${i.value}`).join(', '));
+            }
+            if (!this.isRestoring) this.saveEndpointSettings(name);
         });
 
         // Update slider when input changes
@@ -849,7 +958,10 @@ class FalAI {
             const value = parseFloat(valueInput.value);
             if (!isNaN(value) && value >= schema.minimum && value <= schema.maximum) {
                 slider.value = value;
-                this.saveEndpointSettings();
+                if (this.debugMode) {
+                    console.log(`🔢 Number input ${name} changed: number=${valueInput.value}, range=${slider.value}`);
+                }
+                if (!this.isRestoring) this.saveEndpointSettings(name);
             }
         });
 
@@ -892,7 +1004,7 @@ class FalAI {
             // Auto-set custom dimensions based on compressed image size
             this.autoSetImageDimensions(compressedDataURL);
 
-            this.saveEndpointSettings();
+            if (!this.isRestoring) this.saveEndpointSettings('image_url');
 
         } catch (error) {
             console.error('File upload error:', error);
@@ -908,6 +1020,28 @@ class FalAI {
     }
 
     setupEventListeners() {
+        // Save settings before page unload
+        window.addEventListener('beforeunload', () => {
+            if (this.currentEndpoint) {
+                this.performSaveEndpointSettings();
+            }
+        });
+
+        // Save settings when page becomes hidden (tab switch, minimize)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && this.currentEndpoint) {
+                this.performSaveEndpointSettings();
+            }
+        });
+
+        // Mobile menu collapsible sections
+        document.querySelectorAll('.mobile-menu-section.collapsible .section-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const section = header.parentElement;
+                section.classList.toggle('collapsed');
+            });
+        });
+
         // API Key modal
         document.getElementById('api-key-btn').addEventListener('click', () => {
             document.getElementById('api-key-input').value = this.apiKey;
@@ -923,7 +1057,7 @@ class FalAI {
             this.apiKey = key;
             localStorage.setItem('falai_api_key', key);
             document.getElementById('api-key-modal').classList.add('hidden');
-            this.showToast('Success', '✨ API key saved successfully!', 'success');
+            this.showToast('Success', 'API key saved successfully!', 'success');
         });
 
         document.getElementById('cancel-api-key').addEventListener('click', () => {
@@ -987,7 +1121,7 @@ class FalAI {
             if (this.debugMode) {
                 this.logDebug('Debug mode enabled', 'system');
             } else {
-                console.log('🔧 Debug mode disabled');
+                console.log('[SYSTEM] Debug mode disabled');
             }
         });
 
@@ -1007,6 +1141,26 @@ class FalAI {
                 e.target.value = ''; // Reset file input
             }
         });
+
+        // Theme toggles
+        const desktopToggle = document.getElementById('theme-toggle-checkbox');
+        if (desktopToggle) {
+            desktopToggle.addEventListener('change', (e) => this.toggleTheme(e.target.checked));
+        }
+
+        // Reset settings
+        const resetBtn = document.getElementById('reset-settings-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => this.resetSettings());
+        }
+
+        const mobileResetBtn = document.getElementById('mobile-reset-settings-btn');
+        if (mobileResetBtn) {
+            mobileResetBtn.addEventListener('click', () => {
+                this.resetSettings();
+                this.closeMobileMenu();
+            });
+        }
 
         // Clear debug log
         document.getElementById('clear-debug').addEventListener('click', () => {
@@ -1197,6 +1351,13 @@ class FalAI {
         mobileMenu.classList.remove('active');
         mobileMenuOverlay.classList.remove('active');
 
+        // IMPORTANT: First restore advanced options to desktop view (back into the form)
+        // so that collectFormData can find them
+        this.restoreDesktopAdvancedOptions();
+
+        // Now save settings (elements are back in the form)
+        this.performSaveEndpointSettings();
+
         // Restore body scroll
         document.body.style.overflow = '';
     }
@@ -1259,163 +1420,22 @@ class FalAI {
             return;
         }
 
-        // Clone only the content (form fields), not the wrapper with toggle button
-        const clonedContent = advancedContent.cloneNode(true);
-        clonedContent.classList.add('mobile-advanced-content');
-        clonedContent.classList.remove('hidden');
-        clonedContent.style.display = 'block';
-
-        // Keep mask editor elements in mobile version
-
-        // Update any IDs to avoid conflicts
-        const elements = clonedContent.querySelectorAll('[id]');
-        elements.forEach(el => {
-            el.id = 'mobile-' + el.id;
-        });
-
-        mobileContainer.appendChild(clonedContent);
-
-        // Re-attach event listeners for mobile advanced options
-        this.attachMobileAdvancedOptionEvents(mobileContainer);
+        // Move the content instead of cloning to preserve event listeners
+        // We will move it back when closing the mobile menu
+        while (advancedContent.firstChild) {
+            mobileContainer.appendChild(advancedContent.firstChild);
+        }
+        
+        // Store reference to move back later
+        this.desktopAdvancedContent = advancedContent;
     }
 
-    attachMobileAdvancedOptionEvents(container) {
-        // Re-attach event listeners for all form elements in mobile menu
-        const inputs = container.querySelectorAll('input, select, textarea');
-        inputs.forEach(input => {
-            // Sync input events (for typing, slider movement, etc.)
-            input.addEventListener('input', (e) => {
-                this.syncMobileToDesktop(e.target);
-                this.saveEndpointSettings();
-            });
-
-            // Sync change events (for dropdowns, checkboxes, etc.)
-            input.addEventListener('change', (e) => {
-                this.syncMobileToDesktop(e.target);
-                this.saveEndpointSettings();
-            });
-        });
-
-        // Handle array add buttons for mobile (LoRA, etc.)
-        const arrayAddButtons = container.querySelectorAll('.btn.secondary.small');
-        arrayAddButtons.forEach(button => {
-            // Check if this is an "Add LoRA" or similar button
-            if (button.textContent.includes('Add')) {
-                button.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    // Find the corresponding desktop button and click it
-                    const buttonText = button.textContent;
-                    const desktopButtons = document.querySelectorAll(`#generation-form .btn.secondary.small`);
-
-                    // Find the matching desktop button by text content
-                    for (let dBtn of desktopButtons) {
-                        if (dBtn.textContent === buttonText) {
-                            dBtn.click();
-                            // Re-populate mobile menu to show the new item
-                            setTimeout(() => {
-                                this.populateMobileAdvancedOptions();
-                            }, 100);
-                            break;
-                        }
-                    }
-                });
+    restoreDesktopAdvancedOptions() {
+        const mobileContainer = document.getElementById('mobile-advanced-options');
+        if (this.desktopAdvancedContent && mobileContainer) {
+            while (mobileContainer.firstChild) {
+                this.desktopAdvancedContent.appendChild(mobileContainer.firstChild);
             }
-        });
-
-        // Handle array remove buttons for mobile
-        const arrayRemoveButtons = container.querySelectorAll('.btn.danger');
-        arrayRemoveButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-
-                // Find the corresponding desktop remove button
-                const arrayItem = button.closest('.array-item');
-                if (arrayItem) {
-                    const itemIndex = Array.from(arrayItem.parentNode.children).indexOf(arrayItem);
-                    const desktopArrayItems = document.querySelectorAll('#generation-form .array-item');
-
-                    if (desktopArrayItems[itemIndex]) {
-                        const desktopRemoveBtn = desktopArrayItems[itemIndex].querySelector('.btn.danger');
-                        if (desktopRemoveBtn) {
-                            desktopRemoveBtn.click();
-                            // Re-populate mobile menu to show the updated list
-                            setTimeout(() => {
-                                this.populateMobileAdvancedOptions();
-                            }, 100);
-                        }
-                    }
-                }
-            });
-        });
-
-        // Handle special slider-input pairs for mobile
-        const sliderContainers = container.querySelectorAll('.slider-container');
-        sliderContainers.forEach(sliderContainer => {
-            const slider = sliderContainer.querySelector('input[type="range"]');
-            const valueInput = sliderContainer.querySelector('input[type="number"].slider-value-input');
-
-            if (slider && valueInput) {
-                // Ensure initial sync
-                valueInput.value = slider.value;
-
-                // Add event listeners for slider
-                slider.addEventListener('input', (e) => {
-                    e.stopPropagation();
-                    const newValue = slider.value;
-                    valueInput.value = newValue;
-
-                    // Sync to desktop
-                    this.syncMobileToDesktop(slider);
-                    this.saveEndpointSettings();
-                });
-
-                // Add event listeners for value input
-                valueInput.addEventListener('input', (e) => {
-                    e.stopPropagation();
-                    const value = parseFloat(valueInput.value);
-                    const min = parseFloat(slider.min);
-                    const max = parseFloat(slider.max);
-
-                    if (!isNaN(value) && value >= min && value <= max) {
-                        slider.value = value;
-
-                        // Sync both slider and value input to desktop
-                        this.syncMobileToDesktop(slider);
-                        this.saveEndpointSettings();
-                    }
-                });
-            }
-        });
-    }
-
-    syncMobileToDesktop(mobileElement) {
-        let desktopElement = null;
-
-        // Try to find desktop element by ID first
-        const mobileId = mobileElement.id;
-        if (mobileId && mobileId.startsWith('mobile-')) {
-            const desktopId = mobileId.replace('mobile-', '');
-            desktopElement = document.getElementById(desktopId);
-        }
-
-        // If not found by ID, try to find by name attribute
-        if (!desktopElement && mobileElement.name) {
-            desktopElement = document.querySelector(`#generation-form [name="${mobileElement.name}"]`);
-        }
-
-        if (desktopElement) {
-            if (mobileElement.type === 'checkbox') {
-                desktopElement.checked = mobileElement.checked;
-            } else {
-                desktopElement.value = mobileElement.value;
-            }
-
-            // Trigger events on desktop element to maintain consistency
-            desktopElement.dispatchEvent(new Event('input', { bubbles: true }));
-            desktopElement.dispatchEvent(new Event('change', { bubbles: true }));
         }
     }
 
@@ -1681,7 +1701,7 @@ class FalAI {
         const originalGetPointer = fabricCanvas._getPointer;
 
         if (!originalGetPointer || typeof originalGetPointer !== 'function') {
-            console.warn('⚠️ Original _getPointer method not found, skipping touch coordinate fix');
+            console.warn('[WARNING] Original _getPointer method not found, skipping touch coordinate fix');
             return;
         }
 
@@ -1741,14 +1761,17 @@ class FalAI {
 
     async generateImage() {
         if (!this.apiKey) {
-            this.showError('⚠️ Please set your API key first. Click "Set API Key" in the menu.');
+            this.showError('Please set your API key first. Click "Set API Key" in the menu.');
             return;
         }
 
         if (!this.currentEndpoint) {
-            this.showError('⚠️ Please select an endpoint first.');
+            this.showError('Please select an endpoint first.');
             return;
         }
+
+        // Save settings before generating (ensures desktop changes are persisted)
+        this.performSaveEndpointSettings();
 
         // Collect form data
         const formData = this.collectFormData();
@@ -1827,14 +1850,18 @@ class FalAI {
 
         // Get all form inputs
         const inputs = form.querySelectorAll('input, select, textarea');
-
+        
+        // Track which keys we've seen from range inputs (to avoid number input overwriting)
+        const rangeKeys = new Set();
+        
         inputs.forEach(input => {
             const key = input.name;
             if (!key) return;
 
             // Handle array fields (like loras[0].path)
             if (key.includes('[') && key.includes(']')) {
-                this.setNestedProperty(data, key, this.getInputValue(input));
+                const value = this.getInputValue(input);
+                this.setNestedProperty(data, key, value);
                 return;
             }
 
@@ -1845,7 +1872,18 @@ class FalAI {
 
             if (input.type === 'checkbox') {
                 data[key] = input.checked;
-            } else if (input.type === 'number' || input.type === 'range') {
+            } else if (input.type === 'range') {
+                // Range input - mark this key and save value
+                rangeKeys.add(key);
+                const value = input.value;
+                if (value !== '') {
+                    data[key] = parseFloat(value);
+                }
+            } else if (input.type === 'number') {
+                // Number input - skip if we already have value from range slider
+                if (rangeKeys.has(key)) {
+                    return; // Skip - range value is authoritative
+                }
                 const value = input.value;
                 if (value !== '') {
                     data[key] = parseFloat(value);
@@ -1858,17 +1896,55 @@ class FalAI {
         // Special handling for image_size field
         this.handleImageSizeData(data, form);
 
+        // Merge with existing settings to preserve fields that might be temporarily hidden or missing
+        if (this.currentEndpoint && this.endpointSettings[this.currentEndpoint.metadata.endpointId]) {
+            const existing = this.endpointSettings[this.currentEndpoint.metadata.endpointId];
+            for (const [key, value] of Object.entries(existing)) {
+                // Only merge if key is missing from current data
+                if (!(key in data) && key !== 'image_size') {
+                    // CRITICAL FIX: Do NOT restore array fields (like 'loras') from history.
+                    // If an array field is missing from 'data', it means the user deleted all items.
+                    // Restoring it from 'existing' would bring back the deleted items ("zombie" bug).
+                    const schema = this.getFieldSchema(key);
+                    if (schema && schema.type === 'array') {
+                        // EXTRA SAFETY: Only skip merging if the array container actually exists in the DOM.
+                        // If the container exists but we found no data, it means the user deleted the items.
+                        // If the container does NOT exist, the UI might not be rendered, so we should preserve the data.
+                        const container = form.querySelector(`#${key}-items`);
+                        if (container) {
+                            continue; 
+                        }
+                    }
+                    
+                    data[key] = value;
+                }
+            }
+        }
+
         return data;
     }
 
     handleImageSizeData(data, form) {
-        const imageSizeSelect = form.querySelector('select[name="image_size"]');
-        if (!imageSizeSelect || !imageSizeSelect.value) return;
+        // Try to find by name first, then by ID
+        const imageSizeSelect = form.querySelector('select[name="image_size"]') || document.getElementById('image_size');
+        
+        // If select is not found, check if we have saved data to preserve
+        if (!imageSizeSelect) {
+            if (this.currentEndpoint && this.endpointSettings[this.currentEndpoint.metadata.endpointId]?.image_size) {
+                data.image_size = this.endpointSettings[this.currentEndpoint.metadata.endpointId].image_size;
+            }
+            return;
+        }
+        
+        if (!imageSizeSelect.value) {
+            if (this.debugMode) console.warn('handleImageSizeData: Select has no value');
+            return;
+        }
 
         if (imageSizeSelect.value === 'custom') {
             // Use custom width/height values
-            const widthInput = form.querySelector('input[name="image_size_width"]');
-            const heightInput = form.querySelector('input[name="image_size_height"]');
+            const widthInput = form.querySelector('input[name="image_size_width"]') || document.getElementById('image_size_width');
+            const heightInput = form.querySelector('input[name="image_size_height"]') || document.getElementById('image_size_height');
 
             if (widthInput && heightInput && widthInput.value && heightInput.value) {
                 data.image_size = {
@@ -1934,7 +2010,7 @@ class FalAI {
 
         img.onerror = () => {
             if (this.debugMode) {
-                console.warn('⚠️ Could not determine image dimensions - image failed to load');
+                console.warn('[WARNING] Could not determine image dimensions - image failed to load');
             }
         };
 
@@ -1984,7 +2060,7 @@ class FalAI {
         // Filter out LoRAs with weight 0 from the request
         if (data.loras && Array.isArray(data.loras)) {
             if (this.debugMode) {
-                console.log('🔍 LoRA data before filtering:', JSON.stringify(data.loras, null, 2));
+                console.log('[SEARCH] LoRA data before filtering:', JSON.stringify(data.loras, null, 2));
             }
 
             data.loras = data.loras.filter(lora => {
@@ -2373,7 +2449,7 @@ class FalAI {
         actionsDiv.className = 'result-actions';
         
         const downloadBtn = document.createElement('button');
-        downloadBtn.innerHTML = '📥 Download';
+        downloadBtn.innerHTML = '<i class="ph ph-download-simple"></i> Download';
         downloadBtn.className = 'btn secondary small';
         downloadBtn.onclick = () => this.downloadMedia(video.url, 'video');
         
@@ -2423,7 +2499,7 @@ class FalAI {
         actionsDiv.className = 'result-actions';
         
         const copyBtn = document.createElement('button');
-        copyBtn.innerHTML = '📋 Copy';
+        copyBtn.innerHTML = '<i class="ph ph-copy"></i> Copy';
         copyBtn.className = 'btn secondary small';
         copyBtn.onclick = () => {
             navigator.clipboard.writeText(text).then(() => {
@@ -2484,7 +2560,7 @@ class FalAI {
         actionsDiv.className = 'result-actions';
         
         const copyAllBtn = document.createElement('button');
-        copyAllBtn.innerHTML = '📋 Copy All';
+        copyAllBtn.innerHTML = '<i class="ph ph-copy"></i> Copy All';
         copyAllBtn.className = 'btn secondary small';
         copyAllBtn.onclick = () => {
             const allText = outputs.map((output, index) => `${index + 1}. ${output}`).join('\n');
@@ -2498,7 +2574,7 @@ class FalAI {
         // Add download file button if captions_file is available
         if (metadata.captions_file && metadata.captions_file.url) {
             const downloadFileBtn = document.createElement('button');
-            downloadFileBtn.innerHTML = '📥 Download File';
+            downloadFileBtn.innerHTML = '<i class="ph ph-download-simple"></i> Download File';
             downloadFileBtn.className = 'btn secondary small';
             downloadFileBtn.onclick = () => this.downloadMedia(metadata.captions_file.url, 'captions.json');
             actionsDiv.appendChild(downloadFileBtn);
@@ -2634,6 +2710,11 @@ class FalAI {
             select.appendChild(customOpt);
         }
 
+        // Set default value if available
+        if (schema.default) {
+            select.value = schema.default;
+        }
+
         container.appendChild(select);
 
         // Create custom size fields from ImageSize schema (initially hidden) only if supported
@@ -2700,10 +2781,18 @@ class FalAI {
 
             // Add event listener to show/hide custom fields
             select.addEventListener('change', (e) => {
+                if (this.debugMode) console.log('Image size changed to:', e.target.value);
+                
                 if (e.target.value === 'custom') {
                     customFields.classList.remove('hidden');
                 } else {
                     customFields.classList.add('hidden');
+                }
+                // Only save if we are not restoring
+                if (!this.isRestoring) {
+                    this.saveEndpointSettings('image_size');
+                } else {
+                    if (this.debugMode) console.log('Skipping save during restore');
                 }
             });
 
@@ -2716,6 +2805,17 @@ class FalAI {
             const originalInfo = scaleField.querySelector('.original-size-info');
             const originalDimensions = scaleField.querySelector('.original-dimensions');
             const scaledDimensions = scaleField.querySelector('.scaled-dimensions');
+
+            // Add change listeners to custom inputs to save settings
+            widthInput.addEventListener('change', () => {
+                if (!this.isRestoring) this.saveEndpointSettings('width');
+            });
+            heightInput.addEventListener('change', () => {
+                if (!this.isRestoring) this.saveEndpointSettings('height');
+            });
+            scaleInput.addEventListener('change', () => {
+                if (!this.isRestoring) this.saveEndpointSettings('image_size_scale');
+            });
 
             // Store original dimensions
             let originalWidth = 0, originalHeight = 0;
@@ -2840,7 +2940,7 @@ class FalAI {
             URL.revokeObjectURL(url);
 
             this.logDebug('Settings exported successfully', 'success');
-            this.showToast('Success', '📦 Settings exported successfully!', 'success');
+            this.showToast('Success', 'Settings exported successfully!', 'success');
 
         } catch (error) {
             console.error('Export failed:', error);
@@ -2883,7 +2983,7 @@ class FalAI {
                 }
 
                 this.endpointSettings = filteredSettings;
-                localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
+                this.saveWithStorageCheck('falai_endpoint_settings', this.endpointSettings);
             }
 
             if (settings.savedImages) {
@@ -2941,7 +3041,7 @@ class FalAI {
             }
 
             alert('Settings imported successfully!');
-            this.showToast('Success', '📥 Settings imported successfully!', 'success');
+            this.showToast('Success', 'Settings imported successfully!', 'success');
             this.logDebug('Settings imported successfully', 'success', {
                 endpointSettings: Object.keys(settings.endpointSettings || {}).length,
                 savedImages: settings.savedImages?.length || 0
@@ -2952,6 +3052,30 @@ class FalAI {
             this.showToast('Error', 'Failed to import settings: ' + error.message, 'error');
             alert('Failed to import settings: ' + error.message);
             this.logDebug('Settings import failed: ' + error.message, 'error');
+        }
+    }
+
+    resetSettings() {
+        if (!this.currentEndpoint) {
+            this.showToast('Warning', 'No endpoint selected', 'warning');
+            return;
+        }
+
+        if (confirm('Are you sure you want to reset settings for this endpoint? This will clear all custom values.')) {
+            const endpointId = this.currentEndpoint.metadata.endpointId;
+            
+            // Clear settings for current endpoint
+            if (this.endpointSettings[endpointId]) {
+                delete this.endpointSettings[endpointId];
+                // Save directly to storage to avoid re-capturing current form state
+                this.saveWithStorageCheck('falai_endpoint_settings', this.endpointSettings);
+            }
+            
+            // Regenerate form to apply defaults
+            this.generateForm();
+            
+            this.showToast('Success', 'Settings reset to defaults', 'success');
+            this.logDebug(`Settings reset for endpoint: ${endpointId}`, 'info');
         }
     }
 
@@ -2995,6 +3119,59 @@ class FalAI {
         const itemContainer = document.createElement('div');
         itemContainer.className = 'array-item';
 
+        // Check if this should be collapsible (only for LoRAs)
+        const isCollapsible = arrayName === 'loras';
+        let contentContainer = itemContainer;
+        let headerTitle = null;
+        let headerScale = null;
+
+        if (isCollapsible) {
+            itemContainer.classList.add('collapsible');
+            
+            // Create Header
+            const header = document.createElement('div');
+            header.className = 'array-item-header';
+            
+            const headerContent = document.createElement('div');
+            headerContent.className = 'array-item-header-content';
+            
+            const toggleIcon = document.createElement('span');
+            toggleIcon.className = 'array-item-toggle-icon';
+            toggleIcon.innerHTML = '<i class="ph ph-caret-right"></i>';
+            
+            headerTitle = document.createElement('span');
+            headerTitle.className = 'array-item-title';
+            headerTitle.textContent = `LoRA ${itemIndex + 1}`;
+
+            headerScale = document.createElement('span');
+            headerScale.className = 'array-item-scale';
+            headerScale.style.marginLeft = 'auto';
+            headerScale.style.marginRight = '10px';
+            headerScale.style.fontSize = '0.85rem';
+            headerScale.style.color = 'var(--text-secondary)';
+            
+            headerContent.appendChild(toggleIcon);
+            headerContent.appendChild(headerTitle);
+            headerContent.appendChild(headerScale);
+            header.appendChild(headerContent);
+            
+            // Create Content Container
+            contentContainer = document.createElement('div');
+            contentContainer.className = 'array-item-content';
+            
+            // Toggle Logic
+            header.addEventListener('click', (e) => {
+                if (e.target.closest('.btn.danger')) return;
+                itemContainer.classList.toggle('expanded');
+            });
+            
+            itemContainer.appendChild(header);
+            itemContainer.appendChild(contentContainer);
+
+            // Add Name field for LoRA items at the top
+            this.addLoraNameField(arrayName, itemIndex, contentContainer);
+        }
+
         // Resolve $ref if present
         let itemSchema = arraySchema.items;
         if (itemSchema.$ref) {
@@ -3009,39 +3186,34 @@ class FalAI {
                 const propField = this.createFormField(fieldName, propSchema,
                     itemSchema.required && itemSchema.required.includes(propName));
                 propField.classList.add('array-item-field');
-                itemContainer.appendChild(propField);
+                contentContainer.appendChild(propField);
 
                 // Add change listener to save settings
                 const input = propField.querySelector('input, select, textarea');
                 if (input) {
                     input.addEventListener('change', () => {
-                        this.saveEndpointSettings();
+                        if (!this.isRestoring) this.saveEndpointSettings(fieldName);
                     });
                     input.addEventListener('input', () => {
-                        this.saveEndpointSettings();
+                        if (!this.isRestoring) this.saveEndpointSettings(fieldName);
                     });
                 }
             });
-
-            // Add comment field for LoRA items
-            if (arrayName === 'loras') {
-                this.addLoraCommentField(arrayName, itemIndex, itemContainer);
-            }
         } else {
             // Handle simple items
             const fieldName = `${arrayName}[${itemIndex}]`;
             const itemField = this.createFormField(fieldName, itemSchema, false);
             itemField.classList.add('array-item-field');
-            itemContainer.appendChild(itemField);
+            contentContainer.appendChild(itemField);
 
             // Add change listener to save settings
             const input = itemField.querySelector('input, select, textarea');
             if (input) {
                 input.addEventListener('change', () => {
-                    this.saveEndpointSettings();
+                    if (!this.isRestoring) this.saveEndpointSettings(fieldName);
                 });
                 input.addEventListener('input', () => {
-                    this.saveEndpointSettings();
+                    if (!this.isRestoring) this.saveEndpointSettings(fieldName);
                 });
             }
         }
@@ -3049,60 +3221,173 @@ class FalAI {
         // Add remove button
         const removeButton = document.createElement('button');
         removeButton.type = 'button';
-        removeButton.className = 'btn danger small';
-        removeButton.textContent = '×';
+        
+        if (isCollapsible) {
+            removeButton.className = 'btn danger';
+            removeButton.textContent = 'Remove LoRA';
+            removeButton.style.marginTop = '1rem';
+            removeButton.style.width = '100%';
+        } else {
+            removeButton.className = 'btn danger small';
+            removeButton.innerHTML = '<i class="ph ph-x"></i>';
+        }
+
         removeButton.title = 'Remove';
         removeButton.addEventListener('click', () => {
             container.removeChild(itemContainer);
             this.updateArrayIndices(arrayName, container);
-            this.saveEndpointSettings();
+            if (!this.isRestoring) this.saveEndpointSettings(arrayName);
         });
 
-        itemContainer.appendChild(removeButton);
+        if (isCollapsible) {
+            // Append to content container (expanded view) instead of header
+            contentContainer.appendChild(removeButton);
+            
+            // Update title and scale
+            const pathInput = contentContainer.querySelector('input[name*=".path"]');
+            const scaleInput = contentContainer.querySelector('input[name*=".scale"], input[name*=".weight"]');
+            const nameInput = contentContainer.querySelector(`input[name="${arrayName}[${itemIndex}].comment"]`);
+
+            const updateHeader = () => {
+                // Update Title
+                if (nameInput && nameInput.value.trim()) {
+                    headerTitle.textContent = nameInput.value.trim();
+                } else if (pathInput && pathInput.value) {
+                    let name = pathInput.value.split('/').pop();
+                    if (name.includes('?')) name = name.split('?')[0];
+                    // Remove extension if present
+                    if (name.lastIndexOf('.') > 0) {
+                        name = name.substring(0, name.lastIndexOf('.'));
+                    }
+                    headerTitle.textContent = name;
+                } else {
+                    headerTitle.textContent = `LoRA ${itemIndex + 1}`;
+                }
+
+                // Update Scale
+                if (scaleInput) {
+                    headerScale.textContent = `Scale: ${scaleInput.value}`;
+                }
+            };
+
+            // Auto-fill name from path if name is empty
+            if (pathInput && nameInput) {
+                const autoFillName = async () => {
+                    const pathValue = pathInput.value.trim();
+                    if (!nameInput.value.trim() && pathValue) {
+                        // Check for Civitai URL
+                        const civitaiMatch = pathValue.match(/civitai\.com\/api\/download\/models\/(\d+)/);
+                        if (civitaiMatch) {
+                            const modelId = civitaiMatch[1];
+                            try {
+                                const response = await fetch(`https://civitai.com/api/v1/model-versions/${modelId}`);
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    // Try to find the file that matches the download URL or just take the first one
+                                    let file = data.files.find(f => f.downloadUrl === pathValue) || data.files[0];
+                                    if (file && file.name) {
+                                        let name = file.name;
+                                        // Remove extension
+                                        if (name.lastIndexOf('.') > 0) {
+                                            name = name.substring(0, name.lastIndexOf('.'));
+                                        }
+                                        nameInput.value = name;
+                                        nameInput.dispatchEvent(new Event('input'));
+                                        updateHeader();
+                                        return; // Exit if successful
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('Failed to fetch Civitai metadata:', e);
+                            }
+                        }
+
+                        // Fallback to simple path parsing
+                        let name = pathValue.split('/').pop();
+                        if (name.includes('?')) name = name.split('?')[0];
+                        if (name.lastIndexOf('.') > 0) {
+                            name = name.substring(0, name.lastIndexOf('.'));
+                        }
+                        nameInput.value = name;
+                        // Trigger input event to save
+                        nameInput.dispatchEvent(new Event('input'));
+                    }
+                    updateHeader();
+                };
+                pathInput.addEventListener('change', autoFillName);
+                pathInput.addEventListener('input', updateHeader); // Update header immediately on typing
+            }
+
+            if (nameInput) {
+                nameInput.addEventListener('input', updateHeader);
+            }
+
+            if (scaleInput) {
+                scaleInput.addEventListener('input', updateHeader);
+                scaleInput.addEventListener('change', updateHeader);
+            }
+            
+            // Initial update
+            setTimeout(updateHeader, 100);
+        } else {
+            itemContainer.appendChild(removeButton);
+        }
+
         container.appendChild(itemContainer);
     }
 
-    addLoraCommentField(arrayName, itemIndex, itemContainer) {
-        const commentField = document.createElement('div');
-        commentField.className = 'field-group lora-comment-field';
+    addLoraNameField(arrayName, itemIndex, itemContainer) {
+        const fieldGroup = document.createElement('div');
+        fieldGroup.className = 'field-group lora-comment-field';
 
         const label = document.createElement('label');
-        label.textContent = 'Comment';
+        label.textContent = 'Name';
         label.className = 'field-label';
 
-        const textarea = document.createElement('textarea');
-        textarea.name = `${arrayName}[${itemIndex}].comment`;
-        textarea.id = `${arrayName}[${itemIndex}].comment`;
-        textarea.className = 'form-textarea';
-        textarea.rows = 2;
-        textarea.placeholder = 'Add a note about this LoRA...';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = `${arrayName}[${itemIndex}].comment`;
+        input.id = `${arrayName}[${itemIndex}].comment`;
+        input.className = 'form-input';
+        input.placeholder = 'LoRA Name';
 
-        // Load saved comment
+        // Load saved comment (now used as name)
         const savedComment = this.getLoraComment(arrayName, itemIndex);
         if (savedComment) {
-            textarea.value = savedComment;
+            input.value = savedComment;
         }
 
         // Save comment on change
-        textarea.addEventListener('input', () => {
-            this.saveLoraComment(arrayName, itemIndex, textarea.value);
-            this.saveEndpointSettings();
+        input.addEventListener('input', () => {
+            this.saveLoraComment(arrayName, itemIndex, input.value);
+            if (!this.isRestoring) this.saveEndpointSettings(`${arrayName}[${itemIndex}].comment`);
         });
 
-        commentField.appendChild(label);
-        commentField.appendChild(textarea);
-        itemContainer.appendChild(commentField);
+        fieldGroup.appendChild(label);
+        fieldGroup.appendChild(input);
+        itemContainer.appendChild(fieldGroup);
     }
 
     getLoraComment(arrayName, itemIndex) {
         const endpointId = this.currentEndpointId;
-        const comments = JSON.parse(localStorage.getItem('falai_lora_comments') || '{}');
+        const comments = JSON.parse(localStorage.getItem('falai_lora_comments') || sessionStorage.getItem('falai_lora_comments') || '{}');
         return comments[endpointId]?.[`${arrayName}[${itemIndex}]`] || '';
     }
 
     saveLoraComment(arrayName, itemIndex, comment) {
+        // Debounce LoRA comment saving
+        if (this._saveCommentTimeout) {
+            clearTimeout(this._saveCommentTimeout);
+        }
+
+        this._saveCommentTimeout = setTimeout(() => {
+            this.performSaveLoraComment(arrayName, itemIndex, comment);
+        }, 1000);
+    }
+
+    performSaveLoraComment(arrayName, itemIndex, comment) {
         const endpointId = this.currentEndpointId;
-        const comments = JSON.parse(localStorage.getItem('falai_lora_comments') || '{}');
+        const comments = JSON.parse(localStorage.getItem('falai_lora_comments') || sessionStorage.getItem('falai_lora_comments') || '{}');
 
         if (!comments[endpointId]) {
             comments[endpointId] = {};
@@ -3119,7 +3404,7 @@ class FalAI {
             }
         }
 
-        localStorage.setItem('falai_lora_comments', JSON.stringify(comments));
+        this.saveWithStorageCheck('falai_lora_comments', comments);
         this.logDebug(`Saved LoRA comment for ${key}`, 'info');
     }
 
@@ -3171,37 +3456,36 @@ class FalAI {
 
 
     saveWithStorageCheck(key, data) {
-        const maxRetries = 3;
-
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-            try {
-                localStorage.setItem(key, JSON.stringify(data));
-                return; // Success
-            } catch (error) {
-                if (error.name === 'QuotaExceededError') {
-                    this.logDebug(`Storage quota exceeded (attempt ${attempt + 1}/${maxRetries}), cleaning up...`, 'warning');
-
-                    if (attempt < maxRetries - 1) {
-                        // Try to free up space - prioritize base64 images first
-                        const base64Cleanup = this.cleanupBase64Images();
-
-                        if (base64Cleanup.count === 0) {
-                            // No base64 images to clean, try other cleanup methods
-                            const settingsCleanup = this.cleanupOldSettings();
-
-                            if (settingsCleanup === 0) {
-                                // Only clean gallery as last resort and only if very large
-                                this.gallery.cleanupOldGalleryImages();
-                            }
-                        }
-                    } else {
-                        // Last attempt failed, show user-friendly error
-                        this.showToast('Storage Full', 'Browser storage is full. Please clear some saved images from the gallery.', 'error');
-                        throw new Error('Storage quota exceeded even after cleanup. Consider clearing gallery or browser data.');
-                    }
-                } else {
-                    throw error; // Different error, don't retry
+        try {
+            localStorage.setItem(key, JSON.stringify(data));
+            // Also try to sync to sessionStorage as backup
+            try { sessionStorage.setItem(key, JSON.stringify(data)); } catch (e) {}
+            if (this.debugMode) console.log(`✅ Saved to localStorage: ${key}`);
+        } catch (error) {
+            if (error.name === 'QuotaExceededError') {
+                this.logDebug('Storage quota exceeded, attempting cleanup...', 'warning');
+                
+                // Try to free up space
+                this.cleanupBase64Images();
+                this.cleanupOldSettings();
+                
+                // Retry once
+                try {
+                    localStorage.setItem(key, JSON.stringify(data));
+                    return;
+                } catch (retryError) {
+                    this.showToast('Storage Full', 'Browser storage is full. Please clear some saved images.', 'error');
                 }
+            } else {
+                console.warn('❌ Storage error (likely blocked by Tracking Prevention):', error.message || error);
+            }
+            
+            // Fallback to sessionStorage for any error (Quota or Blocked)
+            try {
+                sessionStorage.setItem(key, JSON.stringify(data));
+                if (this.debugMode) console.log(`⚠️ Saved to sessionStorage as fallback for ${key} (localStorage blocked)`);
+            } catch (sessionError) {
+                console.error('❌ Both localStorage and sessionStorage failed:', sessionError);
             }
         }
     }
@@ -3224,7 +3508,7 @@ class FalAI {
         }
 
         if (totalCleaned > 0) {
-            localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
+            this.saveWithStorageCheck('falai_endpoint_settings', this.endpointSettings);
             this.logDebug(`Cleaned up ${totalCleaned} base64 images, freed ${this.formatBytes(sizeFreed)}`, 'success');
         }
 
@@ -3254,7 +3538,7 @@ class FalAI {
         }
 
         if (cleaned > 0) {
-            localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
+            this.saveWithStorageCheck('falai_endpoint_settings', this.endpointSettings);
             this.logDebug(`Cleaned up settings for ${cleaned} removed endpoints`, 'info');
         }
 
@@ -3372,10 +3656,10 @@ class FalAI {
         toast.className = `toast ${type}`;
 
         const icons = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: 'ℹ️'
+            success: '<i class="ph ph-check-circle"></i>',
+            error: '<i class="ph ph-x-circle"></i>',
+            warning: '<i class="ph ph-warning"></i>',
+            info: '<i class="ph ph-info"></i>'
         };
 
         toast.innerHTML = `
@@ -3403,13 +3687,43 @@ class FalAI {
         document.getElementById('results').classList.add('hidden');
     }
 
-    saveEndpointSettings() {
-        if (!this.currentEndpoint) return;
+    saveEndpointSettings(changedField = null) {
+        // Auto-save disabled - settings are saved explicitly on:
+        // - Mobile menu close (burger toggle)
+        // - Generate button click
+        // - Endpoint switch
+        // - Page unload/visibility change
+        if (this.debugMode && changedField) {
+            console.log(`📝 Field changed: ${changedField} (will be saved on menu close or generate)`);
+        }
+    }
+
+    performSaveEndpointSettings() {
+        if (!this.currentEndpoint || this.isRestoring) return;
+
+        // Safety check: Ensure form is actually populated
+        const formFields = document.getElementById('form-fields');
+        if (!formFields || formFields.children.length === 0) {
+            if (this.debugMode) console.warn('saveEndpointSettings: Form fields empty, skipping save');
+            return;
+        }
 
         const formData = this.collectFormData();
 
+        // Safety check: Ensure we collected something
+        if (Object.keys(formData).length === 0) {
+            if (this.debugMode) console.warn('saveEndpointSettings: Empty form data, skipping save');
+            return;
+        }
+
         // Filter out base64 image data to save localStorage space
         const filteredData = this.filterBase64Data(formData);
+
+        // Debug log for all settings - show what will actually be saved (filtered data)
+        if (this.debugMode) {
+            console.log('💾 Saving settings for', this.currentEndpoint.metadata.endpointId);
+            console.log('   Data:', JSON.stringify(filteredData, null, 2));
+        }
 
         // Log size savings in debug mode
         if (this.debugMode) {
@@ -3422,7 +3736,7 @@ class FalAI {
         }
 
         this.endpointSettings[this.currentEndpoint.metadata.endpointId] = filteredData;
-        localStorage.setItem('falai_endpoint_settings', JSON.stringify(this.endpointSettings));
+        this.saveWithStorageCheck('falai_endpoint_settings', this.endpointSettings);
     }
 
     filterBase64Data(data) {
@@ -3475,45 +3789,55 @@ class FalAI {
         const settings = this.endpointSettings[endpointId];
         if (!settings) return;
 
-        const form = document.getElementById('generation-form');
+        if (this.debugMode) {
+            console.log(`🔧 Restoring settings for ${endpointId}`);
+            console.log('   Data:', JSON.stringify(settings, null, 2));
+        }
 
-        for (const [key, value] of Object.entries(settings)) {
-            // Handle array fields (like loras)
-            if (Array.isArray(value)) {
-                this.restoreArrayField(key, value, form);
-                continue;
-            }
+        this.isRestoring = true;
+        try {
+            const form = document.getElementById('generation-form');
 
-            // Handle image_size object
-            if (key === 'image_size' && typeof value === 'object') {
-                this.restoreImageSizeField(value, form);
-                continue;
-            }
-
-            // Handle simple fields
-            const input = form.querySelector(`[name="${key}"]`);
-            if (!input) continue;
-
-            if (input.type === 'checkbox') {
-                input.checked = Boolean(value);
-            } else if (input.type === 'range') {
-                input.value = value;
-                // Update slider value display (old span element)
-                const valueDisplay = input.parentElement.querySelector('.slider-value');
-                if (valueDisplay) {
-                    valueDisplay.textContent = value;
+            for (const [key, value] of Object.entries(settings)) {
+                // Handle array fields (like loras)
+                if (Array.isArray(value)) {
+                    this.restoreArrayField(key, value, form);
+                    continue;
                 }
-                // Update slider value input (new input element)
-                const valueInput = input.parentElement.querySelector('.slider-value-input');
-                if (valueInput) {
-                    valueInput.value = value;
-                }
-            } else {
-                input.value = value;
-            }
 
-            // Trigger change event to update any dependent elements
-            input.dispatchEvent(new Event('change'));
+                // Handle image_size (both object and string/preset)
+                if (key === 'image_size') {
+                    this.restoreImageSizeField(value, form);
+                    continue;
+                }
+
+                // Handle simple fields
+                const input = form.querySelector(`[name="${key}"]`);
+                if (!input) continue;
+
+                if (input.type === 'checkbox') {
+                    input.checked = Boolean(value);
+                } else if (input.type === 'range') {
+                    input.value = value;
+                    // Update slider value display (old span element)
+                    const valueDisplay = input.parentElement.querySelector('.slider-value');
+                    if (valueDisplay) {
+                        valueDisplay.textContent = value;
+                    }
+                    // Update slider value input (new input element)
+                    const valueInput = input.parentElement.querySelector('.slider-value-input');
+                    if (valueInput) {
+                        valueInput.value = value;
+                    }
+                } else {
+                    input.value = value;
+                }
+
+                // Trigger change event to update any dependent elements
+                input.dispatchEvent(new Event('change'));
+            }
+        } finally {
+            this.isRestoring = false;
         }
     }
 
@@ -3566,19 +3890,66 @@ class FalAI {
     }
 
     restoreImageSizeField(value, form) {
-        const select = form.querySelector('select[name="image_size"]');
-        if (!select) return;
+        // Try to find by name first, then by ID
+        const select = form.querySelector('select[name="image_size"]') || document.getElementById('image_size');
+        if (!select) {
+            if (this.debugMode) console.warn('restoreImageSizeField: Select not found');
+            return;
+        }
 
-        if (value.width && value.height) {
+        if (this.debugMode) console.log('Restoring image_size:', value);
+
+        // Check if we have valid custom size data
+        if (value && typeof value === 'object') {
             // Custom size
             select.value = 'custom';
-            select.dispatchEvent(new Event('change')); // Show custom fields
+            
+            // Manually show custom fields
+            const container = select.closest('.image-size-container');
+            if (container) {
+                const customFields = container.querySelector('.custom-size-fields');
+                if (customFields) {
+                    customFields.classList.remove('hidden');
+                }
+            }
 
             const widthInput = form.querySelector('input[name="image_size_width"]');
             const heightInput = form.querySelector('input[name="image_size_height"]');
 
-            if (widthInput) widthInput.value = value.width;
-            if (heightInput) heightInput.value = value.height;
+            if (widthInput && value.width) {
+                widthInput.value = value.width;
+                widthInput.dispatchEvent(new Event('input'));
+            }
+            if (heightInput && value.height) {
+                heightInput.value = value.height;
+                heightInput.dispatchEvent(new Event('input'));
+            }
+
+            // Update scale info if available
+            if (container && value.width && value.height) {
+                const scaledDimensions = container.querySelector('.scaled-dimensions');
+                if (scaledDimensions) {
+                    scaledDimensions.textContent = `${value.width}×${value.height}`;
+                }
+            }
+        } else {
+            // Handle case where image_size is a string (preset)
+            // We use the value directly, assuming it matches one of the options
+            select.value = value;
+            
+            // Verify if the value was actually set (it might not exist in options)
+            if (select.value !== value && this.debugMode) {
+                console.warn(`restoreImageSizeField: Value '${value}' not found in options`, Array.from(select.options).map(o => o.value));
+            }
+            
+            // Hide custom fields if they were visible
+            const container = select.closest('.image-size-container');
+            if (container) {
+                const customFields = container.querySelector('.custom-size-fields');
+                if (customFields) {
+                    customFields.classList.add('hidden');
+                }
+            }
         }
     }
 
@@ -3722,12 +4093,12 @@ class FalAI {
         notification.className = 'base64-warning';
         notification.innerHTML = `
             <div class="warning-content">
-                <div class="warning-icon">⚠️</div>
+                <div class="warning-icon"><i class="ph ph-warning"></i></div>
                 <div class="warning-text">
                     <strong>Temporary result format</strong>
                     <p>Server returned image in base64 format. This won't be saved to gallery automatically. Use the download button to save it now.</p>
                 </div>
-                <button class="warning-close" onclick="this.parentElement.remove()">✕</button>
+                <button class="warning-close" onclick="this.parentElement.remove()"><i class="ph ph-x"></i></button>
             </div>
         `;
 
@@ -3828,7 +4199,7 @@ class FalAI {
                 const content = document.querySelector('.advanced-options-content');
                 if (toggle && content) {
                     content.classList.add('visible');
-                    toggle.textContent = '▲ Advanced Options';
+                    toggle.innerHTML = '<i class="ph ph-caret-up"></i> Advanced Options';
                 }
             }, 100);
         }
@@ -4041,7 +4412,7 @@ class FalAI {
         let metadata = {
             endpointId: info.title || fallbackName,
             category: 'custom',
-            thumbnailUrl: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%234f46e5"/><text x="50" y="50" text-anchor="middle" dy="0.35em" fill="white" font-size="40">🔧</text></svg>',
+            thumbnailUrl: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%234f46e5"/><text x="50" y="50" text-anchor="middle" dy="0.35em" fill="white" font-size="50" font-family="sans-serif" font-weight="bold">C</text></svg>',
             playgroundUrl: '#',
             documentationUrl: info.externalDocs?.url || '#'
         };
@@ -4093,9 +4464,9 @@ class FalAI {
             <div class="modal-content mask-editor-content">
                 <div class="modal-header">
                     <div class="mask-editor-hotkeys" style="display: ${this.isMobileDevice() ? 'none' : 'block'}">
-                        <small>💡 Hotkeys: Shift+Wheel (zoom), Alt+Wheel (brush size), Ctrl+Z (undo), Ctrl+Y (redo), R (reset zoom), F (fit screen), Esc (close)</small>
+                        <small><i class="ph ph-lightbulb"></i> Hotkeys: Shift+Wheel (zoom), Alt+Wheel (brush size), Ctrl+Z (undo), Ctrl+Y (redo), R (reset zoom), F (fit screen), Esc (close)</small>
                     </div>
-                    <button type="button" id="close-mask-editor" class="btn secondary small">✕</button>
+                    <button type="button" id="close-mask-editor" class="btn secondary small"><i class="ph ph-x"></i></button>
                 </div>
                 <div class="mask-editor-body">
                     <div class="mask-editor-controls">
@@ -4109,15 +4480,15 @@ class FalAI {
                             </div>
                         </div>
                         <div class="control-group">
-                            <button type="button" id="zoom-out" class="btn secondary small" title="Zoom out">🔍-</button>
-                            <button type="button" id="zoom-in" class="btn secondary small" title="Zoom in">🔍+</button>
-                            <button type="button" id="zoom-fit" class="btn secondary small" title="Fit to screen (F)">🔍 Fit</button>
-                            <button type="button" id="zoom-reset" class="btn secondary small" title="Reset zoom (R)">↻ Reset</button>
+                            <button type="button" id="zoom-out" class="btn secondary small" title="Zoom out"><i class="ph ph-magnifying-glass-minus"></i></button>
+                            <button type="button" id="zoom-in" class="btn secondary small" title="Zoom in"><i class="ph ph-magnifying-glass-plus"></i></button>
+                            <button type="button" id="zoom-fit" class="btn secondary small" title="Fit to screen (F)"><i class="ph ph-arrows-out"></i> Fit</button>
+                            <button type="button" id="zoom-reset" class="btn secondary small" title="Reset zoom (R)"><i class="ph ph-arrow-counter-clockwise"></i> Reset</button>
                         </div>
                         <div class="control-group">
-                            <button type="button" id="undo-mask" class="btn secondary small" disabled title="Undo (Ctrl+Z)">↶ Undo</button>
-                            <button type="button" id="redo-mask" class="btn secondary small" disabled title="Redo (Ctrl+Y)">↷ Redo</button>
-                            <button type="button" id="clear-mask" class="btn secondary small" title="Clear all">🗑 Clear</button>
+                            <button type="button" id="undo-mask" class="btn secondary small" disabled title="Undo (Ctrl+Z)"><i class="ph ph-arrow-u-up-left"></i> Undo</button>
+                            <button type="button" id="redo-mask" class="btn secondary small" disabled title="Redo (Ctrl+Y)"><i class="ph ph-arrow-u-up-right"></i> Redo</button>
+                            <button type="button" id="clear-mask" class="btn secondary small" title="Clear all"><i class="ph ph-trash"></i> Clear</button>
                         </div>
                     </div>
                     <div class="canvas-container" id="canvas-container">
@@ -4816,7 +5187,7 @@ class FalAI {
         const objects = fabricCanvas.getObjects();
 
         if (objects.length === 0) {
-            console.log('⚠️ No drawn objects found, creating empty black mask');
+            console.warn('[WARNING] No drawn objects found, creating empty black mask');
         } else {
             console.log('✅ Found', objects.length, 'drawn objects');
 
@@ -4879,7 +5250,7 @@ class FalAI {
         urlInput.dispatchEvent(new Event('input'));
 
         // Save settings
-        this.saveEndpointSettings();
+        this.saveEndpointSettings(urlInput.name || 'mask_url');
 
         console.log('✅ Fabric.js mask generated and applied to', urlInput.name);
         console.log('📐 Final mask size:', tempCanvas.width, 'x', tempCanvas.height);
@@ -4959,5 +5330,6 @@ class FalAI {
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     const falai = new FalAI();
+    window.app = falai; // Export for debugging
     console.log('FalAI initialized');
 });

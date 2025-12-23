@@ -2,8 +2,9 @@ const CACHE_NAME = 'falai-v1';
 const urlsToCache = [
     '/',
     '/index.html',
-    '/app.js',
-    '/styles.css',
+    '/js/app.js',
+    '/css/styles.css',
+    '/css/gallery.css',
     '/manifest.json'
 ];
 
