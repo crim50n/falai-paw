@@ -5,23 +5,23 @@ class FalAI {
         this.currentEndpoint = null;
         this.currentRequestId = null;
         this.statusPolling = null;
-        
+
         // Try to load settings from both storages and merge/pick best
         const localSettings = JSON.parse(localStorage.getItem('falai_endpoint_settings') || '{}');
         const sessionSettings = JSON.parse(sessionStorage.getItem('falai_endpoint_settings') || '{}');
-        
+
         // If session has data but local doesn't (or is smaller/older?), prefer session
         // Since we don't have timestamps, we'll prefer session if it has more keys or if local is empty
         const localKeys = Object.keys(localSettings).length;
         const sessionKeys = Object.keys(sessionSettings).length;
-        
+
         if (sessionKeys > 0 && (localKeys === 0 || this.isStorageBlocked())) {
             this.endpointSettings = sessionSettings;
             console.log('🔧 Loaded settings from SessionStorage (fallback)');
         } else {
             this.endpointSettings = localSettings;
         }
-        
+
         this.debugMode = (localStorage.getItem('falai_debug_mode') || sessionStorage.getItem('falai_debug_mode')) === 'true';
 
         if (this.debugMode) {
@@ -196,7 +196,7 @@ class FalAI {
     initTheme() {
         const savedTheme = localStorage.getItem('falai_theme');
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
+
         if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
             document.documentElement.setAttribute('data-theme', 'dark');
             this.updateThemeToggles(true);
@@ -219,7 +219,7 @@ class FalAI {
 
     updateThemeToggles(isDark) {
         const desktopToggle = document.getElementById('theme-toggle-checkbox');
-        
+
         if (desktopToggle) desktopToggle.checked = isDark;
     }
 
@@ -233,7 +233,9 @@ class FalAI {
             'endpoints/flux-pro/kontext/openapi.json',
             'endpoints/flux-krea-lora/openapi.json',
             'endpoints/flux-lora/openapi.json',
-            'endpoints/flux-kontext/dev/openapi.json'
+            'endpoints/flux-kontext/dev/openapi.json',
+            'endpoints/flux-2/openapi.json',
+            'endpoints/flux-2/edit/openapi.json'
         ];
 
         for (const path of knownEndpoints) {
@@ -775,6 +777,13 @@ class FalAI {
     }
 
     createImageUploadField(name, schema, required, label, field) {
+        // Check if this field expects multiple images (array type)
+        const isMultiImage = schema.type === 'array' && schema.items?.type === 'string';
+
+        if (isMultiImage) {
+            return this.createMultiImageUploadField(name, schema, required, label, field);
+        }
+
         field.appendChild(label);
 
         const uploadContainer = document.createElement('div');
@@ -909,6 +918,218 @@ class FalAI {
         return field;
     }
 
+    createMultiImageUploadField(name, schema, required, label, field) {
+        field.appendChild(label);
+
+        const uploadContainer = document.createElement('div');
+        uploadContainer.className = 'multi-image-upload-container';
+        uploadContainer.dataset.fieldName = name;
+
+        // Hidden input to store JSON array of image URLs
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.id = name;
+        hiddenInput.name = name;
+        hiddenInput.value = '';
+
+        // Container for image previews
+        const previewsContainer = document.createElement('div');
+        previewsContainer.className = 'multi-image-previews';
+        previewsContainer.id = `${name}-previews`;
+
+        // File input for multiple files
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.multiple = true;
+        fileInput.style.display = 'none';
+        fileInput.id = `${name}-file-input`;
+
+        // Upload area
+        const uploadArea = document.createElement('div');
+        uploadArea.className = 'upload-area multi-upload-area';
+        uploadArea.innerHTML = `
+            <div class="upload-content">
+                <span><i class="ph ph-images"></i> Drop images here or click to upload</span>
+                <small>Supports: JPG, PNG, WebP, GIF (max 4 images)</small>
+            </div>
+        `;
+
+        // URL input for manual entry
+        const urlInputContainer = document.createElement('div');
+        urlInputContainer.className = 'url-input-container';
+        urlInputContainer.innerHTML = `
+            <input type="text" class="url-text-input" placeholder="Or paste image URL and press Enter">
+            <button type="button" class="btn secondary small add-url-btn"><i class="ph ph-plus"></i></button>
+        `;
+
+        const urlTextInput = urlInputContainer.querySelector('.url-text-input');
+        const addUrlBtn = urlInputContainer.querySelector('.add-url-btn');
+
+        // Helper to get current images array
+        const getImages = () => {
+            try {
+                const val = hiddenInput.value;
+                return val ? JSON.parse(val) : [];
+            } catch {
+                return [];
+            }
+        };
+
+        // Helper to set images array
+        const setImages = (images) => {
+            hiddenInput.value = images.length > 0 ? JSON.stringify(images) : '';
+            this.renderMultiImagePreviews(name, images, previewsContainer, hiddenInput);
+            if (!this.isRestoring) this.saveEndpointSettings(name);
+        };
+
+        // Add image to array
+        const addImage = (imageUrl) => {
+            const images = getImages();
+            if (images.length >= 4) {
+                this.showToast('Limit Reached', 'Maximum 4 images allowed', 'warning');
+                return false;
+            }
+            if (images.includes(imageUrl)) {
+                this.showToast('Duplicate', 'This image is already added', 'warning');
+                return false;
+            }
+            images.push(imageUrl);
+            setImages(images);
+            return true;
+        };
+
+        // Upload area click
+        uploadArea.addEventListener('click', () => {
+            if (getImages().length >= 4) {
+                this.showToast('Limit Reached', 'Maximum 4 images allowed', 'warning');
+                return;
+            }
+            fileInput.click();
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            for (const file of files) {
+                if (getImages().length >= 4) break;
+                await this.handleMultiFileUpload(file, addImage);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            for (const file of files) {
+                if (getImages().length >= 4) break;
+                await this.handleMultiFileUpload(file, addImage);
+            }
+            fileInput.value = ''; // Reset to allow re-uploading same file
+        });
+
+        // URL input handlers
+        const handleAddUrl = () => {
+            const url = urlTextInput.value.trim();
+            if (url) {
+                addImage(url);
+                urlTextInput.value = '';
+            }
+        };
+
+        urlTextInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAddUrl();
+            }
+        });
+
+        addUrlBtn.addEventListener('click', handleAddUrl);
+
+        // Store addImage function for external use (e.g., from gallery)
+        uploadContainer.addImage = addImage;
+        uploadContainer.getImages = getImages;
+        uploadContainer.setImages = setImages;
+
+        uploadContainer.appendChild(hiddenInput);
+        uploadContainer.appendChild(previewsContainer);
+        uploadContainer.appendChild(uploadArea);
+        uploadContainer.appendChild(urlInputContainer);
+        uploadContainer.appendChild(fileInput);
+
+        field.appendChild(uploadContainer);
+
+        if (schema.description) {
+            const desc = document.createElement('div');
+            desc.className = 'field-description';
+            desc.textContent = schema.description;
+            field.appendChild(desc);
+        }
+
+        return field;
+    }
+
+    renderMultiImagePreviews(fieldName, images, container, hiddenInput) {
+        container.innerHTML = '';
+
+        images.forEach((imageUrl, index) => {
+            const previewItem = document.createElement('div');
+            previewItem.className = 'multi-image-preview-item';
+
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.alt = `Image ${index + 1}`;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-multi-image';
+            removeBtn.innerHTML = '<i class="ph ph-x"></i>';
+            removeBtn.title = 'Remove image';
+
+            removeBtn.addEventListener('click', () => {
+                const currentImages = JSON.parse(hiddenInput.value || '[]');
+                currentImages.splice(index, 1);
+                hiddenInput.value = currentImages.length > 0 ? JSON.stringify(currentImages) : '';
+                this.renderMultiImagePreviews(fieldName, currentImages, container, hiddenInput);
+                if (!this.isRestoring) this.saveEndpointSettings(fieldName);
+            });
+
+            const indexBadge = document.createElement('span');
+            indexBadge.className = 'image-index-badge';
+            indexBadge.textContent = index + 1;
+
+            previewItem.appendChild(img);
+            previewItem.appendChild(removeBtn);
+            previewItem.appendChild(indexBadge);
+            container.appendChild(previewItem);
+        });
+    }
+
+    async handleMultiFileUpload(file, addImageCallback) {
+        if (!file.type.startsWith('image/')) {
+            this.showToast('Invalid File', 'Please select an image file', 'warning');
+            return;
+        }
+
+        try {
+            const compressedDataURL = await this.compressImageToUserSize(file);
+            addImageCallback(compressedDataURL);
+        } catch (error) {
+            console.error('File upload error:', error);
+            this.showToast('Upload Error', 'Failed to process image file', 'error');
+        }
+    }
+
     createSliderField(name, schema, required, label, field) {
         field.appendChild(label);
 
@@ -947,7 +1168,7 @@ class FalAI {
                 console.log(`🎚️ Slider ${name} changed: range=${slider.value}, number=${valueInput.value}`);
                 // Diagnostic: Check what querySelectorAll sees
                 const allInputs = document.querySelectorAll(`input[name="${name}"]`);
-                console.log(`   📍 Found ${allInputs.length} inputs with name="${name}":`, 
+                console.log(`   📍 Found ${allInputs.length} inputs with name="${name}":`,
                     Array.from(allInputs).map(i => `${i.type}=${i.value}`).join(', '));
             }
             if (!this.isRestoring) this.saveEndpointSettings(name);
@@ -1425,7 +1646,7 @@ class FalAI {
         while (advancedContent.firstChild) {
             mobileContainer.appendChild(advancedContent.firstChild);
         }
-        
+
         // Store reference to move back later
         this.desktopAdvancedContent = advancedContent;
     }
@@ -1850,10 +2071,10 @@ class FalAI {
 
         // Get all form inputs
         const inputs = form.querySelectorAll('input, select, textarea');
-        
+
         // Track which keys we've seen from range inputs (to avoid number input overwriting)
         const rangeKeys = new Set();
-        
+
         inputs.forEach(input => {
             const key = input.name;
             if (!key) return;
@@ -1893,6 +2114,31 @@ class FalAI {
             }
         });
 
+        // Handle fields that should be arrays according to schema (e.g., image_urls)
+        // Parse JSON arrays from hidden inputs or wrap single strings in arrays
+        for (const key of Object.keys(data)) {
+            const schema = this.getFieldSchema(key);
+            if (schema && schema.type === 'array') {
+                const value = data[key];
+                if (typeof value === 'string') {
+                    // Try to parse as JSON array first (from multi-image upload)
+                    if (value.startsWith('[')) {
+                        try {
+                            data[key] = JSON.parse(value);
+                        } catch {
+                            data[key] = [value];
+                        }
+                    } else if (value) {
+                        // Single string value - wrap in array
+                        data[key] = [value];
+                    } else {
+                        // Empty string - remove the field
+                        delete data[key];
+                    }
+                }
+            }
+        }
+
         // Special handling for image_size field
         this.handleImageSizeData(data, form);
 
@@ -1912,10 +2158,10 @@ class FalAI {
                         // If the container does NOT exist, the UI might not be rendered, so we should preserve the data.
                         const container = form.querySelector(`#${key}-items`);
                         if (container) {
-                            continue; 
+                            continue;
                         }
                     }
-                    
+
                     data[key] = value;
                 }
             }
@@ -1927,7 +2173,7 @@ class FalAI {
     handleImageSizeData(data, form) {
         // Try to find by name first, then by ID
         const imageSizeSelect = form.querySelector('select[name="image_size"]') || document.getElementById('image_size');
-        
+
         // If select is not found, check if we have saved data to preserve
         if (!imageSizeSelect) {
             if (this.currentEndpoint && this.endpointSettings[this.currentEndpoint.metadata.endpointId]?.image_size) {
@@ -1935,7 +2181,7 @@ class FalAI {
             }
             return;
         }
-        
+
         if (!imageSizeSelect.value) {
             if (this.debugMode) console.warn('handleImageSizeData: Select has no value');
             return;
@@ -2296,9 +2542,9 @@ class FalAI {
                 // Auto-save silently (dedupe) so gallery always has generations
                 // Use prompt from API result if available, otherwise fall back to form input
                 const promptFromResult = result.prompt || image.prompt || (document.getElementById('prompt')?.value || '').trim();
-                const meta = { 
-                    endpoint: this.currentEndpoint?.metadata?.endpointId || 'Unknown', 
-                    parameters: this.lastUsedParams || {}, 
+                const meta = {
+                    endpoint: this.currentEndpoint?.metadata?.endpointId || 'Unknown',
+                    parameters: this.lastUsedParams || {},
                     seed: result.seed || image.seed || '',
                     prompt: promptFromResult,
                     // Store complete API response data for metadata recovery
@@ -2334,9 +2580,9 @@ class FalAI {
 
             // Save video to gallery
             const promptFromResult = result.prompt || (document.getElementById('prompt')?.value || '').trim();
-            const meta = { 
-                endpoint: this.currentEndpoint?.metadata?.endpointId || 'Unknown', 
-                parameters: this.lastUsedParams || {}, 
+            const meta = {
+                endpoint: this.currentEndpoint?.metadata?.endpointId || 'Unknown',
+                parameters: this.lastUsedParams || {},
                 seed: result.seed || '',
                 prompt: promptFromResult,
                 type: 'video',
@@ -2430,40 +2676,40 @@ class FalAI {
             seed: metadata.seed || image.seed || '',
             prompt: promptFromResult
         };
-        
+
         return this.gallery.createResultImageItem(image.url, imageMetadata);
     }
 
     createVideoElement(video, metadata = {}) {
         const videoDiv = document.createElement('div');
         videoDiv.className = 'result-video-item';
-        
+
         const videoElement = document.createElement('video');
         videoElement.src = video.url;
         videoElement.controls = true;
         videoElement.className = 'result-video';
         videoElement.style.maxWidth = '100%';
         videoElement.style.height = 'auto';
-        
+
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'result-actions';
-        
+
         const downloadBtn = document.createElement('button');
         downloadBtn.innerHTML = '<i class="ph ph-download-simple"></i> Download';
         downloadBtn.className = 'btn secondary small';
         downloadBtn.onclick = () => this.downloadMedia(video.url, 'video');
-        
+
         actionsDiv.appendChild(downloadBtn);
         videoDiv.appendChild(videoElement);
         videoDiv.appendChild(actionsDiv);
-        
+
         return videoDiv;
     }
 
     createTextElement(text, metadata = {}) {
         const textDiv = document.createElement('div');
         textDiv.className = 'result-text-item';
-        
+
         const textContent = document.createElement('div');
         textContent.className = 'result-text-content';
         textContent.style.cssText = `
@@ -2477,7 +2723,7 @@ class FalAI {
             white-space: pre-wrap;
             word-wrap: break-word;
         `;
-        
+
         // Handle reasoning if available
         if (metadata.reasoning) {
             const reasoningSection = document.createElement('div');
@@ -2490,14 +2736,14 @@ class FalAI {
             `;
             textContent.appendChild(reasoningSection);
         }
-        
+
         const outputSection = document.createElement('div');
         outputSection.innerHTML = `<strong>Output:</strong><br>${text}`;
         textContent.appendChild(outputSection);
-        
+
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'result-actions';
-        
+
         const copyBtn = document.createElement('button');
         copyBtn.innerHTML = '<i class="ph ph-copy"></i> Copy';
         copyBtn.className = 'btn secondary small';
@@ -2508,18 +2754,18 @@ class FalAI {
                 }
             });
         };
-        
+
         actionsDiv.appendChild(copyBtn);
         textDiv.appendChild(textContent);
         textDiv.appendChild(actionsDiv);
-        
+
         return textDiv;
     }
 
     createBatchTextElement(outputs, metadata = {}) {
         const batchDiv = document.createElement('div');
         batchDiv.className = 'result-batch-text-item';
-        
+
         const batchContent = document.createElement('div');
         batchContent.className = 'result-batch-text-content';
         batchContent.style.cssText = `
@@ -2531,7 +2777,7 @@ class FalAI {
             font-family: var(--font-mono);
             line-height: 1.5;
         `;
-        
+
         const header = document.createElement('div');
         header.innerHTML = `<strong>Batch Results (${outputs.length} items):</strong>`;
         header.style.cssText = `
@@ -2541,7 +2787,7 @@ class FalAI {
             color: var(--text-primary);
         `;
         batchContent.appendChild(header);
-        
+
         // Create numbered list of outputs
         outputs.forEach((output, index) => {
             const outputItem = document.createElement('div');
@@ -2555,10 +2801,10 @@ class FalAI {
             outputItem.innerHTML = `<strong>${index + 1}.</strong> ${output}`;
             batchContent.appendChild(outputItem);
         });
-        
+
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'result-actions';
-        
+
         const copyAllBtn = document.createElement('button');
         copyAllBtn.innerHTML = '<i class="ph ph-copy"></i> Copy All';
         copyAllBtn.className = 'btn secondary small';
@@ -2570,7 +2816,7 @@ class FalAI {
                 }
             });
         };
-        
+
         // Add download file button if captions_file is available
         if (metadata.captions_file && metadata.captions_file.url) {
             const downloadFileBtn = document.createElement('button');
@@ -2579,11 +2825,11 @@ class FalAI {
             downloadFileBtn.onclick = () => this.downloadMedia(metadata.captions_file.url, 'captions.json');
             actionsDiv.appendChild(downloadFileBtn);
         }
-        
+
         actionsDiv.appendChild(copyAllBtn);
         batchDiv.appendChild(batchContent);
         batchDiv.appendChild(actionsDiv);
-        
+
         return batchDiv;
     }
 
@@ -2758,12 +3004,12 @@ class FalAI {
             scaleField.innerHTML = `
                 <label for="${name}_scale">Scale</label>
                 <div class="scale-controls">
-                    <input type="range" 
-                           id="${name}_scale" 
-                           name="${name}_scale" 
-                           min="0.1" 
-                           max="2" 
-                           step="0.1" 
+                    <input type="range"
+                           id="${name}_scale"
+                           name="${name}_scale"
+                           min="0.1"
+                           max="2"
+                           step="0.1"
                            value="1"
                            title="Scale factor for original image dimensions">
                     <span class="scale-value">100%</span>
@@ -2782,7 +3028,7 @@ class FalAI {
             // Add event listener to show/hide custom fields
             select.addEventListener('change', (e) => {
                 if (this.debugMode) console.log('Image size changed to:', e.target.value);
-                
+
                 if (e.target.value === 'custom') {
                     customFields.classList.remove('hidden');
                 } else {
@@ -3019,7 +3265,7 @@ class FalAI {
                 this.debugMode = settings.debugMode;
                 localStorage.setItem('falai_debug_mode', this.debugMode);
                 document.getElementById('debug-checkbox').checked = this.debugMode;
-                
+
                 if (this.debugMode) {
                     this.logDebug('Debug mode imported and enabled', 'system');
                 }
@@ -3063,17 +3309,17 @@ class FalAI {
 
         if (confirm('Are you sure you want to reset settings for this endpoint? This will clear all custom values.')) {
             const endpointId = this.currentEndpoint.metadata.endpointId;
-            
+
             // Clear settings for current endpoint
             if (this.endpointSettings[endpointId]) {
                 delete this.endpointSettings[endpointId];
                 // Save directly to storage to avoid re-capturing current form state
                 this.saveWithStorageCheck('falai_endpoint_settings', this.endpointSettings);
             }
-            
+
             // Regenerate form to apply defaults
             this.generateForm();
-            
+
             this.showToast('Success', 'Settings reset to defaults', 'success');
             this.logDebug(`Settings reset for endpoint: ${endpointId}`, 'info');
         }
@@ -3127,18 +3373,18 @@ class FalAI {
 
         if (isCollapsible) {
             itemContainer.classList.add('collapsible');
-            
+
             // Create Header
             const header = document.createElement('div');
             header.className = 'array-item-header';
-            
+
             const headerContent = document.createElement('div');
             headerContent.className = 'array-item-header-content';
-            
+
             const toggleIcon = document.createElement('span');
             toggleIcon.className = 'array-item-toggle-icon';
             toggleIcon.innerHTML = '<i class="ph ph-caret-right"></i>';
-            
+
             headerTitle = document.createElement('span');
             headerTitle.className = 'array-item-title';
             headerTitle.textContent = `LoRA ${itemIndex + 1}`;
@@ -3149,22 +3395,22 @@ class FalAI {
             headerScale.style.marginRight = '10px';
             headerScale.style.fontSize = '0.85rem';
             headerScale.style.color = 'var(--text-secondary)';
-            
+
             headerContent.appendChild(toggleIcon);
             headerContent.appendChild(headerTitle);
             headerContent.appendChild(headerScale);
             header.appendChild(headerContent);
-            
+
             // Create Content Container
             contentContainer = document.createElement('div');
             contentContainer.className = 'array-item-content';
-            
+
             // Toggle Logic
             header.addEventListener('click', (e) => {
                 if (e.target.closest('.btn.danger')) return;
                 itemContainer.classList.toggle('expanded');
             });
-            
+
             itemContainer.appendChild(header);
             itemContainer.appendChild(contentContainer);
 
@@ -3221,7 +3467,7 @@ class FalAI {
         // Add remove button
         const removeButton = document.createElement('button');
         removeButton.type = 'button';
-        
+
         if (isCollapsible) {
             removeButton.className = 'btn danger';
             removeButton.textContent = 'Remove LoRA';
@@ -3242,7 +3488,7 @@ class FalAI {
         if (isCollapsible) {
             // Append to content container (expanded view) instead of header
             contentContainer.appendChild(removeButton);
-            
+
             // Update title and scale
             const pathInput = contentContainer.querySelector('input[name*=".path"]');
             const scaleInput = contentContainer.querySelector('input[name*=".scale"], input[name*=".weight"]');
@@ -3326,7 +3572,7 @@ class FalAI {
                 scaleInput.addEventListener('input', updateHeader);
                 scaleInput.addEventListener('change', updateHeader);
             }
-            
+
             // Initial update
             setTimeout(updateHeader, 100);
         } else {
@@ -3464,11 +3710,11 @@ class FalAI {
         } catch (error) {
             if (error.name === 'QuotaExceededError') {
                 this.logDebug('Storage quota exceeded, attempting cleanup...', 'warning');
-                
+
                 // Try to free up space
                 this.cleanupBase64Images();
                 this.cleanupOldSettings();
-                
+
                 // Retry once
                 try {
                     localStorage.setItem(key, JSON.stringify(data));
@@ -3479,7 +3725,7 @@ class FalAI {
             } else {
                 console.warn('❌ Storage error (likely blocked by Tracking Prevention):', error.message || error);
             }
-            
+
             // Fallback to sessionStorage for any error (Quota or Blocked)
             try {
                 sessionStorage.setItem(key, JSON.stringify(data));
@@ -3799,8 +4045,14 @@ class FalAI {
             const form = document.getElementById('generation-form');
 
             for (const [key, value] of Object.entries(settings)) {
-                // Handle array fields (like loras)
+                // Handle array fields (like loras or image_urls)
                 if (Array.isArray(value)) {
+                    // Check if this is a multi-image field
+                    const multiImageContainer = form.querySelector(`.multi-image-upload-container[data-field-name="${key}"]`);
+                    if (multiImageContainer) {
+                        this.restoreMultiImageField(key, value, form);
+                        continue;
+                    }
                     this.restoreArrayField(key, value, form);
                     continue;
                 }
@@ -3838,6 +4090,19 @@ class FalAI {
             }
         } finally {
             this.isRestoring = false;
+        }
+    }
+
+    restoreMultiImageField(fieldName, images, form) {
+        const container = form.querySelector(`.multi-image-upload-container[data-field-name="${fieldName}"]`);
+        if (!container) return;
+
+        const hiddenInput = container.querySelector(`input[name="${fieldName}"]`);
+        const previewsContainer = container.querySelector(`#${fieldName}-previews`);
+
+        if (hiddenInput && previewsContainer && Array.isArray(images) && images.length > 0) {
+            hiddenInput.value = JSON.stringify(images);
+            this.renderMultiImagePreviews(fieldName, images, previewsContainer, hiddenInput);
         }
     }
 
@@ -3903,7 +4168,7 @@ class FalAI {
         if (value && typeof value === 'object') {
             // Custom size
             select.value = 'custom';
-            
+
             // Manually show custom fields
             const container = select.closest('.image-size-container');
             if (container) {
@@ -3936,12 +4201,12 @@ class FalAI {
             // Handle case where image_size is a string (preset)
             // We use the value directly, assuming it matches one of the options
             select.value = value;
-            
+
             // Verify if the value was actually set (it might not exist in options)
             if (select.value !== value && this.debugMode) {
                 console.warn(`restoreImageSizeField: Value '${value}' not found in options`, Array.from(select.options).map(o => o.value));
             }
-            
+
             // Hide custom fields if they were visible
             const container = select.closest('.image-size-container');
             if (container) {
