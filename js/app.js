@@ -1159,7 +1159,7 @@ class FalAI {
     async pasteImageFromClipboard(callback) {
         try {
             const clipboardItems = await navigator.clipboard.read();
-            
+
             for (const item of clipboardItems) {
                 for (const type of item.types) {
                     if (type.startsWith('image/')) {
@@ -1172,7 +1172,7 @@ class FalAI {
                     }
                 }
             }
-            
+
             this.showToast('No Image', 'No image found in clipboard', 'warning');
         } catch (error) {
             console.error('Clipboard paste error:', error);
