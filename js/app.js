@@ -796,6 +796,14 @@ class FalAI {
         urlInput.placeholder = 'Enter image URL or upload file';
         if (required) urlInput.required = true;
 
+        // Paste button
+        const pasteBtn = document.createElement('button');
+        pasteBtn.type = 'button';
+        pasteBtn.className = 'btn secondary small paste-image-btn';
+        pasteBtn.innerHTML = '<i class="ph ph-clipboard"></i> Paste';
+        pasteBtn.title = 'Paste image from clipboard';
+        pasteBtn.style.marginBottom = '0.5rem';
+
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = 'image/*';
@@ -879,6 +887,16 @@ class FalAI {
             }
         });
 
+        // Paste from clipboard
+        pasteBtn.addEventListener('click', async () => {
+            await this.pasteImageFromClipboard((dataURL) => {
+                urlInput.value = dataURL;
+                this.showImagePreview(dataURL, uploadArea, preview);
+                this.autoSetImageDimensions(dataURL);
+                if (!this.isRestoring) this.saveEndpointSettings(name);
+            });
+        });
+
         // Remove button
         preview.querySelector('.remove-image').addEventListener('click', () => {
             urlInput.value = '';
@@ -902,6 +920,7 @@ class FalAI {
         });
 
         uploadContainer.appendChild(urlInput);
+        uploadContainer.appendChild(pasteBtn);
         uploadContainer.appendChild(uploadArea);
         uploadContainer.appendChild(preview);
         uploadContainer.appendChild(fileInput);
@@ -960,10 +979,12 @@ class FalAI {
         urlInputContainer.className = 'url-input-container';
         urlInputContainer.innerHTML = `
             <input type="text" class="url-text-input" placeholder="Or paste image URL and press Enter">
+            <button type="button" class="btn secondary small paste-from-clipboard-btn" title="Paste image from clipboard"><i class="ph ph-clipboard"></i></button>
             <button type="button" class="btn secondary small add-url-btn"><i class="ph ph-plus"></i></button>
         `;
 
         const urlTextInput = urlInputContainer.querySelector('.url-text-input');
+        const pasteBtn = urlInputContainer.querySelector('.paste-from-clipboard-btn');
         const addUrlBtn = urlInputContainer.querySelector('.add-url-btn');
 
         // Helper to get current images array
@@ -1056,6 +1077,11 @@ class FalAI {
 
         addUrlBtn.addEventListener('click', handleAddUrl);
 
+        // Paste from clipboard handler
+        pasteBtn.addEventListener('click', async () => {
+            await this.pasteImageFromClipboard(addImage);
+        });
+
         // Store addImage function for external use (e.g., from gallery)
         uploadContainer.addImage = addImage;
         uploadContainer.getImages = getImages;
@@ -1127,6 +1153,34 @@ class FalAI {
         } catch (error) {
             console.error('File upload error:', error);
             this.showToast('Upload Error', 'Failed to process image file', 'error');
+        }
+    }
+
+    async pasteImageFromClipboard(callback) {
+        try {
+            const clipboardItems = await navigator.clipboard.read();
+            
+            for (const item of clipboardItems) {
+                for (const type of item.types) {
+                    if (type.startsWith('image/')) {
+                        const blob = await item.getType(type);
+                        const file = new File([blob], 'pasted-image.png', { type });
+                        const compressedDataURL = await this.compressImageToUserSize(file);
+                        callback(compressedDataURL);
+                        this.showToast('Success', 'Image pasted from clipboard', 'success');
+                        return;
+                    }
+                }
+            }
+            
+            this.showToast('No Image', 'No image found in clipboard', 'warning');
+        } catch (error) {
+            console.error('Clipboard paste error:', error);
+            if (error.name === 'NotAllowedError') {
+                this.showToast('Permission Denied', 'Please grant clipboard permission', 'error');
+            } else {
+                this.showToast('Paste Error', 'Failed to paste image from clipboard', 'error');
+            }
         }
     }
 

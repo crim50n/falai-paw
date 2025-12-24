@@ -1409,9 +1409,16 @@ body {
     box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
 }
 
-.url-input-container .add-url-btn {
+.url-input-container .add-url-btn,
+.url-input-container .paste-from-clipboard-btn {
     padding: 0.5rem 0.75rem;
     flex-shrink: 0;
+}
+
+.paste-image-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
 }
 
 .upload-area {
