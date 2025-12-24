@@ -858,10 +858,18 @@ body {
     font-weight: 600;
 }
 
+[data-theme="dark"] .placeholder-content h3 {
+    color: var(--text-main);
+}
+
 .placeholder-content p {
     font-size: 0.9375rem;
     color: #6b7280;
     line-height: 1.6;
+}
+
+[data-theme="dark"] .placeholder-content p {
+    color: var(--text-muted);
 }
 
 
@@ -1212,10 +1220,18 @@ body {
     margin: 0;
 }
 
+[data-theme="dark"] .status-title {
+    color: var(--text-main);
+}
+
 .status-message {
     color: #64748b;
     font-size: 0.9rem;
     line-height: 1.4;
+}
+
+[data-theme="dark"] .status-message {
+    color: var(--text-muted);
 }
 
 .status-progress {
@@ -2801,6 +2817,11 @@ label, .field-description, p {
     border-left: 4px solid #667eea;
 }
 
+[data-theme="dark"] .toast {
+    background: var(--surface);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
 @keyframes slideInRight {
     from {
         transform: translateX(400px);
@@ -2850,9 +2871,17 @@ label, .field-description, p {
     margin-bottom: 0.25rem;
 }
 
+[data-theme="dark"] .toast-title {
+    color: var(--text-main);
+}
+
 .toast-message {
     font-size: 0.875rem;
     color: #6b7280;
+}
+
+[data-theme="dark"] .toast-message {
+    color: var(--text-muted);
 }
 
 @media (max-width: 768px) {
