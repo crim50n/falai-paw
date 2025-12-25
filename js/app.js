@@ -31,8 +31,10 @@ class FalAI {
         // Persistent generation state
         this.isGenerating = false;
 
-        // Initialize gallery
-        this.gallery = new FalAIGallery(this);
+        // Initialize gallery (deferred to unblock main thread)
+        setTimeout(() => {
+            this.gallery = new FalAIGallery(this);
+        }, 0);
 
         this.init();
     }
@@ -238,12 +240,11 @@ class FalAI {
             'endpoints/flux-2/edit/openapi.json'
         ];
 
-        for (const path of knownEndpoints) {
-            await this.loadEndpoint(path);
-        }
+        // Load all endpoints in parallel
+        await Promise.all(knownEndpoints.map(path => this.loadEndpoint(path, false)));
     }
 
-    async loadEndpoint(path) {
+    async loadEndpoint(path, shouldRender = true) {
         try {
             const response = await fetch(path);
             if (!response.ok) {
@@ -270,8 +271,10 @@ class FalAI {
             this.endpoints.set(metadata.endpointId, endpoint);
             console.log(`Loaded endpoint: ${metadata.endpointId}`);
 
-            // Re-render dropdown after each endpoint loads
-            this.renderEndpointDropdown();
+            // Re-render dropdown only if requested
+            if (shouldRender) {
+                this.renderEndpointDropdown();
+            }
         } catch (error) {
             console.warn(`Error loading endpoint ${path}:`, error);
         }
