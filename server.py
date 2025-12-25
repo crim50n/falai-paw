@@ -17,20 +17,20 @@ class FalAIHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            
+
             # Find all openapi.json files in endpoints directory
             endpoints = []
             endpoints_dir = Path('endpoints')
             if endpoints_dir.exists():
                 for openapi_file in endpoints_dir.glob('**/openapi.json'):
                     endpoints.append(str(openapi_file))
-            
+
             self.wfile.write(json.dumps(endpoints).encode())
             return
-        
+
         # Serve static files
         super().do_GET()
-    
+
     def end_headers(self):
         # Add CORS headers for API requests
         if self.path.startswith('/endpoints'):
@@ -41,11 +41,11 @@ class FalAIHandler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     PORT = 8000
-    
+
     print(f"FalAI Development Server")
     print(f"Serving at http://localhost:{PORT}")
     print(f"Press Ctrl+C to stop")
-    
+
     with socketserver.TCPServer(("", PORT), FalAIHandler) as httpd:
         try:
             httpd.serve_forever()

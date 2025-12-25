@@ -2,7 +2,7 @@
     "name": "FalAI - Universal AI Image Generation",
     "short_name": "FalAI",
     "description": "Universal web application for AI image generation APIs",
-    "start_url": "/",
+    "start_url": "./",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#f8fafc",
@@ -27,7 +27,7 @@
         {
             "name": "New Generation",
             "description": "Start a new image generation",
-            "url": "/",
+            "url": "./",
             "icons": [
                 {
                     "src": "favicon.png",
@@ -38,7 +38,7 @@
         {
             "name": "Gallery",
             "description": "View saved images",
-            "url": "/?gallery=true",
+            "url": "./?gallery=true",
             "icons": [
                 {
                     "src": "favicon.png",

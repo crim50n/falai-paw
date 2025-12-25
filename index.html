@@ -15,18 +15,16 @@
     <link rel="stylesheet" href="css/gallery.css">
 
     <!-- Fabric.js for advanced canvas drawing -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <script src="lib/fabric.min.js"></script>
 
     <!-- PhotoSwipe (MIT) for gallery -->
-    <link rel="stylesheet" href="https://unpkg.com/photoswipe@5/dist/photoswipe.css" />
+    <link rel="stylesheet" href="lib/photoswipe.css" />
 
     <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="fonts/inter.css">
 
     <!-- Phosphor Icons -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="lib/phosphor-icons.css">
 
     <!-- Icons -->
     <link rel="icon" href="favicon.png" type="image/png">
@@ -48,7 +46,7 @@
                 <button id="reset-settings-btn" class="btn secondary" title="Reset Settings"><i class="ph ph-arrow-counter-clockwise"></i></button>
                 <button id="api-key-btn" class="btn secondary">Set API Key</button>
             </div>
-            
+
             <div class="header-right-actions" style="display: flex; align-items: center; gap: 0.5rem;">
                 <label class="theme-toggle" title="Toggle Dark Mode">
                     <input type="checkbox" id="theme-toggle-checkbox">
@@ -67,7 +65,7 @@
 
     <!-- Mobile Gallery Overlay -->
     <div id="mobile-gallery-overlay" class="mobile-gallery-overlay"></div>
-        
+
         <!-- Mobile Menu -->
         <div id="mobile-menu" class="mobile-menu">
             <div class="mobile-menu-header">
@@ -85,7 +83,7 @@
                         <button id="mobile-reset-settings-btn" class="mobile-menu-btn">Reset Settings</button>
                     </div>
                 </div>
-                
+
                 <!-- Advanced options section -->
                 <div class="mobile-menu-section collapsible">
                     <h3 class="section-header">Advanced Options <span class="toggle-icon"><i class="ph ph-caret-down"></i></span></h3>
@@ -122,8 +120,8 @@
                     </div>
                 </div>
             </div>
-            
-            
+
+
             <div id="mobile-gallery-content" class="mobile-gallery-content pswp-gallery"></div>
         </div>
 
@@ -220,7 +218,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div id="inline-gallery-content" class="inline-gallery-content pswp-gallery"></div>
                     </div>
                 </div>
@@ -286,7 +284,7 @@
 
         <!-- Hidden file input for settings import -->
         <input type="file" id="import-file-input" accept=".json" style="display: none;">
-        
+
         <!-- Gallery Context Menu -->
         <div id="gallery-context-menu" class="gallery-context-menu hidden">
             <div class="context-menu-item" data-action="download">

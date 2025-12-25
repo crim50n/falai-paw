@@ -1,4 +1,4 @@
-import PhotoSwipeLightbox from 'https://unpkg.com/photoswipe@5/dist/photoswipe-lightbox.esm.min.js';
+import PhotoSwipeLightbox from '../lib/photoswipe-lightbox.esm.min.js';
 
 function escapeHtml(s = '') {
     return s.replace(/[&<>'"]/g, c => ({
@@ -16,7 +16,7 @@ function initLightbox() {
     const lightbox = new PhotoSwipeLightbox({
         gallery: '.pswp-gallery',
         children: 'a.pswp-item',
-        pswpModule: () => import('https://unpkg.com/photoswipe@5/dist/photoswipe.esm.min.js'),
+        pswpModule: () => import('../lib/photoswipe.esm.min.js'),
         padding: { top: 60, bottom: 60, left: 16, right: 16 }
     });
 
@@ -63,7 +63,7 @@ function initLightbox() {
                         const gallery = window.falGallery;
                         const link = slide.data.element;
                         let imageId = link?.dataset.imageId;
-                        
+
                         // If no imageId (result image), find or save it first
                         if (!imageId && link) {
                             const inResults = !!link.closest('#result-images');
@@ -79,7 +79,7 @@ function initLightbox() {
                                 link.dataset.imageId = imageId;
                             }
                         }
-                        
+
                         if (imageId) {
                             gallery.toggleLike(imageId);
                             updateLikeState();
@@ -300,7 +300,7 @@ function initLightbox() {
                             const gallery = window.falGallery;
                             const imageId = link.dataset.imageId;
                             const inResults = !!link.closest('#result-images');
-                            
+
                             if (imageId) {
                                 // Delete from saved gallery
                                 gallery.savedImages = gallery.savedImages.filter(img => String(img.timestamp) !== String(imageId));
@@ -308,7 +308,7 @@ function initLightbox() {
                                 gallery.showInlineGallery();
                                 gallery.updateMobileGallery();
                             }
-                            
+
                             if (inResults) {
                                 // Delete from results display
                                 const resultContainer = link.closest('.result-image');
@@ -319,7 +319,7 @@ function initLightbox() {
                                 // Delete gallery item
                                 link.closest('.gallery-item')?.remove();
                             }
-                            
+
                             pswp.close();
                         }
                     }
@@ -327,7 +327,7 @@ function initLightbox() {
             }
         });
 
-        // Override default zoom button with Fluent Icon  
+        // Override default zoom button with Fluent Icon
         lightbox.pswp.ui.registerElement({
             name: 'zoom',
             order: 19,
@@ -380,7 +380,7 @@ function initLightbox() {
                         // Use PhotoSwipe's width/height data first
                         let naturalWidth = slide.data.width || slide.data.w;
                         let naturalHeight = slide.data.height || slide.data.h;
-                        
+
                         // If PhotoSwipe doesn't have dimensions, try data attributes from link element
                         if (!naturalWidth || !naturalHeight) {
                             const pswpWidth = parseInt(link.getAttribute('data-pswp-width'));
@@ -390,7 +390,7 @@ function initLightbox() {
                                 naturalHeight = pswpHeight;
                             }
                         }
-                        
+
                         // Final fallback to img element natural dimensions
                         if (!naturalWidth || !naturalHeight) {
                             const img = slide.content?.element;
@@ -498,7 +498,7 @@ function initLightbox() {
                         const gallery = window.falGallery;
                         const imageId = link.dataset.imageId;
                         const inResults = !!link.closest('#result-images');
-                        
+
                         if (imageId) {
                             // Delete from saved gallery
                             gallery.savedImages = gallery.savedImages.filter(img => String(img.timestamp) !== String(imageId));
@@ -506,7 +506,7 @@ function initLightbox() {
                             gallery.showInlineGallery();
                             gallery.updateMobileGallery();
                         }
-                        
+
                         if (inResults) {
                             // Delete from results display
                             const resultContainer = link.closest('.result-image');
@@ -517,7 +517,7 @@ function initLightbox() {
                             // Delete gallery item
                             link.closest('.gallery-item')?.remove();
                         }
-                        
+
                         lightbox.pswp.close();
                     }
                 }
