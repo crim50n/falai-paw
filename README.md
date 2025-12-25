@@ -35,7 +35,6 @@ FalAI is a comprehensive web-based client designed to interact with various `fal
 ├───css/
 │   └───styles.css      # All application styles
 ├───index.html          # Main HTML structure
-├───server.py           # Simple Python dev server for serving files and endpoint discovery
 ├───manifest.json       # PWA configuration file
 ├───endpoints/          # Directory containing OpenAPI schemas for different models
 └───README.md           # This file
@@ -58,9 +57,9 @@ FalAI is a comprehensive web-based client designed to interact with various `fal
     ```
 
 2.  **Start the development server:**
-    The server will host the static files and provide the `/endpoints` route for model discovery.
+    You can use Python's built-in HTTP server or any other static file server.
     ```bash
-    python3 server.py
+    python3 -m http.server 8000
     ```
     The server will start on `http://localhost:8000`.
 
@@ -78,7 +77,7 @@ FalAI is a comprehensive web-based client designed to interact with various `fal
 
 ### 1. Endpoint Discovery
 
-On startup, the frontend sends a request to the local `/endpoints` path. The `server.py` script handles this by searching the `endpoints/` directory for all `openapi.json` files and returns a list of their paths. The frontend then fetches each schema to populate the endpoint dropdown.
+On startup, the frontend loads the list of available models from a predefined configuration. The frontend then fetches each schema to populate the endpoint dropdown.
 
 ### 2. Dynamic Form Generation
 
