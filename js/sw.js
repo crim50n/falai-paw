@@ -1,11 +1,11 @@
 const CACHE_NAME = 'falai-v1';
 const urlsToCache = [
-    '/',
-    '/index.html',
-    '/js/app.js',
-    '/css/styles.css',
-    '/css/gallery.css',
-    '/manifest.json'
+    './',
+    './index.html',
+    './js/app.js',
+    './css/styles.css',
+    './css/gallery.css',
+    './manifest.json'
 ];
 
 // Install service worker and cache resources
