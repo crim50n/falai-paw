@@ -1985,28 +1985,34 @@ class FalAI {
         return false;
     }
 
-    sendSystemNotification(title, body) {
-        if (document.visibilityState === 'visible') return; // Don't notify if app is open
+    sendSystemNotification(title, body, tag = 'falai-generation') {
         if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
+        // On mobile, we might want to show notification even if visible,
+        // to confirm background processing is working.
+        // But generally we skip if visible to avoid annoyance.
+        // For now, let's allow it if it's the "Complete" message or if we are debugging.
+        const isComplete = title.includes('Complete');
+        if (document.visibilityState === 'visible' && !isComplete && !this.debugMode) return;
+
         try {
+            const options = {
+                body: body,
+                icon: 'favicon192.png', // Path relative to index.html
+                badge: 'favicon.png',
+                vibrate: [200, 100, 200],
+                tag: tag, // Use tag to replace existing notification (progress bar effect)
+                renotify: isComplete // Only vibrate/sound again on completion
+            };
+
             // Try Service Worker notification first (better for mobile)
             if (navigator.serviceWorker && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.ready.then(registration => {
-                    registration.showNotification(title, {
-                        body: body,
-                        icon: 'favicon192.png',
-                        badge: 'favicon.png',
-                        vibrate: [200, 100, 200],
-                        tag: 'falai-generation'
-                    });
+                    registration.showNotification(title, options);
                 });
             } else {
                 // Fallback to standard Notification API
-                new Notification(title, {
-                    body: body,
-                    icon: 'favicon192.png'
-                });
+                new Notification(title, options);
             }
         } catch (e) {
             console.warn('Notification failed:', e);
@@ -2075,6 +2081,7 @@ class FalAI {
 
             // Show status
             this.showGenerationStatus('Submitting request...');
+            this.sendSystemNotification('FalAI Generating...', 'Your request has been sent to the queue.');
 
             // Submit to queue
             const queueResponse = await this.submitToQueue(formData);
