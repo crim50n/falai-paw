@@ -312,6 +312,11 @@ body {
     font-size: 20px; /* Icon size */
 }
 
+[data-theme="dark"] .mobile-gallery-btn {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+}
+
 .mobile-gallery-btn:hover {
     background: rgba(255, 255, 255, 0.2);
 }
@@ -2201,7 +2206,15 @@ body {
     }
 
     .mobile-menu {
-        display: block;
+        width: 100%;
+        max-width: 100%;
+        border-right: none;
+    }
+
+    .mobile-gallery {
+        width: 100%;
+        max-width: 100%;
+        border-left: none;
     }
 
     .left-panel .advanced-options {
