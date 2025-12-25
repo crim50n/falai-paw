@@ -671,39 +671,6 @@ class FalAI {
         textarea.rows = 3;
         if (required) textarea.required = true;
 
-        // Example prompts based on endpoint category
-        const examples = this.getExamplePrompts();
-
-        if (examples.length > 0) {
-            const examplesContainer = document.createElement('div');
-            examplesContainer.className = 'prompt-examples';
-
-            const examplesLabel = document.createElement('div');
-            examplesLabel.className = 'examples-label';
-            examplesLabel.textContent = 'Example prompts:';
-
-            const examplesList = document.createElement('div');
-            examplesList.className = 'examples-list';
-
-            examples.forEach((example, index) => {
-                const exampleButton = document.createElement('button');
-                exampleButton.type = 'button';
-                exampleButton.className = 'example-prompt';
-                exampleButton.textContent = example;
-
-                exampleButton.addEventListener('click', () => {
-                    textarea.value = example;
-                    if (!this.isRestoring) this.saveEndpointSettings(name);
-                });
-
-                examplesList.appendChild(exampleButton);
-            });
-
-            examplesContainer.appendChild(examplesLabel);
-            examplesContainer.appendChild(examplesList);
-            promptContainer.appendChild(examplesContainer);
-        }
-
         textarea.addEventListener('input', () => {
             if (!this.isRestoring) this.saveEndpointSettings(name);
         });
@@ -744,36 +711,6 @@ class FalAI {
         field.appendChild(buttonContainer);
 
         return field;
-    }
-
-    getExamplePrompts() {
-        const endpoint = this.currentEndpoint;
-        if (!endpoint) return [];
-
-        const category = endpoint.metadata.category;
-        const endpointId = endpoint.metadata.endpointId;
-
-        if (endpointId.includes('kontext')) {
-            return [
-                "A serene lake with mountains in the background, replace the mountains with a modern city skyline",
-                "Transform this portrait into a renaissance painting style",
-                "Change the weather from sunny to snowy while keeping everything else the same"
-            ];
-        } else if (endpointId.includes('lora')) {
-            return [
-                "A futuristic robot in a cyberpunk city, neon lights, highly detailed",
-                "Portrait of a woman in the style of Van Gogh, swirling brushstrokes",
-                "Anime character with blue hair and magical powers, fantasy setting",
-                "Minimalist logo design for a tech company, clean geometric shapes"
-            ];
-        } else {
-            return [
-                "A majestic dragon soaring through cloudy skies, fantasy art",
-                "Cozy coffee shop interior with warm lighting and vintage furniture",
-                "Abstract geometric pattern in blue and gold colors",
-                "Photorealistic portrait of a wise elderly person"
-            ];
-        }
     }
 
     createImageUploadField(name, schema, required, label, field) {
@@ -4581,34 +4518,59 @@ class FalAI {
     }
 
     showInstallButton(deferredPrompt) {
+        // 1. Desktop Button (in header)
         const headerControls = document.querySelector('.header-controls');
+        if (!headerControls.querySelector('#install-btn')) {
+            const installBtn = document.createElement('button');
+            installBtn.id = 'install-btn';
+            installBtn.className = 'btn secondary';
+            installBtn.innerHTML = '<i class="ph ph-download-simple"></i> Install App'; // Added icon
+            installBtn.title = 'Install App';
 
-        // Check if install button already exists
-        if (headerControls.querySelector('#install-btn')) return;
+            installBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to install prompt: ${outcome}`);
+                    deferredPrompt = null;
+                    this.hideInstallButton();
+                }
+            });
+            headerControls.insertBefore(installBtn, headerControls.firstChild);
+        }
 
-        const installBtn = document.createElement('button');
-        installBtn.id = 'install-btn';
-        installBtn.className = 'btn secondary';
-        installBtn.textContent = 'Install App';
+        // 2. Mobile Button (in mobile menu)
+        const mobileMenuControls = document.querySelector('.mobile-menu-controls .mobile-menu-section .mobile-menu-content');
+        // If we can't find the specific content container, fallback to the first section
+        const targetContainer = mobileMenuControls || document.querySelector('.mobile-menu-controls .mobile-menu-section');
 
-        installBtn.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to install prompt: ${outcome}`);
-                deferredPrompt = null;
-                this.hideInstallButton();
-            }
-        });
+        if (targetContainer && !document.getElementById('mobile-install-btn')) {
+            const mobileInstallBtn = document.createElement('button');
+            mobileInstallBtn.id = 'mobile-install-btn';
+            mobileInstallBtn.className = 'mobile-menu-btn';
+            mobileInstallBtn.innerHTML = '<i class="ph ph-download-simple"></i> Install App';
 
-        headerControls.insertBefore(installBtn, headerControls.firstChild);
+            mobileInstallBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to install prompt: ${outcome}`);
+                    deferredPrompt = null;
+                    this.hideInstallButton();
+                }
+            });
+
+            // Insert at the top of the mobile menu list
+            targetContainer.insertBefore(mobileInstallBtn, targetContainer.firstChild);
+        }
     }
 
     hideInstallButton() {
         const installBtn = document.getElementById('install-btn');
-        if (installBtn) {
-            installBtn.remove();
-        }
+        if (installBtn) installBtn.remove();
+
+        const mobileInstallBtn = document.getElementById('mobile-install-btn');
+        if (mobileInstallBtn) mobileInstallBtn.remove();
     }
 
     // Custom endpoint functions

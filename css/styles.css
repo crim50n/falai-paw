@@ -2134,7 +2134,10 @@ body {
 
 /* Advanced options removed from main window (still populated into side menu when opened) */
 .advanced-options { display: none !important; }
-@media (min-width: 769px) { .header-controls { display: flex; } }
+@media (min-width: 769px) {
+    .header-controls { display: flex; }
+    .field-description { display: block !important; }
+}
 
 /* Desktop side panel adaptations for hamburger menu & gallery */
 @media (min-width: 769px) {
@@ -2199,6 +2202,9 @@ body {
     display: none; /* keep hidden on small screens only */
     }
 
+    .field-description {
+        display: none;
+    }
 
     .mobile-menu {
         display: block;
