@@ -1962,11 +1962,32 @@ class FalAI {
 
     // Background & Notification Support
     async requestNotificationPermission() {
-        if (!('Notification' in window)) return false;
+        if (!('Notification' in window)) {
+            console.warn('Notifications not supported in this browser');
+            return false;
+        }
+
+        // Check for secure context (HTTPS or localhost)
+        if (!window.isSecureContext) {
+            this.showToast('Warning', 'Notifications require HTTPS', 'warning');
+            console.warn('Notifications require a secure context (HTTPS)');
+            return false;
+        }
+
         if (Notification.permission === 'granted') return true;
+
         if (Notification.permission !== 'denied') {
-            const permission = await Notification.requestPermission();
-            return permission === 'granted';
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    this.showToast('Success', 'Notifications enabled!', 'success');
+                    // Test notification immediately
+                    this.sendSystemNotification('FalAI Ready', 'Notifications are working correctly.');
+                    return true;
+                }
+            } catch (e) {
+                console.warn('Permission request failed', e);
+            }
         }
         return false;
     }
@@ -4547,7 +4568,8 @@ class FalAI {
         // Register service worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/js/sw.js')
+                // Use relative path to support subdirectories/GitHub Pages
+                navigator.serviceWorker.register('./js/sw.js')
                     .then((registration) => {
                         console.log('ServiceWorker registration successful: ', registration.scope);
                     })
