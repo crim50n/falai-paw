@@ -1992,24 +1992,28 @@ class FalAI {
         return false;
     }
 
-    sendSystemNotification(title, body, tag = 'falai-generation') {
+sendSystemNotification(title, body, type = 'info') {
         if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
         // On mobile, we might want to show notification even if visible,
         // to confirm background processing is working.
-        // But generally we skip if visible to avoid annoyance.
-        // For now, let's allow it if it's the "Complete" message or if we are debugging.
-        const isComplete = title.includes('Complete');
-        if (document.visibilityState === 'visible' && !isComplete && !this.debugMode) return;
+        const isProgress = type === 'progress';
+        const isComplete = type === 'success';
+
+        // Skip if visible AND it's just a generic info message (not progress/complete)
+        if (document.visibilityState === 'visible' && !isComplete && !isProgress && !this.debugMode) return;
 
         try {
             const options = {
                 body: body,
-                icon: 'favicon192.png', // Path relative to index.html
+                icon: 'favicon192.png',
                 badge: 'favicon.png',
-                vibrate: [200, 100, 200],
-                tag: tag, // Use tag to replace existing notification (progress bar effect)
-                renotify: isComplete // Only vibrate/sound again on completion
+                vibrate: isComplete ? [200, 100, 200] : undefined,
+                tag: 'falai-generation', // Same tag replaces previous notification
+                renotify: isComplete, // Vibrate/Sound again only on completion
+                silent: isProgress, // Progress updates should be silent
+                ongoing: isProgress, // Android: makes notification persistent/un-dismissable while running
+                requireInteraction: isComplete // Desktop: keep on screen until clicked
             };
 
             // Try Service Worker notification first (better for mobile)
@@ -2088,7 +2092,7 @@ class FalAI {
 
             // Show status
             this.showGenerationStatus('Submitting request...');
-            this.sendSystemNotification('FalAI Generating...', 'Your request has been sent to the queue.');
+            this.sendSystemNotification('FalAI Generating...', 'Your request is processing...', 'progress');
 
             // Submit to queue
             const queueResponse = await this.submitToQueue(formData);
@@ -2611,7 +2615,7 @@ class FalAI {
         this.lastResult = result;
 
         // Send notification if backgrounded
-        this.sendSystemNotification('Generation Complete', 'Your image is ready!');
+        this.sendSystemNotification('Generation Complete', 'Your image is ready!', 'success');
 
         // Handle different result types: images, video, or text
         if (result.images && result.images.length > 0) {
@@ -4569,7 +4573,7 @@ class FalAI {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // Use relative path to support subdirectories/GitHub Pages
-                navigator.serviceWorker.register('./js/sw.js')
+                navigator.serviceWorker.register('./sw.js')
                     .then((registration) => {
                         console.log('ServiceWorker registration successful: ', registration.scope);
                     })
