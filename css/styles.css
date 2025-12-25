@@ -273,6 +273,17 @@ body {
     text-shadow: none;
 }
 
+.header-branding {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.header-logo {
+    height: 32px;
+    width: auto;
+}
+
 .header-controls {
     display: flex;
     gap: 0.75rem;
