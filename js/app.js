@@ -1974,6 +1974,68 @@ class FalAI {
         console.log('✅ Mobile touch coordinates fixed for mask editor');
     }
 
+    // Background & Notification Support
+    async requestNotificationPermission() {
+        if (!('Notification' in window)) return false;
+        if (Notification.permission === 'granted') return true;
+        if (Notification.permission !== 'denied') {
+            const permission = await Notification.requestPermission();
+            return permission === 'granted';
+        }
+        return false;
+    }
+
+    sendSystemNotification(title, body) {
+        if (document.visibilityState === 'visible') return; // Don't notify if app is open
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+        try {
+            // Try Service Worker notification first (better for mobile)
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification(title, {
+                        body: body,
+                        icon: 'favicon192.png',
+                        badge: 'favicon.png',
+                        vibrate: [200, 100, 200],
+                        tag: 'falai-generation'
+                    });
+                });
+            } else {
+                // Fallback to standard Notification API
+                new Notification(title, {
+                    body: body,
+                    icon: 'favicon192.png'
+                });
+            }
+        } catch (e) {
+            console.warn('Notification failed:', e);
+        }
+    }
+
+    async requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                this.wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock active');
+            } catch (err) {
+                console.warn(`Wake Lock failed: ${err.name}, ${err.message}`);
+            }
+        }
+    }
+
+    async releaseWakeLock() {
+        if (this.wakeLock) {
+            try {
+                await this.wakeLock.release();
+                this.wakeLock = null;
+                console.log('Wake Lock released');
+            } catch (err) {
+                console.warn(`Wake Lock release failed: ${err.name}, ${err.message}`);
+            }
+        }
+    }
+
     async generateImage() {
         if (!this.apiKey) {
             this.showError('Please set your API key first. Click "Set API Key" in the menu.');
@@ -1984,6 +2046,10 @@ class FalAI {
             this.showError('Please select an endpoint first.');
             return;
         }
+
+        // Request notification permission and wake lock
+        this.requestNotificationPermission();
+        this.requestWakeLock();
 
         // Save settings before generating (ensures desktop changes are persisted)
         this.performSaveEndpointSettings();
@@ -2043,6 +2109,7 @@ class FalAI {
             console.error('Generation error:', error);
             this.showError('Generation failed: ' + error.message);
             this.resetGenerateButton();
+            this.releaseWakeLock(); // Release wake lock on error
         }
     }
 
@@ -2520,11 +2587,17 @@ class FalAI {
     }
 
     displayResults(result) {
+        // Release wake lock as generation is done
+        this.releaseWakeLock();
+
         const container = document.getElementById('result-images');
         container.innerHTML = '';
 
         // Store result for JSON display
         this.lastResult = result;
+
+        // Send notification if backgrounded
+        this.sendSystemNotification('Generation Complete', 'Your image is ready!');
 
         // Handle different result types: images, video, or text
         if (result.images && result.images.length > 0) {
