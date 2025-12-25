@@ -196,33 +196,22 @@ class FalAI {
     }
 
     initTheme() {
-        const savedTheme = localStorage.getItem('falai_theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // Initial check
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+        this.applyTheme(prefersDark.matches);
 
-        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            this.updateThemeToggles(true);
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-            this.updateThemeToggles(false);
-        }
+        // Listen for changes
+        prefersDark.addEventListener('change', (e) => {
+            this.applyTheme(e.matches);
+        });
     }
 
-    toggleTheme(isDark) {
+    applyTheme(isDark) {
         if (isDark) {
             document.documentElement.setAttribute('data-theme', 'dark');
-            localStorage.setItem('falai_theme', 'dark');
         } else {
             document.documentElement.removeAttribute('data-theme');
-            localStorage.setItem('falai_theme', 'light');
         }
-        this.updateThemeToggles(isDark);
-    }
-
-    updateThemeToggles(isDark) {
-        const desktopToggle = document.getElementById('theme-toggle-checkbox');
-
-        if (desktopToggle) desktopToggle.checked = isDark;
     }
 
     async loadEndpoints() {
@@ -1357,11 +1346,8 @@ class FalAI {
             }
         });
 
-        // Theme toggles
-        const desktopToggle = document.getElementById('theme-toggle-checkbox');
-        if (desktopToggle) {
-            desktopToggle.addEventListener('change', (e) => this.toggleTheme(e.target.checked));
-        }
+        // Theme toggles - Removed (System theme only)
+
 
         // Reset settings
         const resetBtn = document.getElementById('reset-settings-btn');
